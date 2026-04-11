@@ -18,10 +18,12 @@ apps/web/.next/
 
 # Test outputs
 playwright-report/
+test-results/
 apps/web/test-results/
 .codex-artifacts/
 apps/.codex-artifacts/
 output/
+apps/output/
 tmp/
 
 # Env
