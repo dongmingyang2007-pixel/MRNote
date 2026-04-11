@@ -1,0 +1,101 @@
+ARG NODE_BASE_IMAGE=node:22-bookworm-slim
+FROM ${NODE_BASE_IMAGE} AS deps
+
+WORKDIR /app
+
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+ARG NPM_CONFIG_FETCH_RETRIES=5
+ARG NPM_CONFIG_FETCH_RETRY_FACTOR=2
+ARG NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000
+ARG NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+ARG NPM_CONFIG_FETCH_TIMEOUT=300000
+
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_REGISTRY=$NPM_CONFIG_REGISTRY \
+    NPM_CONFIG_FETCH_RETRIES=$NPM_CONFIG_FETCH_RETRIES \
+    NPM_CONFIG_FETCH_RETRY_FACTOR=$NPM_CONFIG_FETCH_RETRY_FACTOR \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=$NPM_CONFIG_FETCH_RETRY_MINTIMEOUT \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=$NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT \
+    NPM_CONFIG_FETCH_TIMEOUT=$NPM_CONFIG_FETCH_TIMEOUT
+
+COPY apps/web/package.json /app/package.json
+COPY apps/web/package-lock.json /app/package-lock.json
+
+RUN set -eux; \
+    for attempt in 1 2 3; do \
+      if npm ci --prefer-offline; then \
+        exit 0; \
+      fi; \
+      if [ "$attempt" -eq 3 ]; then \
+        exit 1; \
+      fi; \
+      echo "npm ci failed on attempt $attempt, retrying in 5s..." >&2; \
+      sleep 5; \
+    done
+
+FROM ${NODE_BASE_IMAGE} AS builder
+
+WORKDIR /app
+
+ARG INTERNAL_API_BASE_URL=http://localhost:8000
+ARG QIHANG_LOCAL_STACK=false
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ARG NEXT_PUBLIC_ASSET_ORIGIN=http://localhost:9000
+ARG NEXT_PUBLIC_APP_NAME=铭润科技
+ARG NEXT_PUBLIC_DEMO_MAX_IMAGE_MB=10
+
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    INTERNAL_API_BASE_URL=$INTERNAL_API_BASE_URL \
+    QIHANG_LOCAL_STACK=$QIHANG_LOCAL_STACK \
+    NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+    NEXT_PUBLIC_ASSET_ORIGIN=$NEXT_PUBLIC_ASSET_ORIGIN \
+    NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
+    NEXT_PUBLIC_DEMO_MAX_IMAGE_MB=$NEXT_PUBLIC_DEMO_MAX_IMAGE_MB
+
+COPY --from=deps /app/node_modules /app/node_modules
+COPY apps/web /app
+
+RUN rm -rf /app/.next \
+    && npm run build \
+    && rm -rf /app/.next/cache
+
+FROM ${NODE_BASE_IMAGE} AS runner
+
+WORKDIR /app
+
+ARG INTERNAL_API_BASE_URL=http://localhost:8000
+ARG QIHANG_LOCAL_STACK=false
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ARG NEXT_PUBLIC_ASSET_ORIGIN=http://localhost:9000
+ARG NEXT_PUBLIC_APP_NAME=铭润科技
+ARG NEXT_PUBLIC_DEMO_MAX_IMAGE_MB=10
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    INTERNAL_API_BASE_URL=$INTERNAL_API_BASE_URL \
+    QIHANG_LOCAL_STACK=$QIHANG_LOCAL_STACK \
+    NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+    NEXT_PUBLIC_ASSET_ORIGIN=$NEXT_PUBLIC_ASSET_ORIGIN \
+    NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
+    NEXT_PUBLIC_DEMO_MAX_IMAGE_MB=$NEXT_PUBLIC_DEMO_MAX_IMAGE_MB
+
+COPY apps/web/package.json /app/package.json
+COPY apps/web/package-lock.json /app/package-lock.json
+COPY --from=deps /app/node_modules /app/node_modules
+
+RUN npm prune --omit=dev
+
+RUN rm -rf /app/.next
+
+COPY --from=builder /app/.next /app/.next
+COPY --from=builder /app/public /app/public
+COPY --from=builder /app/next.config.mjs /app/next.config.mjs
+COPY --from=builder /app/server.mjs /app/server.mjs
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start"]

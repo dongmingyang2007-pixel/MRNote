@@ -1,0 +1,30 @@
+{
+  "kicker": "设置",
+  "title": "账户与设置",
+  "description": "管理账户、语言、开发者模式和数据。",
+  "settings": {
+    "account": "账户信息",
+    "email": "邮箱",
+    "name": "名称",
+    "loadingUser": "加载中...",
+    "language": "语言",
+    "languageDesc": "切换控制台界面语言。",
+    "switchTo": "切换为",
+    "developerMode": "开发者模式",
+    "developerModeDesc": "开发者模式显示底层技术细节，如 ID、参数 JSON 和 API 响应。",
+    "developerModeOn": "已开启",
+    "developerModeOff": "已关闭",
+    "subscription": "订阅与套餐",
+    "subscriptionDesc": "当前版本不产生真实账单。套餐结构和配额规则会在控制台正式开放前补齐。",
+    "freePlan": "免费版",
+    "quotasKicker": "未来额度",
+    "quota1": "训练并发与保留天数",
+    "quota2": "对象存储额度与带宽",
+    "quota3": "团队成员数与 workspace 级权限",
+    "dangerZone": "危险操作",
+    "dangerZoneDesc": "以下操作不可撤销，请谨慎操作。",
+    "logout": "退出登录",
+    "deleteData": "发起数据删除",
+    "deleteConfirm": "删除流程已受理（v0.1 占位，后端异步清理队列）"
+  }
+}

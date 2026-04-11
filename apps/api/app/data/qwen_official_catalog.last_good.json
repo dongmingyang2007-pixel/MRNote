@@ -1,0 +1,3552 @@
+{
+  "generated_at": "2026-03-20T19:54:05.372373+00:00",
+  "sources": {
+    "models": "https://help.aliyun.com/zh/model-studio/models",
+    "text_generation": "https://help.aliyun.com/zh/model-studio/text-generation",
+    "chat_api": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions"
+  },
+  "taxonomy": [
+    {
+      "key": "omni",
+      "label": "全模态",
+      "group_key": "multimodal",
+      "group_label": "多模态",
+      "group": "多模态",
+      "order": 10,
+      "count": 4
+    },
+    {
+      "key": "deep_thinking",
+      "label": "深度思考",
+      "group_key": "text",
+      "group_label": "文本",
+      "group": "文本",
+      "order": 20,
+      "count": 6
+    },
+    {
+      "key": "text_generation",
+      "label": "文本生成",
+      "group_key": "text",
+      "group_label": "文本",
+      "group": "文本",
+      "order": 30,
+      "count": 51
+    },
+    {
+      "key": "vision",
+      "label": "视觉理解",
+      "group_key": "vision",
+      "group_label": "视觉",
+      "group": "视觉",
+      "order": 40,
+      "count": 22
+    },
+    {
+      "key": "image_generation",
+      "label": "图片生成",
+      "group_key": "vision",
+      "group_label": "视觉",
+      "group": "视觉",
+      "order": 50,
+      "count": 5
+    },
+    {
+      "key": "video_generation",
+      "label": "视频生成",
+      "group_key": "vision",
+      "group_label": "视觉",
+      "group": "视觉",
+      "order": 60,
+      "count": 0
+    },
+    {
+      "key": "speech_recognition",
+      "label": "语音识别",
+      "group_key": "speech",
+      "group_label": "语音",
+      "group": "语音",
+      "order": 70,
+      "count": 12
+    },
+    {
+      "key": "speech_synthesis",
+      "label": "语音合成",
+      "group_key": "speech",
+      "group_label": "语音",
+      "group": "语音",
+      "order": 80,
+      "count": 11
+    },
+    {
+      "key": "multimodal_embedding",
+      "label": "多模态向量",
+      "group_key": "embedding",
+      "group_label": "向量",
+      "group": "向量",
+      "order": 90,
+      "count": 0
+    },
+    {
+      "key": "text_embedding",
+      "label": "文本向量",
+      "group_key": "embedding",
+      "group_label": "向量",
+      "group": "向量",
+      "order": 100,
+      "count": 0
+    },
+    {
+      "key": "realtime_omni",
+      "label": "实时全模态",
+      "group_key": "realtime",
+      "group_label": "Realtime",
+      "group": "Realtime",
+      "order": 110,
+      "count": 2
+    },
+    {
+      "key": "realtime_tts",
+      "label": "实时语音合成",
+      "group_key": "realtime",
+      "group_label": "Realtime",
+      "group": "Realtime",
+      "order": 120,
+      "count": 3
+    },
+    {
+      "key": "realtime_asr",
+      "label": "实时语音识别",
+      "group_key": "realtime",
+      "group_label": "Realtime",
+      "group": "Realtime",
+      "order": 130,
+      "count": 7
+    },
+    {
+      "key": "realtime_translate",
+      "label": "实时语音翻译",
+      "group_key": "realtime",
+      "group_label": "Realtime",
+      "group": "Realtime",
+      "order": 140,
+      "count": 1
+    },
+    {
+      "key": "rerank",
+      "label": "重排序",
+      "group_key": "text",
+      "group_label": "文本",
+      "group": "文本",
+      "order": 150,
+      "count": 2
+    }
+  ],
+  "items": [
+    {
+      "canonical_model_id": "qwen3-max",
+      "model_id": "qwen3-max",
+      "display_name": "Qwen3-Max",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30001,
+      "description": "属于 Qwen3 系列 支持 调用内置工具",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [
+        "web_search"
+      ],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen3-max-2025-09-23",
+        "qwen3-max-2026-01-23"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen3-max-preview",
+      "model_id": "qwen3-max-preview",
+      "display_name": "Qwen3-Max-Preview",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30002,
+      "description": "属于 Qwen3 系列",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-max",
+      "model_id": "qwen-max",
+      "display_name": "Qwen-Max",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30005,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen-max-0125",
+        "qwen-max-0428",
+        "qwen-max-0919",
+        "qwen-max-2024-04-28",
+        "qwen-max-2024-09-19",
+        "qwen-max-2025-01-25",
+        "qwen-max-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-plus",
+      "model_id": "qwen3.5-plus",
+      "display_name": "Qwen3.5-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30014,
+      "description": "Qwen3.5-Plus系列同时支持视觉与文本输入，在语言理解、逻辑推理、代码生成、智能体任务、图像理解、视频理解、图形用户界面（GUI）等多种任务中展现出卓越性能。",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [
+        "function_calling",
+        "web_search"
+      ],
+      "supported_features": [
+        "deep_thinking"
+      ],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen3-plus",
+        "qwen3.5-plus-2026-02-15"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-plus",
+      "model_id": "qwen-plus",
+      "display_name": "Qwen-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30015,
+      "description": "属于 Qwen3 系列",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [
+        "function_calling",
+        "web_search"
+      ],
+      "supported_features": [
+        "streaming"
+      ],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen-plus-0125",
+        "qwen-plus-0428",
+        "qwen-plus-0714",
+        "qwen-plus-0728",
+        "qwen-plus-2025-01-25",
+        "qwen-plus-2025-04-28",
+        "qwen-plus-2025-07-14",
+        "qwen-plus-2025-07-28",
+        "qwen-plus-2025-09-11",
+        "qwen-plus-2025-12-01",
+        "qwen-plus-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-flash",
+      "model_id": "qwen3.5-flash",
+      "display_name": "Qwen3.5-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30021,
+      "description": "属于 Qwen3.5 系列",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [
+        "web_search"
+      ],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen3.5-flash-2026-02-23"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-flash",
+      "model_id": "qwen-flash",
+      "display_name": "Qwen-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30022,
+      "description": "属于 Qwen3 系列",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen-flash-2025-07-28",
+        "qwen-flash-us"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-turbo",
+      "model_id": "qwen-turbo",
+      "display_name": "Qwen-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30027,
+      "description": "属于 Qwen3 系列",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [
+        "qwen-turbo-0211",
+        "qwen-turbo-0428",
+        "qwen-turbo-0715",
+        "qwen-turbo-1101",
+        "qwen-turbo-2024-11-01",
+        "qwen-turbo-2025-02-11",
+        "qwen-turbo-2025-04-28",
+        "qwen-turbo-2025-07-15",
+        "qwen-turbo-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwq-plus",
+      "model_id": "qwq-plus",
+      "display_name": "QwQ-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20029,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [
+        "qwq-plus-0305",
+        "qwq-plus-2025-03-05",
+        "qwq-plus-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-long",
+      "model_id": "qwen-long",
+      "display_name": "Qwen-Long",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30031,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/long-context-qwen-long#72cee64e7ff13",
+      "aliases": [
+        "qwen-long-0125",
+        "qwen-long-2025-01-25",
+        "qwen-long-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-omni-flash",
+      "model_id": "qwen3-omni-flash",
+      "display_name": "Qwen3-Omni-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "multimodal",
+      "official_group": "多模态",
+      "official_category_key": "omni",
+      "official_category": "全模态",
+      "official_order": 10032,
+      "description": "Qwen-Omni 模型能够接收文本、图片、音频、视频等多种模态的组合输入，并生成文本或语音形式的回复， 提供多种拟人音色，支持多语言和方言的语音输出，可应用于文本创作、视觉识别、语音助手等场景。",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-omni",
+      "aliases": [
+        "qwen3-omni-flash-0915",
+        "qwen3-omni-flash-2025-09-15",
+        "qwen3-omni-flash-2025-12-01"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-omni-turbo",
+      "model_id": "qwen-omni-turbo",
+      "display_name": "Qwen-Omni-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "multimodal",
+      "official_group": "多模态",
+      "official_category_key": "omni",
+      "official_category": "全模态",
+      "official_order": 10033,
+      "description": "始终与最新快照版 能力相同",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-omni",
+      "aliases": [
+        "qwen-omni-turbo-0119",
+        "qwen-omni-turbo-0326",
+        "qwen-omni-turbo-2025-01-19",
+        "qwen-omni-turbo-2025-03-26",
+        "qwen-omni-turbo-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-omni-flash-realtime",
+      "model_id": "qwen3-omni-flash-realtime",
+      "display_name": "Qwen3-Omni-Flash-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_omni",
+      "official_category": "实时全模态",
+      "official_order": 110036,
+      "description": "- 2025-12-01 能力相同",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/models#5e79514e7cqp5",
+      "aliases": [],
+      "pipeline_slot": "realtime",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-omni-turbo-realtime",
+      "model_id": "qwen-omni-turbo-realtime",
+      "display_name": "Qwen-Omni-Turbo-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_omni",
+      "official_category": "实时全模态",
+      "official_order": 110039,
+      "description": "- 2025-05-08",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/models#5e79514e7cqp5",
+      "aliases": [
+        "qwen-omni-turbo-realtime-latest"
+      ],
+      "pipeline_slot": "realtime",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qvq-max",
+      "model_id": "qvq-max",
+      "display_name": "QVQ-Max",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20046,
+      "description": "相比 qvq-plus 具有更强的视觉推理和指令遵循能力，在更多复杂任务中提供最佳性能。 当前与 qvq-max-2025-03-25 能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/visual-reasoning",
+      "aliases": [
+        "qvq-max-0325",
+        "qvq-max-0515",
+        "qvq-max-2025-03-25",
+        "qvq-max-2025-05-15",
+        "qvq-max-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qvq-plus",
+      "model_id": "qvq-plus",
+      "display_name": "QVQ-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20047,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/visual-reasoning",
+      "aliases": [
+        "qvq-plus-0515",
+        "qvq-plus-2025-05-15",
+        "qvq-plus-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-plus",
+      "model_id": "qwen3-vl-plus",
+      "display_name": "Qwen3-VL-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40049,
+      "description": "千问 VL 是具有视觉（图像）理解能力的文本生成模型，不仅能进行 OCR（图片文字识别），还能进一步总结和推理，例如从商品照片中提取属性，根据习题图进行解题等。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [
+        "qwen3-vl-plus-2025-09-23",
+        "qwen3-vl-plus-2025-12-19"
+      ],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen3-vl-flash",
+      "model_id": "qwen3-vl-flash",
+      "display_name": "Qwen3-VL-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40050,
+      "description": "千问 VL 是具有视觉（图像）理解能力的文本生成模型，不仅能进行 OCR（图片文字识别），还能进一步总结和推理，例如从商品照片中提取属性，根据习题图进行解题等。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [
+        "qwen3-vl-flash-2025-10-15",
+        "qwen3-vl-flash-2026-01-22"
+      ],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-vl-max",
+      "model_id": "qwen-vl-max",
+      "display_name": "Qwen-VL-Max",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40051,
+      "description": "相比 qwen-vl-plus 再次提升视觉推理和指令遵循能力，在更多复杂任务中提供 最佳性能 。 当前与 qwen-vl-max-2025-08-13 能力相同",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [
+        "qwen-vl-max-0125",
+        "qwen-vl-max-0402",
+        "qwen-vl-max-0408",
+        "qwen-vl-max-0813",
+        "qwen-vl-max-1119",
+        "qwen-vl-max-1230",
+        "qwen-vl-max-2024-11-19",
+        "qwen-vl-max-2024-12-30",
+        "qwen-vl-max-2025-01-25",
+        "qwen-vl-max-2025-04-02",
+        "qwen-vl-max-2025-04-08",
+        "qwen-vl-max-2025-08-13",
+        "qwen-vl-max-latest"
+      ],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-vl-plus",
+      "model_id": "qwen-vl-plus",
+      "display_name": "Qwen-VL-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40052,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [
+        "qwen-vl-plus-0102",
+        "qwen-vl-plus-0125",
+        "qwen-vl-plus-0507",
+        "qwen-vl-plus-0710",
+        "qwen-vl-plus-0815",
+        "qwen-vl-plus-2025-01-02",
+        "qwen-vl-plus-2025-01-25",
+        "qwen-vl-plus-2025-05-07",
+        "qwen-vl-plus-2025-07-10",
+        "qwen-vl-plus-2025-08-15",
+        "qwen-vl-plus-latest"
+      ],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-vl-ocr",
+      "model_id": "qwen-vl-ocr",
+      "display_name": "Qwen-VL-OCR",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40059,
+      "description": "基于 Qwen3-VL 架构，大幅提升文档解析、文字定位能力。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-vl-ocr",
+      "aliases": [
+        "qwen-vl-ocr-0413",
+        "qwen-vl-ocr-0828",
+        "qwen-vl-ocr-1028",
+        "qwen-vl-ocr-1120",
+        "qwen-vl-ocr-2024-10-28",
+        "qwen-vl-ocr-2025-04-13",
+        "qwen-vl-ocr-2025-08-28",
+        "qwen-vl-ocr-2025-11-20",
+        "qwen-vl-ocr-latest"
+      ],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-audio-turbo",
+      "model_id": "qwen-audio-turbo",
+      "display_name": "Qwen-Audio-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30062,
+      "description": "千问 Audio 是音频理解模型，支持输入多种音频（人类语音、自然音、音乐、歌声）和文本，并输出文本。该模型不仅能对输入的音频进行转录，还具备更深层次的语义理解、情感分析、音频事件检测等能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/audio-language-model",
+      "aliases": [
+        "qwen-audio-turbo-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-math-plus",
+      "model_id": "qwen-math-plus",
+      "display_name": "Qwen-Math-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30063,
+      "description": "千问数学模型是专门用于数学解题的语言模型。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/math-language-model",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-math-turbo",
+      "model_id": "qwen-math-turbo",
+      "display_name": "Qwen-Math-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30064,
+      "description": "千问数学模型是专门用于数学解题的语言模型。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/math-language-model",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-coder-plus",
+      "model_id": "qwen3-coder-plus",
+      "display_name": "Qwen3-Coder-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30065,
+      "description": "千问代码模型。最新的 Qwen3-Coder-Plus 系列模型是基于 Qwen3 的代码生成模型，具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程，代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [
+        "qwen3-coder-plus-2025-07-22",
+        "qwen3-coder-plus-2025-09-23"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-coder-flash",
+      "model_id": "qwen3-coder-flash",
+      "display_name": "Qwen3-Coder-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30066,
+      "description": "千问代码模型。最新的 Qwen3-Coder-Plus 系列模型是基于 Qwen3 的代码生成模型，具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程，代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [
+        "qwen3-coder-flash-2025-07-28"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-coder-plus",
+      "model_id": "qwen-coder-plus",
+      "display_name": "Qwen-Coder-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30067,
+      "description": "与 qwen-coder-plus 的最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [
+        "qwen-coder-plus-1106",
+        "qwen-coder-plus-2024-11-06",
+        "qwen-coder-plus-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-coder-turbo",
+      "model_id": "qwen-coder-turbo",
+      "display_name": "Qwen-Coder-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30068,
+      "description": "与 qwen-coder-turbo 的最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [
+        "qwen-coder-turbo-0919",
+        "qwen-coder-turbo-2024-09-19",
+        "qwen-coder-turbo-latest"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-mt-plus",
+      "model_id": "qwen-mt-plus",
+      "display_name": "Qwen-MT-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30073,
+      "description": "属于 Qwen3-MT",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/machine-translation",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-mt-flash",
+      "model_id": "qwen-mt-flash",
+      "display_name": "Qwen-MT-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30074,
+      "description": "属于 Qwen3-MT",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/machine-translation",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-mt-lite",
+      "model_id": "qwen-mt-lite",
+      "display_name": "Qwen-MT-Lite",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30075,
+      "description": "属于 Qwen3-MT",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/machine-translation",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-mt-turbo",
+      "model_id": "qwen-mt-turbo",
+      "display_name": "Qwen-MT-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30076,
+      "description": "属于 Qwen3-MT",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/machine-translation",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-doc-turbo",
+      "model_id": "qwen-doc-turbo",
+      "display_name": "Qwen-Doc-Turbo",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30084,
+      "description": "千问数据挖掘模型可以提取文档中的结构化信息并用于数据标注和内容审核等领域。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/data-mining-qwen-doc",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-deep-research",
+      "model_id": "qwen-deep-research",
+      "display_name": "Qwen-Deep-Research",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20085,
+      "description": "千问深入研究模型可以拆解复杂问题，结合互联网搜索进行推理分析并生成研究报告。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-deep-research",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-397b-a17b",
+      "model_id": "qwen3.5-397b-a17b",
+      "display_name": "Qwen3.5-397b-A17b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30086,
+      "description": "支持文本、图像和视频输入。在纯文本任务上的效果可媲美 Qwen3 Max，性能更优且成本更低。在多模态能力上，相比 Qwen3 VL 系列有显著提升。",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#591f3dfedfyzj",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-122b-a10b",
+      "model_id": "qwen3.5-122b-a10b",
+      "display_name": "Qwen3.5-122b-A10b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30087,
+      "description": "支持文本、图像和视频输入。在纯文本任务上的效果可媲美 Qwen3 Max，性能更优且成本更低。在多模态能力上，相比 Qwen3 VL 系列有显著提升。",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#591f3dfedfyzj",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-27b",
+      "model_id": "qwen3.5-27b",
+      "display_name": "Qwen3.5-27b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30088,
+      "description": "支持文本、图像和视频输入。在纯文本任务上的效果可媲美 Qwen3 Max，性能更优且成本更低。在多模态能力上，相比 Qwen3 VL 系列有显著提升。",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#591f3dfedfyzj",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3.5-35b-a3b",
+      "model_id": "qwen3.5-35b-a3b",
+      "display_name": "Qwen3.5-35b-A3b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30089,
+      "description": "支持文本、图像和视频输入。在纯文本任务上的效果可媲美 Qwen3 Max，性能更优且成本更低。在多模态能力上，相比 Qwen3 VL 系列有显著提升。",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#591f3dfedfyzj",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-next-80b-a3b-thinking",
+      "model_id": "qwen3-next-80b-a3b-thinking",
+      "display_name": "Qwen3-Next-80b-A3b-Thinking",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30102,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-next-80b-a3b-instruct",
+      "model_id": "qwen3-next-80b-a3b-instruct",
+      "display_name": "Qwen3-Next-80b-A3b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30103,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-235b-a22b",
+      "model_id": "qwen3-235b-a22b",
+      "display_name": "Qwen3-235b-A22b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30104,
+      "description": "本模型与以下模型均于 2025 年 4 月发布",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-32b",
+      "model_id": "qwen3-32b",
+      "display_name": "Qwen3-32b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30105,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-30b-a3b",
+      "model_id": "qwen3-30b-a3b",
+      "display_name": "Qwen3-30b-A3b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30106,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-14b",
+      "model_id": "qwen3-14b",
+      "display_name": "Qwen3-14b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30107,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-8b",
+      "model_id": "qwen3-8b",
+      "display_name": "Qwen3-8b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30108,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-4b",
+      "model_id": "qwen3-4b",
+      "display_name": "Qwen3-4b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30109,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-1.7b",
+      "model_id": "qwen3-1.7b",
+      "display_name": "Qwen3-1.7b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30110,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-0.6b",
+      "model_id": "qwen3-0.6b",
+      "display_name": "Qwen3-0.6b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30111,
+      "description": "2025 年 9 月发布的 qwen3-next-80b-a3b-thinking 仅支持思考模式，相较于 qwen3-235b-a22b-thinking-2507 提升了指令遵循能力，总结回复更加精简。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwq-32b",
+      "model_id": "qwq-32b",
+      "display_name": "QwQ-32b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20129,
+      "description": "基于 Qwen2.5-32B 模型训练的 QwQ 推理模型，通过强化学习大幅度提升了模型推理能力。模型数学代码等核心指标（AIME 24/25、LiveCodeBench）以及部分通用指标（IFEval、LiveBench 等）达到 DeepSeek-R1 满血版水平，各指标均显著超过同样基于 Qwen2.5-32B 的 DeepSeek-R1-Distill-Qwen-32B。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwq-32b-preview",
+      "model_id": "qwq-32b-preview",
+      "display_name": "QwQ-32b-Preview",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "deep_thinking",
+      "official_category": "深度思考",
+      "official_order": 20130,
+      "description": "qwq-32b-preview 模型是由 Qwen 团队于 2024 年开发的实验性研究模型，专注于增强 AI 推理能力，尤其是数学和编程领域。qwq-32b-preview 模型的局限性请参见 QwQ 官方博客 。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-generation#24e54b27d4agt",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-omni-7b",
+      "model_id": "qwen2.5-omni-7b",
+      "display_name": "Qwen2.5-Omni-7b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "multimodal",
+      "official_group": "多模态",
+      "official_category_key": "omni",
+      "official_category": "全模态",
+      "official_order": 10131,
+      "description": "基于 Qwen2.5 训练的全新多模态理解生成大模型，支持文本、图像、语音、视频输入理解，具备文本和语音同时流式生成的能力，多模态内容理解速度显著提升。",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-omni",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-omni-30b-a3b-captioner",
+      "model_id": "qwen3-omni-30b-a3b-captioner",
+      "display_name": "Qwen3-Omni-30b-A3b-Captioner",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "multimodal",
+      "official_group": "多模态",
+      "official_category_key": "omni",
+      "official_category": "全模态",
+      "official_order": 10133,
+      "description": "",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#591f3dfedfyzj",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-235b-a22b-thinking",
+      "model_id": "qwen3-vl-235b-a22b-thinking",
+      "display_name": "Qwen3-VL-235b-A22b-Thinking",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40135,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-235b-a22b-instruct",
+      "model_id": "qwen3-vl-235b-a22b-instruct",
+      "display_name": "Qwen3-VL-235b-A22b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40136,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-32b-thinking",
+      "model_id": "qwen3-vl-32b-thinking",
+      "display_name": "Qwen3-VL-32b-Thinking",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40137,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-32b-instruct",
+      "model_id": "qwen3-vl-32b-instruct",
+      "display_name": "Qwen3-VL-32b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40138,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-30b-a3b-thinking",
+      "model_id": "qwen3-vl-30b-a3b-thinking",
+      "display_name": "Qwen3-VL-30b-A3b-Thinking",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40139,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-30b-a3b-instruct",
+      "model_id": "qwen3-vl-30b-a3b-instruct",
+      "display_name": "Qwen3-VL-30b-A3b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40140,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-8b-thinking",
+      "model_id": "qwen3-vl-8b-thinking",
+      "display_name": "Qwen3-VL-8b-Thinking",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40141,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-vl-8b-instruct",
+      "model_id": "qwen3-vl-8b-instruct",
+      "display_name": "Qwen3-VL-8b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40142,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-vl-72b-instruct",
+      "model_id": "qwen2.5-vl-72b-instruct",
+      "display_name": "Qwen2.5-VL-72b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40143,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-vl-32b-instruct",
+      "model_id": "qwen2.5-vl-32b-instruct",
+      "display_name": "Qwen2.5-VL-32b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40144,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-vl-7b-instruct",
+      "model_id": "qwen2.5-vl-7b-instruct",
+      "display_name": "Qwen2.5-VL-7b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40145,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-vl-3b-instruct",
+      "model_id": "qwen2.5-vl-3b-instruct",
+      "display_name": "Qwen2.5-VL-3b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40146,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2-vl-72b-instruct",
+      "model_id": "qwen2-vl-72b-instruct",
+      "display_name": "Qwen2-VL-72b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40147,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2-vl-7b-instruct",
+      "model_id": "qwen2-vl-7b-instruct",
+      "display_name": "Qwen2-VL-7b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40148,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2-vl-2b-instruct",
+      "model_id": "qwen2-vl-2b-instruct",
+      "display_name": "Qwen2-VL-2b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40149,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-vl-v1",
+      "model_id": "qwen-vl-v1",
+      "display_name": "Qwen-VL-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40150,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-vl-chat-v1",
+      "model_id": "qwen-vl-chat-v1",
+      "display_name": "Qwen-VL-Chat-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "vision",
+      "official_category": "视觉理解",
+      "official_order": 40151,
+      "description": "阿里云的千问 VL 开源版。",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/vision",
+      "aliases": [],
+      "pipeline_slot": "vision",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-coder-next",
+      "model_id": "qwen3-coder-next",
+      "display_name": "Qwen3-Coder-Next",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30172,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-coder-480b-a35b-instruct",
+      "model_id": "qwen3-coder-480b-a35b-instruct",
+      "display_name": "Qwen3-Coder-480b-A35b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30173,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-coder-30b-a3b-instruct",
+      "model_id": "qwen3-coder-30b-a3b-instruct",
+      "display_name": "Qwen3-Coder-30b-A3b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30174,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-32b-instruct",
+      "model_id": "qwen2.5-coder-32b-instruct",
+      "display_name": "Qwen2.5-Coder-32b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30178,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-14b-instruct",
+      "model_id": "qwen2.5-coder-14b-instruct",
+      "display_name": "Qwen2.5-Coder-14b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30179,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-7b-instruct",
+      "model_id": "qwen2.5-coder-7b-instruct",
+      "display_name": "Qwen2.5-Coder-7b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30180,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-3b-instruct",
+      "model_id": "qwen2.5-coder-3b-instruct",
+      "display_name": "Qwen2.5-Coder-3b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30181,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-1.5b-instruct",
+      "model_id": "qwen2.5-coder-1.5b-instruct",
+      "display_name": "Qwen2.5-Coder-1.5b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30182,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen2.5-coder-0.5b-instruct",
+      "model_id": "qwen2.5-coder-0.5b-instruct",
+      "display_name": "Qwen2.5-Coder-0.5b-Instruct",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30183,
+      "description": "千问代码模型开源版。最新的 Qwen3-Coder 系列具有强大的 Coding Agent 能力，擅长工具调用和环境交互，能够实现自主编程、代码能力卓越的同时兼具通用能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-coder",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-1.5b",
+      "model_id": "qwen-1.5b",
+      "display_name": "Qwen-1.5b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30194,
+      "description": "deepseek-r1-distill-qwen-1.5b 基于 Qwen2.5-Math-1.5B",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#view-quota",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-7b",
+      "model_id": "qwen-7b",
+      "display_name": "Qwen-7b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30195,
+      "description": "deepseek-r1-distill-qwen-7b 基于 Qwen2.5-Math-7B",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#view-quota",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-14b",
+      "model_id": "qwen-14b",
+      "display_name": "Qwen-14b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30196,
+      "description": "deepseek-r1-distill-qwen-14b 基于 Qwen2.5-14B",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#view-quota",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-32b",
+      "model_id": "qwen-32b",
+      "display_name": "Qwen-32b",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30197,
+      "description": "deepseek-r1-distill-qwen-32b 基于 Qwen2.5-32B",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota#view-quota",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-image-2.0-pro",
+      "model_id": "qwen-image-2.0-pro",
+      "display_name": "Qwen-Image-2.0-Pro",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "image_generation",
+      "official_category": "图片生成",
+      "official_order": 50198,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "image"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota",
+      "aliases": [
+        "qwen-image-2.0-pro-2026-03-03"
+      ],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-image-2.0",
+      "model_id": "qwen-image-2.0",
+      "display_name": "Qwen-Image-2.0",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "image_generation",
+      "official_category": "图片生成",
+      "official_order": 50199,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "image"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota",
+      "aliases": [
+        "qwen-image-2.0-2026-03-03"
+      ],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-image-max",
+      "model_id": "qwen-image-max",
+      "display_name": "Qwen-Image-Max",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "image_generation",
+      "official_category": "图片生成",
+      "official_order": 50200,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "image"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota",
+      "aliases": [
+        "qwen-image-max-2025-12-30"
+      ],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-image-plus",
+      "model_id": "qwen-image-plus",
+      "display_name": "Qwen-Image-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "image_generation",
+      "official_category": "图片生成",
+      "official_order": 50201,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "image"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota",
+      "aliases": [
+        "qwen-image-plus-2026-01-09"
+      ],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-image",
+      "model_id": "qwen-image",
+      "display_name": "Qwen-Image",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "vision",
+      "official_group": "视觉",
+      "official_category_key": "image_generation",
+      "official_category": "图片生成",
+      "official_order": 50202,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "image"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/new-free-quota",
+      "aliases": [],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-tts-instruct-flash",
+      "model_id": "qwen3-tts-instruct-flash",
+      "display_name": "Qwen3-TTS-Instruct-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80208,
+      "description": "支持输入多语种混合文本，并流式输出音频。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts",
+      "aliases": [
+        "qwen3-tts-instruct-flash-2026-01-26"
+      ],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-tts-flash",
+      "model_id": "qwen3-tts-flash",
+      "display_name": "Qwen3-TTS-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80209,
+      "description": "支持输入多语种混合文本，并流式输出音频。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts",
+      "aliases": [
+        "qwen3-tts-flash-2025-09-18",
+        "qwen3-tts-flash-2025-11-27"
+      ],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-tts",
+      "model_id": "qwen-tts",
+      "display_name": "Qwen-TTS",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80210,
+      "description": "始终与最新快照版能力相同",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts",
+      "aliases": [
+        "qwen-tts-2025-04-10",
+        "qwen-tts-2025-05-22",
+        "qwen-tts-latest"
+      ],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-tts-instruct-flash-realtime",
+      "model_id": "qwen3-tts-instruct-flash-realtime",
+      "display_name": "Qwen3-TTS-Instruct-Flash-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_tts",
+      "official_category": "实时语音合成",
+      "official_order": 120213,
+      "description": "支持文本的流式输入并流式输出音频，具有根据文本内容与标点符号自适应调节语音语速的能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts-realtime",
+      "aliases": [
+        "qwen3-tts-instruct-flash-realtime-2026-01-22"
+      ],
+      "pipeline_slot": "realtime_tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-tts-flash-realtime",
+      "model_id": "qwen3-tts-flash-realtime",
+      "display_name": "Qwen3-TTS-Flash-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_tts",
+      "official_category": "实时语音合成",
+      "official_order": 120214,
+      "description": "支持文本的流式输入并流式输出音频，具有根据文本内容与标点符号自适应调节语音语速的能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts-realtime",
+      "aliases": [
+        "qwen3-tts-flash-realtime-2025-09-18",
+        "qwen3-tts-flash-realtime-2025-11-27"
+      ],
+      "pipeline_slot": "realtime_tts",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-tts-realtime",
+      "model_id": "qwen-tts-realtime",
+      "display_name": "Qwen-TTS-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_tts",
+      "official_category": "实时语音合成",
+      "official_order": 120215,
+      "description": "支持文本的流式输入并流式输出音频，具有根据文本内容与标点符号自适应调节语音语速的能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts-realtime",
+      "aliases": [
+        "qwen-tts-realtime-2025-07-15",
+        "qwen-tts-realtime-latest"
+      ],
+      "pipeline_slot": "realtime_tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-voice-enrollment",
+      "model_id": "qwen-voice-enrollment",
+      "display_name": "Qwen-Voice-Enrollment",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80218,
+      "description": "声音复刻依托大模型进行特征提取，无需训练即可复刻声音。仅需提供 10~20 秒的音频，即可生成高度相似且听感自然的定制音色。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts-realtime",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-voice-design",
+      "model_id": "qwen-voice-design",
+      "display_name": "Qwen-Voice-Design",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80220,
+      "description": "声音设计通过文本描述生成定制化音色，支持多语言和多维度音色特征定义，适用于广告配音、角色塑造、有声内容创作等多种应用。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-tts-realtime",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "cosyvoice-v3.5-plus",
+      "model_id": "cosyvoice-v3.5-plus",
+      "display_name": "CosyVoice-V3.5-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80222,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "cosyvoice-v3.5-flash",
+      "model_id": "cosyvoice-v3.5-flash",
+      "display_name": "CosyVoice-V3.5-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80223,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "cosyvoice-v3-plus",
+      "model_id": "cosyvoice-v3-plus",
+      "display_name": "CosyVoice-V3-Plus",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80224,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "cosyvoice-v3-flash",
+      "model_id": "cosyvoice-v3-flash",
+      "display_name": "CosyVoice-V3-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80225,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "cosyvoice-v2",
+      "model_id": "cosyvoice-v2",
+      "display_name": "CosyVoice-V2",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80226,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "cosyvoice-v1",
+      "model_id": "cosyvoice-v1",
+      "display_name": "CosyVoice-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_synthesis",
+      "official_category": "语音合成",
+      "official_order": 80227,
+      "description": "CosyVoice 是阿里云依托大规模预训练语言模型，深度融合文本理解和语音生成的新一代生成式语音合成大模型，支持文本至语音的实时流式合成。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/text-to-speech",
+      "aliases": [],
+      "pipeline_slot": "tts",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen3-livetranslate-flash",
+      "model_id": "qwen3-livetranslate-flash",
+      "display_name": "Qwen3-LiveTranslate-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70230,
+      "description": "千问 3-LiveTranslate-Flash 是基于 Qwen3-Omni 架构的音视频翻译模型，支持 18 种语言（包括中文、英文、俄文、法文等）互译。该模型可结合视觉上下文提升翻译准确性，并输出文本与语音。",
+      "input_modalities": [
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen3-livetranslate-flash",
+      "aliases": [
+        "qwen3-livetranslate-flash-2025-12-01"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-livetranslate-flash-realtime",
+      "model_id": "qwen3-livetranslate-flash-realtime",
+      "display_name": "Qwen3-LiveTranslate-Flash-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_translate",
+      "official_category": "实时语音翻译",
+      "official_order": 140232,
+      "description": "qwen3-livetranslate-flash-realtime 是一款多语言音视频实时翻译模型，可识别 18 种语言，并实时翻译为 10 种语言的音频。",
+      "input_modalities": [
+        "image",
+        "audio",
+        "video"
+      ],
+      "output_modalities": [
+        "text",
+        "audio"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen3-livetranslate-flash-realtime",
+      "aliases": [
+        "qwen3-livetranslate-flash-realtime-2025-09-22"
+      ],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-asr-flash-filetrans",
+      "model_id": "qwen3-asr-flash-filetrans",
+      "display_name": "Qwen3-ASR-Flash-Filetrans",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70234,
+      "description": "基于千问多模态基座，支持多语言识别、歌唱识别、噪声拒识等功能。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-speech-recognition",
+      "aliases": [
+        "qwen3-asr-flash-filetrans-2025-11-17"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-asr-flash",
+      "model_id": "qwen3-asr-flash",
+      "display_name": "Qwen3-ASR-Flash",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70235,
+      "description": "基于千问多模态基座，支持多语言识别、歌唱识别、噪声拒识等功能。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-speech-recognition",
+      "aliases": [
+        "qwen3-asr-flash-2025-09-08",
+        "qwen3-asr-flash-2026-02-10",
+        "qwen3-asr-flash-us"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen-audio-asr",
+      "model_id": "qwen-audio-asr",
+      "display_name": "Qwen-Audio-ASR",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70236,
+      "description": "基于千问多模态基座，支持多语言识别、歌唱识别、噪声拒识等功能。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-speech-recognition",
+      "aliases": [
+        "qwen-audio-asr-latest"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-asr-flash-realtime",
+      "model_id": "qwen3-asr-flash-realtime",
+      "display_name": "Qwen3-ASR-Flash-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130239,
+      "description": "千问实时语音识别大模型具备自动语种识别功能，可识别 11 种语音类型，并能在复杂音频环境下较为准确地转录。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/qwen-real-time-speech-recognition",
+      "aliases": [
+        "qwen3-asr-flash-realtime-2025-10-27",
+        "qwen3-asr-flash-realtime-2026-02-10"
+      ],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "fun-asr",
+      "model_id": "fun-asr",
+      "display_name": "Fun-ASR",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70241,
+      "description": "相较 fun-asr-2025-08-25 做了远场 VAD 优化，识别更准",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [
+        "fun-asr-2025-08-25",
+        "fun-asr-2025-11-07"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "fun-asr-mtl",
+      "model_id": "fun-asr-mtl",
+      "display_name": "Fun-ASR-Mtl",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70242,
+      "description": "Fun-ASR 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [
+        "fun-asr-mtl-2025-08-25"
+      ],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "fun-asr-realtime",
+      "model_id": "fun-asr-realtime",
+      "display_name": "Fun-ASR-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130245,
+      "description": "Fun-ASR 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [
+        "fun-asr-realtime-2025-09-15",
+        "fun-asr-realtime-2025-11-07",
+        "fun-asr-realtime-2026-02-28"
+      ],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "fun-asr-flash-8k-realtime",
+      "model_id": "fun-asr-flash-8k-realtime",
+      "display_name": "Fun-ASR-Flash-8k-Realtime",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130246,
+      "description": "Fun-ASR 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [
+        "fun-asr-flash-8k-realtime-2026-01-28"
+      ],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-v2",
+      "model_id": "paraformer-v2",
+      "display_name": "Paraformer-V2",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70248,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "paraformer-8k-v2",
+      "model_id": "paraformer-8k-v2",
+      "display_name": "Paraformer-8k-V2",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70249,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-v1",
+      "model_id": "paraformer-v1",
+      "display_name": "Paraformer-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70250,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-8k-v1",
+      "model_id": "paraformer-8k-v1",
+      "display_name": "Paraformer-8k-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70251,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-mtl-v1",
+      "model_id": "paraformer-mtl-v1",
+      "display_name": "Paraformer-Mtl-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70252,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-realtime-v2",
+      "model_id": "paraformer-realtime-v2",
+      "display_name": "Paraformer-Realtime-V2",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130253,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-realtime-v1",
+      "model_id": "paraformer-realtime-v1",
+      "display_name": "Paraformer-Realtime-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130254,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-realtime-8k-v2",
+      "model_id": "paraformer-realtime-8k-v2",
+      "display_name": "Paraformer-Realtime-8k-V2",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130255,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "paraformer-realtime-8k-v1",
+      "model_id": "paraformer-realtime-8k-v1",
+      "display_name": "Paraformer-Realtime-8k-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "realtime",
+      "official_group": "Realtime",
+      "official_category_key": "realtime_asr",
+      "official_category": "实时语音识别",
+      "official_order": 130256,
+      "description": "Paraformer 语音识别模型提供录音文件识别和实时语音识别两个版本。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/recording-file-recognition",
+      "aliases": [],
+      "pipeline_slot": "realtime_asr",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "sensevoice-v1",
+      "model_id": "sensevoice-v1",
+      "display_name": "SenseVoice-V1",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "speech",
+      "official_group": "语音",
+      "official_category_key": "speech_recognition",
+      "official_category": "语音识别",
+      "official_order": 70257,
+      "description": "只识别并转写音频中的语音内容，非语音内容不计费。实际转写时长通常短于原始音频时长。由于采用 AI 判断，可能存在少许误差。",
+      "input_modalities": [
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/supported-languages",
+      "aliases": [],
+      "pipeline_slot": "asr",
+      "is_selectable_in_console": true
+    },
+    {
+      "canonical_model_id": "qwen3-vl-rerank",
+      "model_id": "qwen3-vl-rerank",
+      "display_name": "Qwen3-VL-Rerank",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "rerank",
+      "official_category": "重排序",
+      "official_order": 150258,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/models",
+      "aliases": [],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen3-rerank",
+      "model_id": "qwen3-rerank",
+      "display_name": "Qwen3-Rerank",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "rerank",
+      "official_category": "重排序",
+      "official_order": 150259,
+      "description": "",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/models",
+      "aliases": [],
+      "pipeline_slot": null,
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-plus-character",
+      "model_id": "qwen-plus-character",
+      "display_name": "Qwen-Plus-Character",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30261,
+      "description": "千问的角色扮演模型，适合拟人化的对话场景（如虚拟社交、游戏 NPC、IP 复刻、硬件/玩具/车机等）。相比于其它千问模型，提升了人设还原、话题推进、倾听共情等能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/role-play",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-flash-character",
+      "model_id": "qwen-flash-character",
+      "display_name": "Qwen-Flash-Character",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30262,
+      "description": "千问的角色扮演模型，适合拟人化的对话场景（如虚拟社交、游戏 NPC、IP 复刻、硬件/玩具/车机等）。相比于其它千问模型，提升了人设还原、话题推进、倾听共情等能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/role-play",
+      "aliases": [
+        "qwen-flash-character-2026-02-26"
+      ],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    },
+    {
+      "canonical_model_id": "qwen-plus-character-ja",
+      "model_id": "qwen-plus-character-ja",
+      "display_name": "Qwen-Plus-Character-Ja",
+      "provider": "qwen",
+      "provider_display": "千问 · 阿里云",
+      "official_group_key": "text",
+      "official_group": "文本",
+      "official_category_key": "text_generation",
+      "official_category": "文本生成",
+      "official_order": 30263,
+      "description": "千问的角色扮演模型，适合拟人化的对话场景（如虚拟社交、游戏 NPC、IP 复刻、硬件/玩具/车机等）。相比于其它千问模型，提升了人设还原、话题推进、倾听共情等能力。",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_tools": [],
+      "supported_features": [],
+      "official_url": "https://help.aliyun.com/zh/model-studio/role-play",
+      "aliases": [],
+      "pipeline_slot": "llm",
+      "is_selectable_in_console": false
+    }
+  ]
+}

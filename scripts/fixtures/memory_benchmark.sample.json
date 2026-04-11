@@ -1,0 +1,20 @@
+{
+  "project_id": "replace-with-project-id",
+  "cases": [
+    {
+      "name": "profile recall",
+      "query": "用户喜欢什么样的周报格式？",
+      "expected_memory_ids": ["replace-with-memory-id"],
+      "expected_result_types": ["memory"],
+      "require_trace_fields": ["strategy", "query_type", "policy_flags"],
+      "top_k": 8
+    },
+    {
+      "name": "playbook retrieval",
+      "query": "怎么排查晚间复盘失败？",
+      "expected_result_types": ["view", "evidence"],
+      "require_trace_fields": ["used_playbook_ids", "episode_ids"],
+      "top_k": 10
+    }
+  ]
+}

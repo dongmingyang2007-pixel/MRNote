@@ -1,0 +1,17 @@
+{
+  "pickerTitle": "Choose model",
+  "pipelineLlm": "Chat model",
+  "pipelineAsr": "Speech recognition",
+  "pipelineTts": "Speech synthesis",
+  "pipelineVision": "Visual understanding",
+  "pipelineRealtime": "Realtime voice",
+  "pipelineRealtimeAsr": "Realtime ASR",
+  "pipelineRealtimeTts": "Realtime TTS",
+  "noModels": "No models available",
+  "noDescription": "No description",
+  "free": "Free",
+  "priceUnit": "in/out",
+  "selected": "Selected",
+  "select": "Select",
+  "pickerViewAll": "Open model marketplace"
+}

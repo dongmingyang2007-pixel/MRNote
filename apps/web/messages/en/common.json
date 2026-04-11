@@ -1,0 +1,10 @@
+{
+  "brand.company": "Mingrun Tech",
+  "brand.short": "Mingrun",
+  "user.settings": "Account Settings",
+  "user.logout": "Log Out",
+  "user.login": "Log In",
+  "session.expiredTitle": "Session expired",
+  "session.expiredBody": "Redirecting to login. Please sign in again to continue.",
+  "nav.closeMenu": "Close menu"
+}

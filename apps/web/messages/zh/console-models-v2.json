@@ -1,0 +1,17 @@
+{
+  "pickerTitle": "选择模型",
+  "pipelineLlm": "对话模型",
+  "pipelineAsr": "语音识别",
+  "pipelineTts": "语音合成",
+  "pipelineVision": "视觉理解",
+  "pipelineRealtime": "实时对话",
+  "pipelineRealtimeAsr": "实时识别",
+  "pipelineRealtimeTts": "实时合成",
+  "noModels": "暂无可选模型",
+  "noDescription": "暂无描述",
+  "free": "免费",
+  "priceUnit": "输入/输出",
+  "selected": "已选择",
+  "select": "选择",
+  "pickerViewAll": "前往模型广场"
+}

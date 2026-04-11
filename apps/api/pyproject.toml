@@ -1,0 +1,48 @@
+[project]
+name = "qihang-api"
+version = "0.1.0"
+description = "QIHANG API"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.116.0",
+  "uvicorn[standard]>=0.35.0",
+  "sqlalchemy>=2.0.35",
+  "alembic>=1.14.0",
+  "psycopg[binary]>=3.2.9",
+  "pydantic>=2.10.0",
+  "pydantic-settings>=2.7.0",
+  "email-validator>=2.2.0",
+  "python-jose[cryptography]>=3.3.0",
+  "passlib[bcrypt]>=1.7.4",
+  "celery[redis]>=5.4.0",
+  "redis>=5.2.1",
+  "boto3>=1.36.0",
+  "python-multipart>=0.0.20",
+  "pillow>=11.0.0",
+  "httpx>=0.28.1",
+  "pdfplumber>=0.11.0",
+  "websockets>=14.0",
+  "beautifulsoup4>=4.12.3",
+  "lxml>=5.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.4",
+  "pytest-asyncio>=0.25.2",
+  "ruff>=0.8.6",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["app"]
+testpaths = ["tests"]
