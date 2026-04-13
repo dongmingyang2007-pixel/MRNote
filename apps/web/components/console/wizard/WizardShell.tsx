@@ -137,7 +137,7 @@ export function WizardShell() {
       await Promise.all(pipelinePromises);
       await uploadKnowledgeFiles(result.id, data.knowledgeFiles);
 
-      router.push(`/app/assistants/${result.id}`);
+      router.push(`/app/notebooks`);
     } catch {
       setIsSubmitting(false);
     }

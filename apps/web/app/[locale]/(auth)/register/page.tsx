@@ -11,9 +11,9 @@ import { getSafeNavigationPath } from "@/lib/security";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
-    return "/en/app/assistants";
+    return "/en/app";
   }
-  return "/app/assistants";
+  return "/app";
 }
 
 export default function RegisterPage() {

@@ -6,7 +6,6 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useProjectContext } from "@/lib/ProjectContext";
 import { buildProjectDisplayMap } from "@/lib/project-display";
-import { DISCOVER_ENABLED } from "@/lib/feature-flags";
 import {
   Tooltip,
   TooltipContent,
@@ -15,9 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   HomeIcon,
-  ChatIcon,
-  MemoryIcon,
-  DiscoverIcon,
+  NotebooksIcon,
 } from "./NavIcons";
 
 interface NavItem {
@@ -67,11 +64,7 @@ function FolderIcon() {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/app", key: "nav.home", Icon: HomeIcon },
-  { href: "/app/chat", key: "nav.chat", Icon: ChatIcon },
-  { href: "/app/memory", key: "nav.memory", Icon: MemoryIcon },
-  ...(DISCOVER_ENABLED
-    ? [{ href: "/app/discover", key: "nav.discover", Icon: DiscoverIcon }]
-    : []),
+  { href: "/app/notebooks", key: "nav.notebooks", Icon: NotebooksIcon },
 ];
 
 /* ── Component ── */
@@ -176,20 +169,20 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="/app/assistants/new"
+                href="/app/notebooks"
                 prefetch={false}
                 className="glass-sidebar-nav-item"
                 style={{
                   background:
-                    "var(--console-accent-soft, rgba(99,102,241,0.1))",
-                  color: "var(--console-accent, #6366f1)",
+                    "var(--console-accent-soft, rgba(37,99,235,0.1))",
+                  color: "var(--console-accent, #2563EB)",
                 }}
                 aria-label={t("sidebar.newProject")}
                 onClick={handleImmediateCollapse}
               >
                 <span
                   className="glass-sidebar-icon"
-                  style={{ color: "var(--console-accent, #6366f1)" }}
+                  style={{ color: "var(--console-accent, #2563EB)" }}
                 >
                   <svg
                     width={18}
@@ -308,52 +301,23 @@ export function Sidebar() {
                     {projects.length}
                   </span>
                 )}
-                <Link
-                  href="/app/assistants/new"
-                  prefetch={false}
-                  onClick={handleCollapse}
-                  style={{
-                    marginLeft: "auto",
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--console-accent, #6366f1)",
-                    background:
-                      "var(--console-accent-soft, rgba(99,102,241,0.1))",
-                    textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                  aria-label={t("sidebar.newProject")}
-                >
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                </Link>
               </div>
               <div className="glass-sidebar-projects-list">
                 {projects.length === 0 ? (
-                  <Link
-                    href="/app/assistants/new"
-                    prefetch={false}
-                    onClick={handleCollapse}
+                  <span
                     className="glass-sidebar-projects-empty"
                     style={{
-                      textDecoration: "none",
                       color: "var(--console-text-faint, #9ca3af)",
                     }}
                   >
                     {t("sidebar.noProjects")}
-                  </Link>
+                  </span>
                 ) : (
                   projects.map((project) => (
-                    <Link
+                    <span
                       key={project.id}
-                      href={`/app/assistants/${project.id}`}
-                      prefetch={false}
-                      onClick={handleCollapse}
                       className="glass-sidebar-project-item"
-                      style={{ textDecoration: "none", color: "inherit" }}
+                      style={{ color: "inherit" }}
                     >
                       <span className="glass-sidebar-project-icon">
                         <FolderIcon />
@@ -361,7 +325,7 @@ export function Sidebar() {
                       <span className="glass-sidebar-project-name">
                         {displayMap.get(project.id) ?? project.name}
                       </span>
-                    </Link>
+                    </span>
                   ))
                 )}
               </div>

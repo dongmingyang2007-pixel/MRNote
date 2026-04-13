@@ -22,7 +22,7 @@ export default function MemoryNewDialog({
   onClose,
   onCreate,
 }: MemoryNewDialogProps) {
-  const t = useTranslations();
+  const t = useTranslations("console");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [content, setContent] = useState("");

@@ -548,6 +548,81 @@ class PipelineConfig(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
     config_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
 
+# ---------------------------------------------------------------------------
+# Notebook system
+# ---------------------------------------------------------------------------
+
+
+class Notebook(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "notebooks"
+
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cover_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notebook_type: Mapped[str] = mapped_column(String(20), default="personal", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(20), default="private", nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class NotebookPage(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "notebook_pages"
+
+    notebook_id: Mapped[str] = mapped_column(ForeignKey("notebooks.id", ondelete="CASCADE"), index=True)
+    parent_page_id: Mapped[str | None] = mapped_column(ForeignKey("notebook_pages.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    page_type: Mapped[str] = mapped_column(String(20), default="document", nullable=False)
+    content_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    plain_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    summary_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    ai_keywords_json: Mapped[list[Any]] = mapped_column(JSON, default=list, nullable=False)
+    ai_status_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+
+
+class NotebookBlock(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "notebook_blocks"
+
+    page_id: Mapped[str] = mapped_column(ForeignKey("notebook_pages.id", ondelete="CASCADE"), index=True)
+    block_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    content_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    plain_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class NotebookPageVersion(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "notebook_page_versions"
+    __table_args__ = (UniqueConstraint("page_id", "version_no", name="uq_page_versions_page_version"),)
+
+    page_id: Mapped[str] = mapped_column(ForeignKey("notebook_pages.id", ondelete="CASCADE"), index=True)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    snapshot_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    source: Mapped[str] = mapped_column(String(20), default="autosave", nullable=False)
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class NotebookAttachment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "notebook_attachments"
+
+    page_id: Mapped[str] = mapped_column(ForeignKey("notebook_pages.id", ondelete="CASCADE"), index=True)
+    data_item_id: Mapped[str | None] = mapped_column(ForeignKey("data_items.id", ondelete="SET NULL"), nullable=True)
+    attachment_type: Mapped[str] = mapped_column(String(20), default="other", nullable=False)
+    title: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+
 Index("idx_model_catalog_category", ModelCatalog.category)
 Index("idx_model_catalog_provider", ModelCatalog.provider)
 Index("idx_pipeline_configs_project", PipelineConfig.project_id)

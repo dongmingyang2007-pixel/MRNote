@@ -28,7 +28,7 @@ export default function RootNotFound() {
               <Link href="/" className="not-found-btn-primary">
                 返回首页
               </Link>
-              <Link href="/app/assistants" className="not-found-btn-secondary">
+              <Link href="/app" className="not-found-btn-secondary">
                 打开控制台
               </Link>
             </div>

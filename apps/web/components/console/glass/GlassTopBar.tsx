@@ -21,17 +21,11 @@ export function GlassTopBar() {
   const targetLocale = locale === "zh" ? "en" : "zh";
   const targetLabel = locale === "zh" ? "EN" : "中文";
   const showBreadcrumb = pathname !== "/app";
-  const routeKey = pathname === "/app"
-    ? "app"
-    : pathname.startsWith("/app/chat")
-      ? "chat"
-      : pathname.startsWith("/app/memory")
-        ? "memory"
-        : pathname.startsWith("/app/discover")
-          ? "discover"
-          : pathname.startsWith("/app/settings")
-            ? "settings"
-            : "assistants";
+  const routeKey = pathname.startsWith("/app/notebooks")
+    ? "notebooks"
+    : pathname.startsWith("/app/settings")
+      ? "settings"
+      : "app";
   const breadcrumbLabel = t(`breadcrumb.${routeKey}`);
 
   return (
@@ -97,18 +91,6 @@ export function GlassTopBar() {
           <span style={{ fontWeight: 600, fontSize: 14 }}>{tCommon("brand.short")}</span>
         </Link>
 
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            padding: "2px 8px",
-            borderRadius: 4,
-            background: "rgba(255,255,255,0.08)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          Console
-        </span>
           {showBreadcrumb ? (
             <div className="inline-topbar-breadcrumb" aria-label="Breadcrumb">
               <span>{breadcrumbLabel}</span>

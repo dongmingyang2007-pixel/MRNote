@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import { AmbientBackground } from "./glass";
-import { Sidebar } from "./Sidebar";
+import GlobalSidebar from "./GlobalSidebar";
 
 interface ConsoleShellProps {
   children: ReactNode;
@@ -12,7 +12,7 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
   return (
     <div className="console-shell-v2" style={{ position: "relative", minHeight: "100vh" }}>
       <AmbientBackground />
-      <Sidebar />
+      <GlobalSidebar />
       <main
         className="console-shell-main"
         style={{

@@ -607,7 +607,13 @@ ensure_web_dependencies() {
 
   if [ "$REBUILD" -eq 1 ] || [ ! -d "$ROOT_DIR/apps/web/node_modules" ]; then
     should_install=1
-  elif [ ! -f "$LOCAL_WEB_DEPS_STAMP" ] || [ "$ROOT_DIR/apps/web/package-lock.json" -nt "$LOCAL_WEB_DEPS_STAMP" ] || [ "$ROOT_DIR/apps/web/package.json" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
+  elif [ ! -f "$LOCAL_WEB_DEPS_STAMP" ]; then
+    should_install=1
+  elif [ -f "$ROOT_DIR/apps/web/pnpm-lock.yaml" ] && [ "$ROOT_DIR/apps/web/pnpm-lock.yaml" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
+    should_install=1
+  elif [ -f "$ROOT_DIR/apps/web/package-lock.json" ] && [ "$ROOT_DIR/apps/web/package-lock.json" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
+    should_install=1
+  elif [ "$ROOT_DIR/apps/web/package.json" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
     should_install=1
   fi
 
@@ -616,7 +622,23 @@ ensure_web_dependencies() {
   fi
 
   echo "Ensuring local web dependencies are installed..."
-  if [ ! -d "$ROOT_DIR/apps/web/node_modules" ]; then
+
+  # Prefer pnpm when a pnpm lockfile exists, fall back to npm
+  if [ -f "$ROOT_DIR/apps/web/pnpm-lock.yaml" ]; then
+    local pnpm_bin=""
+    if command -v pnpm >/dev/null 2>&1; then
+      pnpm_bin="pnpm"
+    elif command -v npx >/dev/null 2>&1; then
+      pnpm_bin="npx pnpm"
+    fi
+
+    if [ -n "$pnpm_bin" ]; then
+      (cd "$ROOT_DIR/apps/web" && $pnpm_bin install --frozen-lockfile 2>/dev/null || $pnpm_bin install)
+    else
+      echo "Warning: pnpm-lock.yaml found but pnpm is not installed. Falling back to npm..." >&2
+      (cd "$ROOT_DIR/apps/web" && npm install)
+    fi
+  elif [ ! -d "$ROOT_DIR/apps/web/node_modules" ]; then
     (cd "$ROOT_DIR/apps/web" && npm ci)
   else
     (cd "$ROOT_DIR/apps/web" && npm install)

@@ -59,7 +59,7 @@ export default function MemoryListTable({
   selectedId,
   onSelect,
 }: MemoryListTableProps) {
-  const t = useTranslations();
+  const t = useTranslations("console");
 
   const [sortField, setSortField] = useState<SortField>("time");
   const [sortDir, setSortDir] = useState<SortDir>("desc");

@@ -2636,7 +2636,7 @@ export default function MemoryGraph(props: MemoryGraphProps) {
         ctx.shadowColor = isEditAnchor
           ? "rgba(255, 146, 90, 0.92)"
           : isEditSelected
-            ? "rgba(99, 102, 241, 0.9)"
+            ? "rgba(37, 99, 235, 0.9)"
             : isCenter
               ? COLORS.centerGradStart
               : getMemoryNodeColor(node, maxRetrievalCount);
@@ -2746,8 +2746,8 @@ export default function MemoryGraph(props: MemoryGraphProps) {
           ctx.strokeStyle = isEditAnchor
             ? "rgba(255, 255, 255, 0.96)"
             : isEditSelected
-              ? "rgba(99, 102, 241, 0.82)"
-              : "rgba(99, 102, 241, 0.34)";
+              ? "rgba(37, 99, 235, 0.82)"
+              : "rgba(37, 99, 235, 0.34)";
           ctx.lineWidth = (isEditAnchor ? 2.4 : 1.8) * depthScale;
           ctx.stroke();
         }
@@ -2917,7 +2917,7 @@ export default function MemoryGraph(props: MemoryGraphProps) {
         if (isEditSelectable && !isEditSelected && !isEditAnchor) {
           ctx.beginPath();
           ctx.arc(nodeX, nodeY, radius + 7 * depthScale, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(99, 102, 241, 0.34)";
+          ctx.strokeStyle = "rgba(37, 99, 235, 0.34)";
           ctx.lineWidth = 1.4 * depthScale;
           ctx.stroke();
         }
@@ -2925,7 +2925,7 @@ export default function MemoryGraph(props: MemoryGraphProps) {
         if (isEditSelected || isEditAnchor) {
           ctx.beginPath();
           ctx.arc(nodeX, nodeY, radius + 8 * depthScale, 0, Math.PI * 2);
-          ctx.strokeStyle = isEditAnchor ? "rgba(255, 255, 255, 0.96)" : "rgba(99, 102, 241, 0.82)";
+          ctx.strokeStyle = isEditAnchor ? "rgba(255, 255, 255, 0.96)" : "rgba(37, 99, 235, 0.82)";
           ctx.lineWidth = (isEditAnchor ? 2.2 : 1.8) * depthScale;
           ctx.stroke();
         }

@@ -137,7 +137,7 @@ export function ModelPickerModal({
         ? pathname
         : `${window.location.pathname}${window.location.search}`;
     params.set("from", from || pathname);
-    return `/app/discover?${params.toString()}`;
+    return `/app/notebooks?${params.toString()}`;
   }, [category, currentModelId, pathname]);
 
   useEffect(() => {

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
-import { DISCOVER_ENABLED } from "@/lib/feature-flags";
 import {
   getAuthStateServerSnapshot,
   getAuthStateSnapshot,
@@ -16,10 +15,7 @@ import { useMobileMenu } from "@/components/MobileMenuProvider";
 
 const CONSOLE_NAV_ITEMS = [
   { href: "/app", navKey: "home" },
-  { href: "/app/assistants", navKey: "assistants" },
-  { href: "/app/chat", navKey: "chat" },
-  { href: "/app/memory", navKey: "memory" },
-  ...(DISCOVER_ENABLED ? [{ href: "/app/discover", navKey: "discover" }] : []),
+  { href: "/app/notebooks", navKey: "notebooks" },
   { href: "/app/settings", navKey: "settings" },
 ] as const;
 
@@ -141,11 +137,11 @@ export function UnifiedMobileNav() {
           {/* Footer */}
           <div className="mt-auto p-4 border-t border-black/[0.06]">
             <Link
-              href="/app/assistants"
+              href="/app/notebooks"
               onClick={closeMenu}
               className="block text-center text-sm text-[var(--console-text-muted,var(--text-secondary))] hover:text-[var(--text-primary)]"
             >
-              {tConsole("nav.assistants")}
+              {tConsole("nav.notebooks")}
             </Link>
           </div>
         </motion.div>

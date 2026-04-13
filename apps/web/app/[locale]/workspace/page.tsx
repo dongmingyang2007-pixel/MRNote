@@ -1,351 +1,191 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { BookOpen, FileText, Clock, Plus, Sparkles } from "lucide-react";
+import { apiGet, apiPost } from "@/lib/api";
 
-import { PageTransition } from "@/components/console/PageTransition";
-import { GlassButton } from "@/components/console/glass";
-import type {
-  PipelineConfigItem,
-  PipelineResponse,
-} from "@/components/console/chat-types";
-import { apiGet } from "@/lib/api";
-import { formatRelativeTime } from "@/lib/format-time";
-import { buildProjectDisplayMap } from "@/lib/project-display";
-
-type Project = {
-  id: string;
-  name: string;
-  default_chat_mode?: "standard" | "omni_realtime" | "synthetic_realtime";
-};
-
-type CatalogModelSummary = {
-  model_id: string;
-  display_name?: string;
-};
-
-interface RecentConversation {
+interface NotebookItem {
   id: string;
   title: string;
+  description: string;
+  notebook_type: string;
   updated_at: string;
 }
 
-interface DashboardConversation extends RecentConversation {
-  projectId: string;
-  projectName: string;
+interface PageItem {
+  id: string;
+  notebook_id: string;
+  title: string;
+  page_type: string;
+  updated_at: string;
 }
 
 export default function DashboardPage() {
   const t = useTranslations("console");
+  const tn = useTranslations("console-notebooks");
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [pipelineMap, setPipelineMap] = useState<Record<string, PipelineConfigItem[]>>({});
-  const [catalogItems, setCatalogItems] = useState<CatalogModelSummary[]>([]);
-  const [recentChats, setRecentChats] = useState<DashboardConversation[]>([]);
+  const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
+  const [recentPages, setRecentPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadDashboard() {
-      setLoading(true);
-
-      try {
-        const [projectsResponse, catalogResponse] = await Promise.all([
-          apiGet<{ items: Project[] }>("/api/v1/projects"),
-          apiGet<CatalogModelSummary[]>("/api/v1/models/catalog"),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        const projectItems = Array.isArray(projectsResponse.items)
-          ? projectsResponse.items
-          : [];
-        setProjects(projectItems);
-        setCatalogItems(Array.isArray(catalogResponse) ? catalogResponse : []);
-
-        const [pipelineResults, conversationResults] = await Promise.all([
-          Promise.allSettled(
-            projectItems.map((project) =>
-              apiGet<PipelineResponse>(`/api/v1/pipeline?project_id=${project.id}`),
-            ),
-          ),
-          Promise.allSettled(
-            projectItems.map((project) =>
-              apiGet<RecentConversation[]>(
-                `/api/v1/chat/conversations?project_id=${project.id}`,
-              ),
-            ),
-          ),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        const nextPipelineMap: Record<string, PipelineConfigItem[]> = {};
-        projectItems.forEach((project, index) => {
-          const result = pipelineResults[index];
-          nextPipelineMap[project.id] =
-            result?.status === "fulfilled" && Array.isArray(result.value.items)
-              ? result.value.items
-              : [];
-        });
-        setPipelineMap(nextPipelineMap);
-
-        const nextRecentChats: DashboardConversation[] = [];
-        projectItems.forEach((project, index) => {
-          const result = conversationResults[index];
-          if (result?.status !== "fulfilled") {
-            return;
-          }
-          const items = Array.isArray(result.value) ? result.value : [];
-          items.slice(0, 3).forEach((conversation) => {
-            nextRecentChats.push({
-              ...conversation,
-              projectId: project.id,
-              projectName: project.name,
-            });
-          });
-        });
-        nextRecentChats.sort(
-          (left, right) =>
-            new Date(right.updated_at).getTime() -
-            new Date(left.updated_at).getTime(),
-        );
-        setRecentChats(nextRecentChats.slice(0, 6));
-      } catch {
-        if (cancelled) {
-          return;
-        }
-        setProjects([]);
-        setPipelineMap({});
-        setCatalogItems([]);
-        setRecentChats([]);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadDashboard();
-
-    return () => {
-      cancelled = true;
-    };
+    Promise.all([
+      apiGet<{ items: NotebookItem[] }>("/api/v1/notebooks").catch(() => ({ items: [] })),
+      apiGet<{ items: PageItem[] }>("/api/v1/pages/search?q=").catch(() => ({ items: [] })),
+    ]).then(([nbData, pgData]) => {
+      setNotebooks(nbData.items || []);
+      setRecentPages((pgData.items || []).slice(0, 3));
+      setLoading(false);
+    });
   }, []);
 
-  const projectLabels = useMemo(
-    () => buildProjectDisplayMap(projects),
-    [projects],
-  );
-  const catalogModelNames = useMemo(
-    () =>
-      new Map(
-        catalogItems.map((item) => [item.model_id, item.display_name || item.model_id]),
-      ),
-    [catalogItems],
-  );
-  const projectModels = useMemo(() => {
-    const map: Record<string, string> = {};
-    projects.forEach((project) => {
-      const items = pipelineMap[project.id] || [];
-      const preferredSlotType =
-        project.default_chat_mode === "omni_realtime"
-          ? "realtime"
-          : project.default_chat_mode === "synthetic_realtime"
-            ? "llm"
-            : "llm";
-      const preferredSlot = items.find((item) => item.model_type === preferredSlotType);
-      const llmSlot = items.find((item) => item.model_type === "llm");
-      const fallbackSlot = items[0];
-      const slot = preferredSlot || llmSlot || fallbackSlot;
-      if (slot) {
-        map[project.id] = catalogModelNames.get(slot.model_id) || slot.model_id;
-      }
-    });
-    return map;
-  }, [projects, pipelineMap, catalogModelNames]);
+  const handleCreateNotebook = useCallback(async () => {
+    try {
+      const nb = await apiPost<NotebookItem>("/api/v1/notebooks", { title: "", notebook_type: "personal" });
+      router.push(`/app/notebooks/${nb.id}`);
+    } catch { /* ignore */ }
+  }, [router]);
 
-  const conversationCounts = useMemo(() => {
-    const map: Record<string, number> = {};
-    recentChats.forEach((chat) => {
-      map[chat.projectId] = (map[chat.projectId] || 0) + 1;
-    });
-    return map;
-  }, [recentChats]);
+  const formatDate = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return t("time.justNow");
+    if (mins < 60) return t("time.minutesAgo", { n: mins });
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return t("time.hoursAgo", { n: hrs });
+    const days = Math.floor(hrs / 24);
+    return t("time.daysAgo", { n: days });
+  };
 
-  return (
-    <PageTransition>
-      <div className="console-page-shell" style={{ padding: "28px 32px" }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <div>
-            <h2 style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--console-text-primary, var(--text-primary))",
-              marginBottom: 4,
-            }}>{t("nav.assistants")}</h2>
-            <p style={{
-              fontSize: 14,
-              color: "var(--console-text-secondary, var(--text-secondary))",
-              margin: 0,
-            }}>{t("home.description")}</p>
+  if (loading) {
+    return (
+      <div className="console-page-shell" style={{ padding: "32px 40px" }}>
+        <div style={{ width: "100%" }}>
+          <div style={{ height: 40, width: 300, borderRadius: 8, background: "rgba(255,255,255,0.5)", marginBottom: 32 }} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            {[1, 2, 3].map(i => <div key={i} style={{ height: 120, borderRadius: 16, background: "rgba(255,255,255,0.4)" }} />)}
           </div>
-          <Link href="/app/assistants/new" style={{ textDecoration: "none" }}>
-            <GlassButton variant="primary">{t("home.createNew")}</GlassButton>
-          </Link>
-        </div>
-
-        {/* Assistant card grid */}
-        {loading ? (
-          <div className="home-assistant-grid">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="home-assistant-card">
-                <div style={{ minHeight: 100 }} className="animate-pulse">
-                  <div style={{
-                    height: 14,
-                    width: "66%",
-                    borderRadius: 6,
-                    background: "var(--console-border, var(--border))",
-                    marginBottom: 12,
-                  }} />
-                  <div style={{
-                    height: 10,
-                    width: "100%",
-                    borderRadius: 6,
-                    background: "var(--console-border, var(--border))",
-                    marginBottom: 8,
-                  }} />
-                  <div style={{
-                    height: 10,
-                    width: "75%",
-                    borderRadius: 6,
-                    background: "var(--console-border, var(--border))",
-                  }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="home-assistant-grid">
-            <div style={{
-              gridColumn: "1 / -1",
-              textAlign: "center",
-              padding: "48px 0",
-              color: "var(--console-text-secondary, var(--text-secondary))",
-              fontSize: 14,
-            }}>
-              {t("home.noAssistants")}
-            </div>
-          </div>
-        ) : (
-          <div className="home-assistant-grid">
-            {projects.map((project) => {
-              const name = projectLabels.get(project.id) || project.name;
-              const modelName = projectModels[project.id];
-              const slotCount = (pipelineMap[project.id] || []).length;
-              const convCount = conversationCounts[project.id] || 0;
-
-              return (
-                <div
-                  key={project.id}
-                  className="home-assistant-card dashboard-project-card"
-                  data-testid={`dashboard-project-card-${project.id}`}
-                  onClick={() => router.push(`/app/assistants/${project.id}`)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="home-assistant-card-head">
-                    <div className="home-assistant-card-avatar">
-                      {name.charAt(0).toUpperCase()}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <Link
-                        href={`/app/assistants/${project.id}`}
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        style={{
-                          textDecoration: "none",
-                          color: "inherit",
-                          display: "inline-flex",
-                          minWidth: 0,
-                        }}
-                      >
-                        <div className="home-assistant-card-name">{name}</div>
-                      </Link>
-                      {modelName && (
-                        <div className="home-assistant-card-model">{modelName}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="home-assistant-card-stats">
-                    <span>{t("home.modelSlots", { count: slotCount })}</span>
-                    <span>{t("home.conversations", { count: convCount })}</span>
-                  </div>
-                  <div className="home-assistant-card-actions">
-                    <Link
-                      href={`/app/chat?project_id=${project.id}`}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    >
-                      <GlassButton variant="primary" size="small">{t("home.startChat")}</GlassButton>
-                    </Link>
-                    <Link
-                      href={`/app/assistants/${project.id}`}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    >
-                      <GlassButton variant="secondary" size="small">{t("home.settings")}</GlassButton>
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Create new card */}
-            <Link href="/app/assistants/new" className="home-create-card">
-              <div className="home-create-card-icon">+</div>
-              <span>{t("home.createCardLabel")}</span>
-            </Link>
-          </div>
-        )}
-
-        {/* Recent conversations section */}
-        <div className="home-recent-section">
-          <div className="home-recent-heading">{t("home.recentTitle")}</div>
-          {recentChats.length === 0 ? (
-            <div style={{
-              padding: "24px 0",
-              textAlign: "center",
-              color: "var(--console-text-secondary, var(--text-secondary))",
-              fontSize: 13,
-            }}>
-              {t("home.noRecent")}
-            </div>
-          ) : (
-            recentChats.slice(0, 5).map((chat) => (
-              <Link
-                key={chat.id}
-                href={`/app/chat?project_id=${chat.projectId}&conv=${chat.id}`}
-                className="home-recent-item"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <span className="home-recent-title-text">
-                  {chat.title || t("home.noRecent")}
-                </span>
-                <span className="home-recent-project">
-                  {projectLabels.get(chat.projectId) || chat.projectName}
-                </span>
-                <span className="home-recent-time">
-                  {formatRelativeTime(chat.updated_at, t)}
-                </span>
-              </Link>
-            ))
-          )}
         </div>
       </div>
-    </PageTransition>
+    );
+  }
+
+  return (
+    <div className="console-page-shell" style={{ padding: "24px 32px", display: "block" }}>
+        {/* Welcome */}
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--console-text-primary)", fontFamily: "var(--font-sora, var(--font-sans))", marginBottom: 2 }}>
+            {t("dashboard.welcome")}
+          </h1>
+          <p style={{ fontSize: "0.8125rem", color: "var(--console-text-muted)", margin: 0 }}>
+            {notebooks.length} {t("nav.notebooks").toLowerCase()} · {recentPages.length} {t("nav.pages").toLowerCase()}
+          </p>
+        </div>
+
+        {/* Continue Writing */}
+        {recentPages.length > 0 && (
+          <section style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--console-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={18} color="var(--console-accent, #2563EB)" />
+              {t("dashboard.continueWriting")}
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+              {recentPages.map(page => (
+                <div
+                  key={page.id}
+                  onClick={() => router.push(`/app/notebooks/${page.notebook_id}/pages/${page.id}`)}
+                  style={{
+                    padding: 16,
+                    background: "rgba(255,255,255,0.72)",
+                    backdropFilter: "blur(18px)",
+                    border: "1px solid rgba(15,23,42,0.08)",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    transition: "all 200ms ease",
+                  }}
+                  className="notebook-card"
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <FileText size={16} color="var(--console-accent, #2563EB)" />
+                    <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "var(--console-text-primary)" }}>
+                      {page.title || tn("common.untitled")}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--console-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <Clock size={12} /> {formatDate(page.updated_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* My Notebooks */}
+        <section style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--console-text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+              <BookOpen size={18} color="var(--console-accent, #2563EB)" />
+              {t("dashboard.myNotebooks")}
+            </h2>
+            <button
+              onClick={handleCreateNotebook}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "6px 14px", background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
+                color: "white", border: "none", borderRadius: 8,
+                fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              <Plus size={14} /> {tn("notebooks.create")}
+            </button>
+          </div>
+          {notebooks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--console-text-muted)", fontSize: "0.875rem" }}>
+              {t("dashboard.noNotebooks")}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {notebooks.map(nb => (
+                <div
+                  key={nb.id}
+                  onClick={() => router.push(`/app/notebooks/${nb.id}`)}
+                  className="notebook-card"
+                  style={{
+                    padding: 16,
+                    background: "rgba(255,255,255,0.72)",
+                    backdropFilter: "blur(18px)",
+                    border: "1px solid rgba(15,23,42,0.08)",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    transition: "all 200ms ease",
+                  }}
+                >
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: "rgba(37,99,235,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <BookOpen size={18} color="var(--console-accent, #2563EB)" />
+                    </div>
+                  </div>
+                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, color: "var(--console-text-primary)", margin: "0 0 6px 0" }}>{nb.title || tn("common.untitled")}</h3>
+                  <span style={{ fontSize: "0.75rem", color: "var(--console-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <Clock size={12} /> {formatDate(nb.updated_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Recent Chats */}
+        <section>
+          <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--console-text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            {t("dashboard.recentChats")}
+          </h2>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--console-text-muted)", fontSize: "0.875rem" }}>
+            {t("dashboard.noChats")}
+          </div>
+        </section>
+    </div>
   );
 }

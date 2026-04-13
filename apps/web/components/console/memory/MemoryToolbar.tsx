@@ -65,7 +65,7 @@ export default function MemoryToolbar({
   onNewMemory,
   onExport,
 }: MemoryToolbarProps) {
-  const t = useTranslations();
+  const t = useTranslations("console");
 
   const showFilterBar = view !== "graph" && view !== "3d";
 

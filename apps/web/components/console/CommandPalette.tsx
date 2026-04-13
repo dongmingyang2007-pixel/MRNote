@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { DISCOVER_ENABLED } from "@/lib/feature-flags";
 import {
   CommandDialog,
   CommandEmpty,
@@ -15,14 +14,11 @@ import {
 
 const NAVIGATION_ITEMS = [
   { key: "nav.home", href: "/app" },
-  { key: "nav.assistants", href: "/app/assistants" },
-  { key: "nav.chat", href: "/app/chat" },
-  { key: "nav.memory", href: "/app/memory" },
-  ...(DISCOVER_ENABLED ? [{ key: "nav.discover", href: "/app/discover" }] : []),
+  { key: "nav.notebooks", href: "/app/notebooks" },
   { key: "nav.settings", href: "/app/settings" },
 ];
 
-const ACTION_ITEMS = [{ key: "cmd.newAssistant", href: "/app/assistants/new" }];
+const ACTION_ITEMS = [{ key: "cmd.newNotebook", href: "/app/notebooks" }];
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);

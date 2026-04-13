@@ -103,7 +103,7 @@ function AnimatedMessageText({
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  color: "var(--console-accent, #6366f1)",
+                  color: "var(--console-accent, #2563EB)",
                   textDecoration: "underline",
                 }}
               >
@@ -152,7 +152,7 @@ function MarkdownLink({ href, children }: ComponentPropsWithoutRef<"a">) {
       target="_blank"
       rel="noopener noreferrer"
       style={{
-        color: "var(--console-accent, #6366f1)",
+        color: "var(--console-accent, #2563EB)",
         textDecoration: "underline",
       }}
     >
@@ -762,7 +762,7 @@ function InlineThinkingBlock({
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        color: "var(--console-accent, #6366f1)",
+                        color: "var(--console-accent, #2563EB)",
                         textDecoration: "underline",
                       }}
                     >

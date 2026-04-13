@@ -96,7 +96,7 @@ export default function MemoryCardGrid({
             {/* Meta */}
             <div className="mem-card-meta">
               <span>
-                {retrievalCount} {t("memory.usedCount")}
+                {t("memory.usedCount", { count: retrievalCount })}
               </span>
               <span>{getRelativeTime(node.updated_at)}</span>
             </div>
