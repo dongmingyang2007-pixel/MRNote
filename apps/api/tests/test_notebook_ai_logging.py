@@ -175,3 +175,42 @@ def test_page_action_creates_log_and_usage() -> None:
         assert logs[0].action_type == "page.summarize"
         assert logs[0].scope == "page"
         assert db.query(AIUsageEvent).count() == 1
+
+
+async def _fake_assemble_context(*_a, **_kw):
+    from app.services.retrieval_orchestration import RetrievalContext, RetrievalSource
+    return RetrievalContext(
+        system_prompt="SYS",
+        sources=[
+            RetrievalSource(source_type="memory", source_id="m1", title="M", snippet="s"),
+            RetrievalSource(source_type="related_page", source_id="p1", title="P", snippet="s"),
+        ],
+    )
+
+
+def test_ask_creates_log_with_retrieval_sources() -> None:
+    client = TestClient(main_module.app)
+    fx = _seed_fixture(client, email="t3@x.co")
+    _finalize_client_auth(client, fx["ws_id"])
+
+    with patch(
+        "app.routers.notebook_ai.chat_completion_stream",
+        side_effect=lambda *a, **kw: _fake_stream(),
+    ), patch(
+        "app.services.retrieval_orchestration.assemble_context",
+        side_effect=_fake_assemble_context,
+    ):
+        resp = client.post(
+            "/api/v1/ai/notebook/ask",
+            json={"page_id": fx["page_id"], "message": "what is X?", "history": []},
+        )
+        _ = resp.text
+
+    assert resp.status_code == 200
+    with SessionLocal() as db:
+        log = db.query(AIActionLog).one()
+    assert log.action_type == "ask"
+    assert log.scope == "notebook"   # related_page present → notebook scope
+    sources = log.trace_metadata.get("retrieval_sources") or []
+    assert len(sources) == 2
+    assert {s["type"] for s in sources} == {"memory", "related_page"}

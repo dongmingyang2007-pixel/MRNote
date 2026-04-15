@@ -320,23 +320,56 @@ async def ask(
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_message})
 
+    def _scope_from_sources(sources: list[dict]) -> str:
+        types = {s.get("type") for s in sources}
+        if {"related_page", "document_chunk"} & types:
+            return "notebook"
+        return "page"
+
     async def _generate():
-        full_content = ""
-        try:
-            yield _sse("message_start", {
-                "role": "assistant",
-                "sources": retrieval_sources,
-            })
-            async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
-                if chunk.content:
-                    full_content += chunk.content
-                    yield _sse("token", {"content": chunk.content, "snapshot": full_content})
-            yield _sse("message_done", {
-                "content": full_content,
-                "sources": retrieval_sources,
-            })
-        except Exception as exc:
-            yield _sse("error", {"message": str(exc)})
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type="ask",
+            scope=_scope_from_sources(retrieval_sources),
+            notebook_id=resolved_notebook_id,
+            page_id=str(page.id) if page is not None else None,
+        ) as log:
+            log.set_input({"message": user_message[:4000], "history_turns": len(history or [])})
+            log.set_trace_metadata({"retrieval_sources": retrieval_sources})
+            full_content = ""
+            last_usage: dict[str, Any] | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {
+                    "role": "assistant",
+                    "sources": retrieval_sources,
+                    "action_log_id": log.log_id,
+                })
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                    if chunk.content:
+                        full_content += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full_content})
+                yield _sse("message_done", {
+                    "content": full_content,
+                    "sources": retrieval_sources,
+                })
+                log.set_output(full_content)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or _estimate_tokens(user_message),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or _estimate_tokens(full_content),
+                    count_source="exact" if last_usage else "estimated",
+                )
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
 
     return StreamingResponse(
         _generate(),
