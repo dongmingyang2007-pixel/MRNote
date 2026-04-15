@@ -36,6 +36,10 @@ from app.services.dashscope_stream import StreamChunk
 def setup_function() -> None:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    # Reset the in-memory runtime_state backend so rate-limit counters and
+    # any stale verify_code entries from a previous test do not leak.
+    from app.services.runtime_state import runtime_state
+    runtime_state._memory = runtime_state._memory.__class__()  # type: ignore[attr-defined]
 
 
 def _public_headers() -> dict[str, str]:
@@ -214,3 +218,29 @@ def test_ask_creates_log_with_retrieval_sources() -> None:
     sources = log.trace_metadata.get("retrieval_sources") or []
     assert len(sources) == 2
     assert {s["type"] for s in sources} == {"memory", "related_page"}
+
+
+async def _fake_whiteboard_summary(*_a, **_kw):
+    return {"summary": "a sketch of X", "memory_count": 2, "tokens": 42}
+
+
+def test_whiteboard_summarize_creates_log() -> None:
+    client = TestClient(main_module.app)
+    fx = _seed_fixture(client, email="t4@x.co")
+    _finalize_client_auth(client, fx["ws_id"])
+
+    with patch(
+        "app.services.whiteboard_service.extract_whiteboard_memories",
+        side_effect=_fake_whiteboard_summary,
+    ):
+        resp = client.post(
+            "/api/v1/ai/notebook/whiteboard-summarize",
+            json={"page_id": fx["page_id"], "elements": []},
+        )
+
+    assert resp.status_code == 200
+    with SessionLocal() as db:
+        log = db.query(AIActionLog).one()
+    assert log.action_type == "whiteboard.summarize"
+    assert log.scope == "selection"
+    assert log.status == "completed"

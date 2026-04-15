@@ -426,7 +426,7 @@ async def whiteboard_summarize(
             "memory_count": 3
         }
     """
-    from app.services.whiteboard_service import extract_whiteboard_memories
+    from app.services import whiteboard_service
 
     page_id = payload.get("page_id", "")
     elements = payload.get("elements", [])
@@ -446,19 +446,42 @@ async def whiteboard_summarize(
 
     project_id = str(notebook.project_id)
 
-    result = await extract_whiteboard_memories(
+    async with action_log_context(
         db,
-        page_id=str(page_id),
         workspace_id=str(workspace_id),
-        project_id=project_id,
         user_id=str(current_user.id),
-        elements_json=elements,
-    )
+        action_type="whiteboard.summarize",
+        scope="selection",
+        notebook_id=str(page.notebook_id),
+        page_id=str(page.id),
+    ) as log:
+        log.set_input({"elements_count": len(elements)})
 
-    db.commit()
+        result = await whiteboard_service.extract_whiteboard_memories(
+            db,
+            page_id=str(page_id),
+            workspace_id=str(workspace_id),
+            project_id=project_id,
+            user_id=str(current_user.id),
+            elements_json=elements,
+        )
 
-    summary = result.get("summary", "")
-    pipeline_result = result.get("pipeline_result")
-    memory_count = pipeline_result.item_count if pipeline_result else 0
+        db.commit()
 
-    return {"summary": summary, "memory_count": memory_count}
+        summary = result.get("summary", "")
+        pipeline_result = result.get("pipeline_result")
+        if "memory_count" in result:
+            memory_count = int(result.get("memory_count") or 0)
+        else:
+            memory_count = pipeline_result.item_count if pipeline_result else 0
+
+        log.set_output({"summary": summary, "memory_count": memory_count})
+        tok = result.get("tokens")
+        log.record_usage(
+            event_type="llm_completion",
+            prompt_tokens=tok or _estimate_tokens(str(elements)),
+            completion_tokens=_estimate_tokens(summary),
+            count_source="exact" if tok else "estimated",
+        )
+
+        return {"summary": summary, "memory_count": memory_count}
