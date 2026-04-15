@@ -40,6 +40,10 @@ def setup_function() -> None:
     SessionLocal = _s.SessionLocal
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    # Reset runtime_state so rate-limit counters and verify_code entries
+    # from a previous test do not leak into the next test.
+    from app.services.runtime_state import runtime_state
+    runtime_state._memory = runtime_state._memory.__class__()  # type: ignore[attr-defined]
 
 
 # Initial values; setup_function will keep these fresh.
@@ -141,3 +145,102 @@ def test_list_second_page_does_not_overlap() -> None:
     first_ids = {i["id"] for i in first["items"]}
     second_ids = {i["id"] for i in second["items"]}
     assert first_ids.isdisjoint(second_ids)
+
+
+def test_detail_returns_full_payload() -> None:
+    client, fx = _seed_n_logs(1, email="u3@x.co")
+    list_resp = client.get(f"/api/v1/pages/{fx['page_id']}/ai-actions").json()
+    log_id = list_resp["items"][0]["id"]
+
+    resp = client.get(f"/api/v1/ai-actions/{log_id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == log_id
+    assert body["status"] == "completed"
+    assert len(body["usage_events"]) == 1
+
+
+def test_detail_404_when_unknown_id() -> None:
+    client, _ = _register_client(email="u4@x.co")
+    resp = client.get("/api/v1/ai-actions/does-not-exist")
+    assert resp.status_code == 404
+
+
+def test_detail_403_for_other_user_non_owner() -> None:
+    """user_owner creates a log; user_member (same workspace but not owner)
+    tries to read it -> 403."""
+    owner_client, owner_auth = _register_client(email="owner@x.co")
+    ws_id = owner_auth["ws_id"]
+    owner_id = owner_auth["user_id"]
+    with SessionLocal() as db:
+        pr = Project(workspace_id=ws_id, name="P")
+        db.add(pr); db.commit(); db.refresh(pr)
+        nb = Notebook(workspace_id=ws_id, project_id=pr.id,
+                      created_by=owner_id, title="NB", slug="nb")
+        db.add(nb); db.commit(); db.refresh(nb)
+        pg = NotebookPage(notebook_id=nb.id, created_by=owner_id,
+                          title="T", slug="t", plain_text="x")
+        db.add(pg); db.commit(); db.refresh(pg)
+        log = AIActionLog(
+            workspace_id=ws_id, user_id=owner_id,
+            notebook_id=nb.id, page_id=pg.id,
+            action_type="selection.rewrite", scope="selection",
+            status="completed", trace_metadata={},
+        )
+        db.add(log); db.commit(); db.refresh(log)
+        log_id = log.id
+
+    member_client, member_auth = _register_client(email="member@x.co")
+    member_id = member_auth["user_id"]
+    with SessionLocal() as db:
+        db.add(Membership(workspace_id=ws_id, user_id=member_id, role="member"))
+        db.commit()
+    member_client.headers["x-workspace-id"] = ws_id
+
+    resp = member_client.get(f"/api/v1/ai-actions/{log_id}")
+    assert resp.status_code == 403
+
+
+def test_detail_dereferences_minio_overflow() -> None:
+    import app.services.storage as storage_service
+    from tests.fixtures.fake_s3 import FakeS3Client
+    fake = FakeS3Client()
+    fake.create_bucket(Bucket="ai-action-payloads")
+    import json as _json
+    big_payload = {"q": "x" * 20_000}
+    fake.put_object(
+        Bucket="ai-action-payloads",
+        Key="some-key/input.json",
+        Body=_json.dumps(big_payload).encode("utf-8"),
+        ContentType="application/json",
+    )
+    cache_clear = getattr(storage_service.get_s3_client, "cache_clear", None)
+    if cache_clear:
+        cache_clear()
+    storage_service.get_s3_client = lambda: fake  # type: ignore[assignment]
+
+    client, auth = _register_client(email="u5@x.co")
+    ws_id = auth["ws_id"]; user_id = auth["user_id"]
+    with SessionLocal() as db:
+        pr = Project(workspace_id=ws_id, name="P")
+        db.add(pr); db.commit(); db.refresh(pr)
+        nb = Notebook(workspace_id=ws_id, project_id=pr.id, created_by=user_id,
+                      title="NB", slug="nb")
+        db.add(nb); db.commit(); db.refresh(nb)
+        pg = NotebookPage(notebook_id=nb.id, created_by=user_id, title="T",
+                          slug="t", plain_text="x")
+        db.add(pg); db.commit(); db.refresh(pg)
+        log = AIActionLog(
+            workspace_id=ws_id, user_id=user_id,
+            notebook_id=nb.id, page_id=pg.id,
+            action_type="ask", scope="page", status="completed",
+            input_json={"_overflow_ref": "some-key/input.json", "_preview": "x" * 500},
+            trace_metadata={},
+        )
+        db.add(log); db.commit(); db.refresh(log)
+        log_id = log.id
+
+    resp = client.get(f"/api/v1/ai-actions/{log_id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["input_json"]["q"] == "x" * 20_000
