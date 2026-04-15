@@ -185,16 +185,41 @@ async def page_action(
     ]
 
     async def _generate():
-        full_content = ""
-        try:
-            yield _sse("message_start", {"role": "assistant"})
-            async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
-                if chunk.content:
-                    full_content += chunk.content
-                    yield _sse("token", {"content": chunk.content, "snapshot": full_content})
-            yield _sse("message_done", {"content": full_content, "action_type": action_type})
-        except Exception as exc:
-            yield _sse("error", {"message": str(exc)})
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type=f"page.{action_type}",
+            scope="page",
+            notebook_id=str(page.notebook_id),
+            page_id=str(page.id),
+        ) as log:
+            log.set_input({"action_type": action_type, "page_text_sha": str(len(page_text))})
+            full_content = ""
+            last_usage: dict[str, Any] | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {"role": "assistant", "action_log_id": log.log_id})
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                    if chunk.content:
+                        full_content += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full_content})
+                yield _sse("message_done", {"content": full_content, "action_type": action_type})
+                log.set_output(full_content)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or _estimate_tokens(user_prompt),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or _estimate_tokens(full_content),
+                    count_source="exact" if last_usage else "estimated",
+                )
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
 
     return StreamingResponse(
         _generate(),

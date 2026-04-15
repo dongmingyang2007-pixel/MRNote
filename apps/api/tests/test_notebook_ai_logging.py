@@ -151,3 +151,27 @@ def test_selection_action_creates_log_and_usage() -> None:
         assert usages[0].event_type == "llm_completion"
         assert usages[0].prompt_tokens == 12
         assert usages[0].count_source == "exact"
+
+
+def test_page_action_creates_log_and_usage() -> None:
+    client = TestClient(main_module.app)
+    fx = _seed_fixture(client, email="t2@x.co")
+    _finalize_client_auth(client, fx["ws_id"])
+
+    with patch(
+        "app.routers.notebook_ai.chat_completion_stream",
+        side_effect=lambda *a, **kw: _fake_stream(),
+    ):
+        resp = client.post(
+            "/api/v1/ai/notebook/page-action",
+            json={"page_id": fx["page_id"], "action_type": "summarize"},
+        )
+        _ = resp.text
+
+    assert resp.status_code == 200
+    with SessionLocal() as db:
+        logs = db.query(AIActionLog).all()
+        assert len(logs) == 1
+        assert logs[0].action_type == "page.summarize"
+        assert logs[0].scope == "page"
+        assert db.query(AIUsageEvent).count() == 1
