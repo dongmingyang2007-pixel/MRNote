@@ -249,3 +249,62 @@ def test_exception_inside_body_marks_failed_and_reraises() -> None:
     assert row.error_code == "RuntimeError"
     assert "upstream boom" in (row.error_message or "")
     assert row.input_json == {"q": "a"}
+
+
+import app.services.storage as storage_service
+from tests.fixtures.fake_s3 import FakeS3Client
+
+
+def _install_fake_s3(fake: FakeS3Client) -> None:
+    clear = getattr(storage_service.get_s3_client, "cache_clear", None)
+    if clear is not None:
+        clear()
+    storage_service.get_s3_client = lambda: fake  # type: ignore[assignment]
+
+
+def test_set_input_large_payload_overflows_to_minio() -> None:
+    ws_id, user_id = _seed()
+    fake = FakeS3Client()
+    _install_fake_s3(fake)
+    payload = {"text": "a" * 20_000}
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                log.set_input(payload)
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert "_overflow_ref" in row.input_json
+    assert row.input_json["_overflow_ref"].endswith(f"{log_id}-input.json")
+    assert len(row.input_json["_preview"]) <= 500
+    key = row.input_json["_overflow_ref"]
+    stored = fake.get_object(Bucket="ai-action-payloads", Key=key)
+    import json as _json
+    assert _json.loads(stored["Body"].read().decode("utf-8")) == payload
+
+
+def test_set_output_small_payload_stored_inline() -> None:
+    ws_id, user_id = _seed()
+    fake = FakeS3Client()
+    _install_fake_s3(fake)
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="page.summarize", scope="page",
+            ) as log:
+                log.set_output("small content")
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert "_overflow_ref" not in row.output_json
+    assert row.output_json == {"content": "small content"}

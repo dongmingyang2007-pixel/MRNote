@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
+from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models import AIActionLog, AIUsageEvent
+from app.services import storage as storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,61 @@ class _UsageBuffer:
     meta: dict[str, Any]
 
 
+OVERFLOW_THRESHOLD_BYTES = 10 * 1024
+OVERFLOW_PREVIEW_CHARS = 500
+
+
+def _json_size_bytes(payload: Any) -> int:
+    return len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+
+
+def _ensure_bucket(bucket: str) -> None:
+    client = storage_service.get_s3_client()
+    try:
+        client.head_bucket(Bucket=bucket)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in ("404", "NoSuchBucket", "NotFound"):
+            client.create_bucket(Bucket=bucket)
+        else:
+            raise
+
+
+def _overflow_key(workspace_id: str, log_id: str, field: str) -> str:
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return f"{workspace_id}/{ts}/{log_id}-{field}.json"
+
+
+def _maybe_overflow(
+    payload: dict[str, Any],
+    *,
+    workspace_id: str,
+    log_id: str,
+    field: str,
+) -> dict[str, Any]:
+    if _json_size_bytes(payload) <= OVERFLOW_THRESHOLD_BYTES:
+        return payload
+    bucket = settings.s3_ai_action_payloads_bucket
+    key = _overflow_key(workspace_id, log_id, field)
+    try:
+        _ensure_bucket(bucket)
+        client = storage_service.get_s3_client()
+        client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            ContentType="application/json",
+        )
+    except Exception:
+        logger.exception("ai_action_logger: overflow upload failed; storing inline")
+        return payload
+    preview_src = json.dumps(payload, ensure_ascii=False)
+    return {
+        "_overflow_ref": key,
+        "_preview": preview_src[:OVERFLOW_PREVIEW_CHARS],
+    }
+
+
 class ActionLogHandle:
     """Public handle for the in-progress action log."""
 
@@ -35,10 +95,12 @@ class ActionLogHandle:
         *,
         db: Session,
         log_id: str,
+        workspace_id: str,
         start_monotonic: float,
     ) -> None:
         self._db = db
         self._log_id = log_id
+        self._workspace_id = workspace_id
         self._start = start_monotonic
         self._input: dict[str, Any] | None = None
         self._output: dict[str, Any] | None = None
@@ -103,9 +165,15 @@ class ActionLogHandle:
         row.status = "completed"
         row.duration_ms = self._duration_ms()
         if self._input is not None:
-            row.input_json = self._input
+            row.input_json = _maybe_overflow(
+                self._input, workspace_id=self._workspace_id,
+                log_id=self._log_id, field="input",
+            )
         if self._output is not None:
-            row.output_json = self._output
+            row.output_json = _maybe_overflow(
+                self._output, workspace_id=self._workspace_id,
+                log_id=self._log_id, field="output",
+            )
         row.output_summary = self._output_summary
         row.model_id = self._model_id
         row.trace_metadata = dict(self._trace)
@@ -134,9 +202,15 @@ class ActionLogHandle:
         row.error_code = type(exc).__name__[:50]
         row.error_message = str(exc)[:2000]
         if self._input is not None:
-            row.input_json = self._input
+            row.input_json = _maybe_overflow(
+                self._input, workspace_id=self._workspace_id,
+                log_id=self._log_id, field="input",
+            )
         if self._output is not None:
-            row.output_json = self._output
+            row.output_json = _maybe_overflow(
+                self._output, workspace_id=self._workspace_id,
+                log_id=self._log_id, field="output",
+            )
         row.output_summary = self._output_summary
         row.trace_metadata = dict(self._trace)
         self._db.add(row)
@@ -170,7 +244,11 @@ async def action_log_context(
     db.commit()
     db.refresh(row)
 
-    handle = ActionLogHandle(db=db, log_id=row.id, start_monotonic=start)
+    handle = ActionLogHandle(
+        db=db, log_id=row.id,
+        workspace_id=workspace_id,
+        start_monotonic=start,
+    )
     try:
         yield handle
     except BaseException as exc:
