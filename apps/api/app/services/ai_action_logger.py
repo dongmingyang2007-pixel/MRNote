@@ -217,6 +217,30 @@ class ActionLogHandle:
         self._db.commit()
 
 
+class NullActionLogHandle:
+    """Safe no-op handle returned when the DB cannot accept the log row."""
+
+    @property
+    def log_id(self) -> str:
+        return ""
+
+    @property
+    def is_null(self) -> bool:
+        return True
+
+    def set_input(self, payload: dict[str, Any]) -> None:
+        return None
+
+    def set_output(self, content: Any) -> None:
+        return None
+
+    def record_usage(self, **_: Any) -> None:
+        return None
+
+    def set_trace_metadata(self, data: dict[str, Any]) -> None:
+        return None
+
+
 @asynccontextmanager
 async def action_log_context(
     db: Session,
@@ -228,21 +252,30 @@ async def action_log_context(
     notebook_id: str | None = None,
     page_id: str | None = None,
     block_id: str | None = None,
-) -> AsyncIterator[ActionLogHandle]:
+) -> AsyncIterator["ActionLogHandle | NullActionLogHandle"]:
     start = time.monotonic()
-    row = AIActionLog(
-        workspace_id=workspace_id,
-        user_id=user_id,
-        notebook_id=notebook_id,
-        page_id=page_id,
-        block_id=block_id,
-        action_type=action_type,
-        scope=scope,
-        status="running",
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    try:
+        row = AIActionLog(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            notebook_id=notebook_id,
+            page_id=page_id,
+            block_id=block_id,
+            action_type=action_type,
+            scope=scope,
+            status="running",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        logger.exception("ai_action_logger: enter failed, returning null handle")
+        try:
+            db.rollback()
+        except Exception:  # pragma: no cover
+            pass
+        yield NullActionLogHandle()
+        return
 
     handle = ActionLogHandle(
         db=db, log_id=row.id,

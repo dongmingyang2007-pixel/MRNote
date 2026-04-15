@@ -308,3 +308,32 @@ def test_set_output_small_payload_stored_inline() -> None:
         row = db.query(AIActionLog).filter_by(id=log_id).one()
     assert "_overflow_ref" not in row.output_json
     assert row.output_json == {"content": "small content"}
+
+
+from unittest.mock import patch
+
+
+def test_enter_db_failure_returns_null_handle() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> tuple[str, bool]:
+        with SessionLocal() as db:
+            with patch.object(db, "commit", side_effect=RuntimeError("db down")):
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="selection.rewrite", scope="selection",
+                ) as log:
+                    assert log.is_null is True
+                    assert log.log_id == ""
+                    log.set_input({"x": 1})
+                    log.set_output("nope")
+                    log.record_usage(event_type="llm_completion")
+                    log.set_trace_metadata({"k": "v"})
+                    return log.log_id, log.is_null
+        return "", False
+
+    log_id, is_null = asyncio.run(go())
+    assert log_id == ""
+    assert is_null is True
+    with SessionLocal() as db:
+        assert db.query(AIActionLog).count() == 0
