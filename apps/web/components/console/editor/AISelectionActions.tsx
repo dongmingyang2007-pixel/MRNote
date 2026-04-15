@@ -23,7 +23,7 @@ import { apiStream } from "@/lib/api-stream";
 interface AISelectionActionsProps {
   pageId: string;
   selectedText: string;
-  onResult: (text: string) => void;
+  onApply: (payload: { mode: "replace" | "insert_below"; text: string }) => void;
   onClose: () => void;
 }
 
@@ -54,18 +54,16 @@ const getActions = (t: (key: string) => string): ActionItem[] => [
 export default function AISelectionActions({
   pageId,
   selectedText,
-  onResult,
+  onApply,
   onClose,
 }: AISelectionActionsProps) {
   const t = useTranslations("console-notebooks");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
-  const [activeAction, setActiveAction] = useState<string | null>(null);
 
   const runAction = useCallback(
     async (actionKey: string) => {
       setLoading(true);
-      setActiveAction(actionKey);
       setResult("");
 
       let fullContent = "";
@@ -108,7 +106,7 @@ export default function AISelectionActions({
             type="button"
             className="mem-action-btn is-primary"
             onClick={() => {
-              onResult(result);
+              onApply({ mode: "replace", text: result });
               onClose();
             }}
           >
@@ -118,7 +116,7 @@ export default function AISelectionActions({
             type="button"
             className="mem-action-btn"
             onClick={() => {
-              onResult("\n\n" + result);
+              onApply({ mode: "insert_below", text: result });
               onClose();
             }}
           >

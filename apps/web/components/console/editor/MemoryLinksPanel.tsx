@@ -11,6 +11,7 @@ import { apiGet, apiPost } from "@/lib/api";
 
 interface MemoryLinksPanelProps {
   pageId: string;
+  embedded?: boolean;
 }
 
 interface MemoryCandidate {
@@ -25,10 +26,13 @@ interface MemoryCandidate {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function MemoryLinksPanel({ pageId }: MemoryLinksPanelProps) {
+export default function MemoryLinksPanel({
+  pageId,
+  embedded = false,
+}: MemoryLinksPanelProps) {
   const t = useTranslations("console-notebooks");
   const [candidates, setCandidates] = useState<MemoryCandidate[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
 
   const loadCandidates = useCallback(async () => {
@@ -45,8 +49,29 @@ export default function MemoryLinksPanel({ pageId }: MemoryLinksPanelProps) {
   }, [pageId]);
 
   useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const data = await apiGet<{ items: MemoryCandidate[] }>(`/api/v1/pages/${pageId}/memory/links`);
+        if (!cancelled) {
+          setCandidates(data.items || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setCandidates([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId]);
 
   const handleExtract = useCallback(async () => {
     setExtracting(true);
@@ -88,7 +113,7 @@ export default function MemoryLinksPanel({ pageId }: MemoryLinksPanelProps) {
   );
 
   return (
-    <div className="memory-links-panel">
+    <div className={`memory-links-panel${embedded ? " memory-links-panel--embedded" : ""}`}>
       <div className="memory-links-header">
         <div className="memory-links-title">
           <Brain size={16} />
@@ -125,7 +150,7 @@ export default function MemoryLinksPanel({ pageId }: MemoryLinksPanelProps) {
                 {c.category} · {c.importance}
               </span>
             </div>
-            {c.decision === "pending" && (
+            {!["confirmed", "rejected", "discard"].includes(c.decision) && (
               <div className="memory-links-item-actions">
                 <button
                   type="button"

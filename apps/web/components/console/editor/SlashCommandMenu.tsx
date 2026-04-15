@@ -20,6 +20,7 @@ import {
   Sigma,
   AlertCircle,
   Type,
+  PenTool,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,21 @@ const COMMANDS: SlashCommandItem[] = [
         .run();
     },
   },
+  {
+    title: "Whiteboard",
+    description: "Interactive drawing canvas",
+    icon: PenTool,
+    command: (editor) => {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "whiteboard",
+          attrs: { elements: [], appState: {}, width: 600, height: 400 },
+        })
+        .run();
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -167,20 +183,17 @@ const CommandListComponent = ({
 }: CommandListProps & { ref: React.Ref<CommandListRef> }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [items]);
+  const activeIndex = items.length === 0 ? 0 : Math.min(selectedIndex, items.length - 1);
 
   // Scroll selected item into view
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const selected = container.children[selectedIndex] as HTMLElement | undefined;
+    const selected = container.children[activeIndex] as HTMLElement | undefined;
     if (selected) {
       selected.scrollIntoView({ block: "nearest" });
     }
-  }, [selectedIndex]);
+  }, [activeIndex]);
 
   const selectItem = useCallback(
     (index: number) => {
@@ -196,22 +209,28 @@ const CommandListComponent = ({
       ref({
         onKeyDown: ({ event }: { event: KeyboardEvent }) => {
           if (event.key === "ArrowUp") {
+            if (items.length === 0) {
+              return true;
+            }
             setSelectedIndex((i) => (i + items.length - 1) % items.length);
             return true;
           }
           if (event.key === "ArrowDown") {
+            if (items.length === 0) {
+              return true;
+            }
             setSelectedIndex((i) => (i + 1) % items.length);
             return true;
           }
           if (event.key === "Enter") {
-            selectItem(selectedIndex);
+            selectItem(activeIndex);
             return true;
           }
           return false;
         },
       });
     }
-  }, [ref, items, selectedIndex, selectItem]);
+  }, [ref, items, activeIndex, selectItem]);
 
   if (items.length === 0) return null;
 
@@ -222,7 +241,7 @@ const CommandListComponent = ({
         return (
           <button
             key={item.title}
-            className={`slash-menu-item${index === selectedIndex ? " is-selected" : ""}`}
+            className={`slash-menu-item${index === activeIndex ? " is-selected" : ""}`}
             onClick={() => selectItem(index)}
             onMouseEnter={() => setSelectedIndex(index)}
             type="button"

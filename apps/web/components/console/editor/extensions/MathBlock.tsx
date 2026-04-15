@@ -13,13 +13,10 @@ function MathBlockView(props: any) {
   const latex: string = node.attrs.latex || "";
 
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(latex);
+  const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setValue(node.attrs.latex || "");
-  }, [node.attrs.latex]);
+  const value = draft ?? latex;
 
   useEffect(() => {
     if (previewRef.current && !editing) {
@@ -44,6 +41,7 @@ function MathBlockView(props: any) {
   const handleBlur = useCallback(() => {
     setEditing(false);
     updateAttributes({ latex: value });
+    setDraft(null);
   }, [value, updateAttributes]);
 
   const handleKeyDown = useCallback(
@@ -64,7 +62,7 @@ function MathBlockView(props: any) {
             ref={inputRef}
             className="math-block-input"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => setDraft(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder="LaTeX formula…"
@@ -75,7 +73,10 @@ function MathBlockView(props: any) {
         <div
           className="math-block-preview"
           ref={previewRef}
-          onDoubleClick={() => setEditing(true)}
+          onDoubleClick={() => {
+            setDraft(latex);
+            setEditing(true);
+          }}
           title="Double-click to edit"
         />
       )}

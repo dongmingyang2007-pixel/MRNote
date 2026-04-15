@@ -52,6 +52,22 @@
 
 **这是一个 AI-native 的笔记与工作系统。用户在这里写文档、代码、公式、草图、读书笔记、项目想法；系统一边帮助用户完成当前工作，一边把这些内容转化成长期记忆，让 AI 越来越了解用户本人和用户的工作方式。**
 
+### 1.0 产品终极定位
+
+不是 Notion + ChatGPT 的简单拼接。  
+更像是：**NotebookLM + Notion + Personal Memory Graph + Agentic Workspace**
+
+核心不是”能写”，而是：  
+**用户每一次写作、提问、阅读、画图、整理资料，都在反过来塑造一个越来越懂用户的长期知识人格。**
+
+MRAI 当前最有价值的资产：
+- Memory V3 内核已经很强（triage / promote / supersede / concept-parent / evidence 全链路）
+- Notebook 数据层已经存在
+- Notebook AI 接口已经存在
+- 文件索引链已经存在
+
+**只差把它们真正打通成一个产品闭环。**
+
 ### 1.1 核心价值
 产品必须同时覆盖两条线，但底层只有一个内核：
 
@@ -73,9 +89,61 @@
 - AI 是页面内共创者，不是外置聊天框
 - Memory 是后台长期大脑
 - Evidence 是一切记忆的来源
-- Playbook 是“这个用户通常怎么做事”的沉淀
-- Outcome 是“什么方法真的有效”的反馈
-- Health 是“哪些记忆 stale/冲突/需要重确认”的治理机制
+- Playbook 是”这个用户通常怎么做事”的沉淀
+- Outcome 是”什么方法真的有效”的反馈
+- Health 是”哪些记忆 stale/冲突/需要重确认”的治理机制
+
+### 1.4 实施优先级（P0 → P3）
+
+**P0：真正接入 Memory V3（从”AI 能陪写”到”AI 会持续理解你”的分水岭）**
+
+当前 `note_memory_bridge.py` 是弱版本的提取链路；而 `worker_tasks.py` 里的 chat memory extraction 是强版本。正确做法不是在 notebook 里再抄一套，而是：
+
+1. 把 chat 的 memory extraction / triage / promote / supersede / concept-parent / evidence 逻辑**抽成一个通用 service**（`UnifiedMemoryPipeline`），支持不同 `source_type`：
+   - `chat_message`
+   - `notebook_page`
+   - `uploaded_document`
+   - `whiteboard`
+   - `book_chapter`
+2. Page 的 memory/confirm 不应该只改 `decision` 字段，而应该真正调用这个 shared pipeline，把确认项写成正式 Memory 节点和完整证据链
+3. 这一步做好，系统才开始真正像”越来越了解用户”的产品
+
+**P1：Notebook AI Ask 接入 Memory + 文件检索（从”页面问答”到”长期上下文问答”）**
+
+当前 ask 主要用页面全文和选区。下一步在进入模型前增加 **retrieval orchestration**：
+1. Page current text（当前页全文）
+2. Selected context（选区内容）
+3. `memory/search` 命中的 subject / subgraph
+4. `memory/search/explain` 的推理结果
+5. Document chunks（来自上传的书籍、PDF、课程材料）
+6. Page history / related pages
+
+这样用户问 AI 时，它不是只”基于当前页回答”，而是”基于用户长期上下文 + 当前资料 + 当前页面”回答。
+
+**P2：书籍学习做成一级工作流（从”PDF 聊天”到”知识内化系统”）**
+
+书不是孤立文件，而是进入完整知识链：
+```
+Upload → Parse/Chunk → Index
+  ↓
+Auto-create notebook pages: 书籍概览 / 章节页 / 读书笔记页
+  ↓
+AI 支持：章节总结 / 段落解释 / 提问答疑 / 测验 / flashcards
+  ↓
+提取知识点到 Memory（包括”用户对这本书的理解和困惑”）
+  ↓
+Document Chunk → Page Notes → Memory Evidence → Subject Graph → Study Plan
+```
+
+这比单纯做 PDF 聊天高级很多——“书”会进入用户的长期知识图谱。
+
+**P3：白板/手绘层（把草图也纳入知识系统）**
+
+作为独立 block type 实现，不混在富文本里硬塞。手绘 block 存 strokes JSON，AI 在此基础上：
+1. 总结白板内容（文字化）
+2. 从白板内容中提炼 memory candidates
+
+这样”草图”也能被系统学习，而不是只是一张死图。
 
 ---
 
@@ -107,6 +175,9 @@
 Notebook/Page/Block 是内容层。  
 Memory/Evidence/Outcome/Playbook/Health 是学习层。  
 不要把两层混在一起，但要让它们强连接。
+
+### 2.4 统一记忆管线（UnifiedMemoryPipeline）
+Chat 和 Notebook 不应该各自维护一套 memory extraction 逻辑。必须将 `worker_tasks.py` 中的强版本 chat memory extraction 抽成通用 service，让所有来源（chat / page / document / whiteboard / book chapter）共享同一条 extract → triage → promote → supersede → evidence 管线。详见第 9.0 节。
 
 ---
 
@@ -278,13 +349,17 @@ block_type 先支持：
 - numbered_list
 - checklist
 - quote
-- code
-- latex
-- drawing
-- file
-- ai_output
+- code（Monaco/CodeMirror，带语法高亮和语言选择）
+- latex（KaTeX 渲染，支持 display/inline 模式）
+- whiteboard（独立画布 block，存 strokes JSON，Excalidraw 嵌入；AI 可总结白板内容并提取 memory candidates）
+- image
+- file（文件嵌入/预览）
+- ai_output（AI 生成内容，带 source 引用）
 - callout
 - divider
+- reference（引用另一个页面/记忆/文档 chunk）
+- task（任务项，可标记完成状态，可触发 outcome 记录）
+- flashcard（学习卡片，可嵌入页面内）
 
 ### 5.1.4 NotebookPageVersion
 语义：页面快照，用于恢复、对比、异步学习
@@ -369,12 +444,11 @@ block_type 先支持：
 ## 6.1 新路由
 在现有 `/app` 体系下新增：
 
-- `/app/notebooks`
-- `/app/notebooks/[notebookId]`
-- `/app/notebooks/[notebookId]/pages/[pageId]`
-- `/app/notebooks/[notebookId]/learn`
-- `/app/notebooks/[notebookId]/search`
-- `/app/notebooks/[notebookId]/settings`
+- `/app/notebooks` — 笔记本列表页
+- `/app/notebooks/[notebookId]` — 笔记本工作区（自由窗口画布）
+- `/app/notebooks/[notebookId]/settings` — 笔记本设置
+
+注意：页面不再有独立路由。页面、文件、AI 对话等内容均以浮动窗口形式在笔记本工作区 (`/app/notebooks/[notebookId]`) 内打开，通过 WindowManager 管理。URL 可使用 query param 记录当前打开的窗口状态（如 `?windows=page_abc,file_xyz`）以支持刷新恢复。
 
 后续可扩展：
 - `/app/notebooks/[notebookId]/daily`
@@ -392,29 +466,94 @@ block_type 先支持：
 - 我最近的长期关注点
 - 推荐继续推进的 3 个页面
 
-## 6.3 页面编辑器布局
-页面编辑器采用三栏或二栏可收缩布局：
+## 6.3 笔记本工作区布局：自由窗口化画布
 
-### 左侧
-- notebook 树
-- 页面树
-- 收藏 / 最近 / 搜索
-- 学习资料入口
+笔记本工作区采用**纯窗口化设计**，不使用固定栏。所有内容（页面、文件、AI 对话、记忆面板等）均以浮动窗口形式呈现在自由画布上。
 
-### 中间
-- 主编辑区
-- 支持 block 编辑
-- 支持 slash command 插入块
-- 支持选中文本后触发 AI
+### 整体结构
 
-### 右侧
-- AI 面板
-- 页面摘要
-- 相关记忆
-- 相关页面
-- 相关资料
-- 学习卡片 / 任务 / 建议
-- Memory trace（调试开关下可见）
+```
+┌──────────────────────────────────────────────────────┐
+│ NotebookWorkspace                                     │
+│ ┌────────┐                                            │
+│ │ 侧栏    │  ┌─ WindowManager (canvas) ─────────────┐ │
+│ │ 56px    │  │                                       │ │
+│ │         │  │  ┌─Window────────┐ ┌─Window────────┐  │ │
+│ │ 页面树  │  │  │ 读书笔记.md   │ │ chapter1.pdf  │  │ │
+│ │ 对话    │  │  │               │ │               │  │ │
+│ │ 记忆    │  │  │ [NoteEditor]  │ │ [FileViewer]  │  │ │
+│ │ 学习    │  │  │               │ │               │  │ │
+│ │         │  │  └───────────────┘ └───────────────┘  │ │
+│ │─────── │  │        ┌─Window────────┐               │ │
+│ │ 最小化  │  │        │ AI 对话        │               │ │
+│ │ 窗口列表│  │        │ [ChatWindow]  │               │ │
+│ │         │  │        └───────────────┘               │ │
+│ └────────┘  └────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────┘
+```
+
+### 侧栏（56px 图标栏 + 可展开 240px 面板）
+
+上半部分 — 笔记本导航：
+- 返回（回到笔记本列表）
+- 页面树（展开页面列表面板）
+- AI 对话（展开对话列表面板）
+- 记忆（展开记忆面板）
+- 学习资料（展开学习材料面板）
+- 设置
+
+下半部分 — 最小化窗口托盘：
+- 被最小化的窗口以图标+标题缩略形式列在侧栏底部
+- 点击可恢复窗口到画布上
+- 类似 VS Code 的面板列表风格
+
+### 窗口管理器 (WindowManager)
+
+管理画布上所有浮动窗口的状态：
+
+| 属性 | 说明 |
+|------|------|
+| 位置 (x, y) | 窗口在画布上的坐标 |
+| 尺寸 (width, height) | 窗口宽高，支持拖拽调整 |
+| z-index | 窗口层级，点击窗口自动置顶 |
+| 状态 | normal / minimized / maximized |
+
+### 窗口 (Window)
+
+每个窗口包含：
+- **标题栏**：窗口标题 + 最小化/最大化/关闭按钮
+- **拖拽**：通过标题栏拖拽移动
+- **缩放**：四边和四角缩放手柄
+- **边界约束**：窗口不可完全拖出可视区域，至少保留标题栏部分可见，确保用户始终能把窗口拉回来
+
+### 窗口内容类型
+
+| 窗口类型 | 内容 | 打开方式 |
+|----------|------|----------|
+| `note` | TipTap 混合 Block 编辑器 | 从页面树点击页面 |
+| `code` | 纯代码编辑器（Monaco/CodeMirror） | 创建代码类型页面 |
+| `canvas` | 手绘画布（Excalidraw） | 创建画布类型页面 |
+| `file` | 文件查看器（PDF/图片/文本等） | 从学习资料点击文件 |
+| `chat` | AI 对话界面 | 从侧栏打开对话 |
+| `memory` | 记忆浏览/管理面板 | 从侧栏打开记忆 |
+| `ai_panel` | 页面级 AI 面板（摘要/相关/Trace） | 从笔记窗口内触发 |
+| `study` | 学习卡片/复习/测验 | 从学习资料打开 |
+
+### 窗口交互规则
+
+- **自由拖拽**：窗口可在画布上自由拖动，不做自动吸附/snap
+- **重叠**：窗口可互相重叠，点击任意窗口将其提升到最上层
+- **最大化**：窗口填满整个画布区域（不覆盖侧栏）
+- **最小化**：窗口缩入侧栏底部的最小化托盘
+- **关闭**：关闭窗口（不删除内容，下次可从侧栏重新打开）
+- **多开**：同一个页面/文件可以在多个窗口中打开（但应标识）
+
+### 典型使用场景
+
+1. **读书笔记**：左边打开 PDF 文件窗口，右边打开笔记页窗口，边读边记
+2. **AI 辅助写作**：一个笔记窗口 + 一个 AI 对话窗口并排
+3. **代码参考**：一个代码窗口 + 一个文档窗口 + 一个 AI 窗口叠放
+4. **对比学习**：两个不同笔记页窗口并排对比
 
 ---
 
@@ -474,7 +613,7 @@ block_type 先支持：
 
 ---
 
-## 8. AI 作用域设计
+## 8. AI 作用域设计（P1 优先级）
 
 AI 交互时必须允许用户选择作用域。
 
@@ -489,22 +628,112 @@ AI 交互时必须允许用户选择作用域。
 
 ### 8.2 默认规则
 - 选中内容时：默认 `selection + page`
-- 在页面右侧 AI 面板提问：默认 `page + notebook`
+- 在 AI 面板窗口提问：默认 `page + notebook`
 - 明显工作问题：允许 `project + memory`
 - 明显个人成长/偏好问题：允许 `user_memory`
 - 学习材料问答：允许 `study_asset + page notes`
 - 外部资料问题：用户显式开启 `web`
 
-### 8.3 可解释性要求
+### 8.3 Retrieval Orchestration（检索编排层）
+
+这是从"页面问答"进化到"长期上下文问答"的关键。在 AI 请求进入模型前，自动组装多层上下文：
+
+```
+用户提问
+  ↓
+Retrieval Orchestration
+  ├── 1. Page current text（当前页全文）
+  ├── 2. Selected context（选区内容，如有）
+  ├── 3. memory/search 命中 → 相关 subject / subgraph
+  ├── 4. memory/search/explain 推理结果
+  ├── 5. Document chunks（上传的书籍/PDF/课程材料）
+  └── 6. Page history / related pages
+  ↓
+Context Assembly（按 token budget 裁剪和排序）
+  ↓
+Model Call
+```
+
+原则：
+- 不是每次都全量检索所有源——根据问题意图决定检索哪些层
+- 使用 token budget 控制总上下文长度
+- 检索结果要带 source 标记，以便在回答中展示引用
+
+### 8.4 可解释性要求
 所有使用了长期 memory 或学习资料的回答，必须尽量在 UI 中展示：
 - 参考页面
 - 参考记忆
 - 参考证据
+- 参考文档 chunk
+- 检索来源标记（来自 memory / document / page history）
 - 为什么选中它们
 
 ---
 
-## 9. Memory 接入设计（最关键）
+## 9. Memory 接入设计（最关键——P0 优先级）
+
+## 9.0 核心架构决策：统一记忆管线
+
+**不要在 notebook 里重新实现一套弱版 memory extraction。**
+
+当前状况：
+- `worker_tasks.py` 里的 chat memory extraction 是**强版本**（triage / promote / supersede / concept-parent / evidence 全链路）
+- `note_memory_bridge.py` 是**弱版本**（只做候选提取，不走完整链路）
+
+正确做法：把 chat 的完整 memory pipeline 抽成通用 service。
+
+### 9.0.1 UnifiedMemoryPipeline
+
+```python
+class UnifiedMemoryPipeline:
+    “””统一的记忆提取/写入管线，支持多种来源。”””
+    
+    def extract_and_promote(
+        self,
+        content: str,
+        source_type: SourceType,  # chat_message | notebook_page | uploaded_document | whiteboard | book_chapter
+        source_ref: str,          # 来源 ID（message_id / page_id / chunk_id 等）
+        project_id: str,
+        workspace_id: str,
+        user_id: str,
+        context: dict | None = None,  # 额外上下文（页面标题、笔记本类型等）
+    ) -> MemoryExtractionResult:
+        “””
+        完整链路：
+        1. 抽取 memory candidates
+        2. Triage（分类、去重、合并）
+        3. 与已有 subject / concept / playbook 做链接
+        4. Promote 为正式 Memory 节点（或标记为 pending_confirmation）
+        5. 写入 evidence 链（source_type + source_ref）
+        6. Supersede 旧版本记忆
+        7. 更新 health 信号
+        “””
+```
+
+### 9.0.2 source_type 枚举
+
+| source_type | 来源 | 典型内容 |
+|-------------|------|----------|
+| `chat_message` | 聊天消息 | 用户和 AI 的对话 |
+| `notebook_page` | 笔记页面 | 用户写的文档/代码/笔记 |
+| `uploaded_document` | 上传文件 | PDF/docx 解析后的文本 |
+| `whiteboard` | 手绘白板 | 白板内容的文字化描述 |
+| `book_chapter` | 书籍章节 | StudyChunk 的内容 |
+
+### 9.0.3 Confirm/Reject 必须走完整链路
+
+Page 的 `memory/confirm` 不应该只改 `decision` 字段。当用户确认一条候选记忆时，必须：
+1. 调用 `UnifiedMemoryPipeline.promote()`
+2. 创建正式 Memory 节点
+3. 写入完整 evidence 链（指向具体 page + version + block）
+4. 执行 concept-parent 链接
+5. 执行 supersede 检查（是否取代旧记忆）
+6. 更新相关 subject 的 health 状态
+
+当用户拒绝时：
+1. 标记为 rejected
+2. 记录拒绝原因（如有）
+3. 降低同类候选的未来 confidence
 
 ## 9.1 总原则
 Notebook 不是 memory 本身，而是 memory 的高质量证据源。
@@ -512,7 +741,7 @@ Notebook 不是 memory 本身，而是 memory 的高质量证据源。
 ### 9.1.1 直接来源
 Notebook 内容可转化为这些 memory 证据：
 - 用户写的正文
-- 用户手写草图 OCR/文本说明（如已有稳定路径，否则先跳过 OCR）
+- 用户手写草图的文字化描述（AI 总结白板内容）
 - 用户的代码块说明
 - 用户对书的批注
 - 用户给 AI 的指令
@@ -543,21 +772,20 @@ Notebook 内容可转化为这些 memory 证据：
 - 更新 page keywords
 - 建立本页检索索引
 
-### 9.2.2 异步重处理
+### 9.2.2 异步重处理（通过 UnifiedMemoryPipeline）
 Celery worker 定时或触发时：
 - 切分页面版本
-- 抽取 memory candidates
-- 写入 evidence
+- 调用 `UnifiedMemoryPipeline.extract_and_promote(source_type=”notebook_page”)`
+- 完整执行：抽取 → triage → promote → evidence → supersede → health
 - 与已有 subject / concept / playbook 做链接
 - 生成/刷新学习 run
-- 更新 health 信号
 - 触发 nightly consolidation
 
 ## 9.3 记忆写入规则
-默认不要把任何一句笔记都直接升格为“永久真相”。
+默认不要把任何一句笔记都直接升格为”永久真相”。
 
 为每条候选记忆维护：
-- evidence
+- evidence（完整证据链，指向 source_type + source_ref）
 - confidence
 - source page/version
 - visibility
@@ -568,16 +796,16 @@ Celery worker 定时或触发时：
 - dedupe/supersede relation
 
 ## 9.4 用户确认机制
-增加“记忆候选”确认 UI：
+增加”记忆候选”确认 UI：
 
 - AI 认为你偏好简洁 bullet 风格 → 用户可确认/拒绝
 - AI 认为你正在推进某个长期项目 → 用户可确认/拒绝
 - AI 认为你经常先写大纲后细化 → 用户可确认/拒绝
 
-这一步很重要，避免长期胡记忆。
+确认/拒绝必须走 UnifiedMemoryPipeline 完整链路（见 9.0.3），不是只改一个字段。
 
 ## 9.5 页面与 Memory 双向链接
-在页面右侧提供：
+在 AI 面板窗口中提供：
 - 本页生成了哪些 memories
 - 这些 memories 的证据在哪里
 - 哪些 AI 答案引用了本页
@@ -587,22 +815,49 @@ Celery worker 定时或触发时：
 
 ---
 
-## 10. 学习系统（Books / PDFs / Courses）
+## 10. 学习系统（P2 优先级——一级工作流）
+
+## 10.0 设计原则
+书籍学习不是”PDF 聊天”。书不是孤立文件，而是进入用户的完整知识链：
+
+```
+Upload（PDF/docx/扫描页/任何文件）
+  ↓
+Parse → Chunk → Index
+  ↓
+Auto-create notebook pages:
+  ├── 书籍概览页
+  ├── 章节页（每章一个 page）
+  └── 读书笔记页（用户自己的笔记）
+  ↓
+AI 支持（在窗口中并排操作）:
+  ├── 章节总结
+  ├── 段落解释
+  ├── 提问答疑
+  ├── 测验 / flashcards
+  └── 提取知识点到 Memory
+  ↓
+知识内化链路:
+  Document Chunk → Page Notes → Memory Evidence → Subject Graph → Study Plan
+```
+
+关键区别：不只是提取书中的知识——**”用户对这本书的理解和困惑”也要记下来**，成为 memory evidence 的一部分。
 
 ## 10.1 学习模式目标
 用户上传一本书或资料后，AI 不只是回答问题，而是帮助用户形成自己的学习过程。
 
 ## 10.2 核心能力
-- 上传 PDF / 文档
-- 解析文本
-- 切分 chunk
+- 上传任何文件类型（PDF / docx / 扫描页 / 图片 / 代码文件 / slides）
+- 自动解析文本（复用现有 data item / MinIO 体系）
+- 切分 chunk 并建立索引
 - 建立 asset → chunk → note/page 关联
-- 生成章节大纲
-- 生成关键概念图
-- 页面内问答
-- 自动出复习题 / 抽认卡
-- 将用户笔记与原文相关 chunk 关联
+- 自动创建笔记本页面（概览 / 章节 / 笔记）
+- 生成章节大纲和关键概念图
+- 页面内问答（通过 Retrieval Orchestration 层，结合 chunk + memory + 笔记）
+- 自动出复习题 / 抽认卡（flashcard block type）
+- 将用户笔记与原文相关 chunk 双向关联
 - 追踪学习进度
+- 通过 UnifiedMemoryPipeline 将书中知识点和用户的理解/困惑写入长期记忆
 
 ## 10.3 新对象
 - StudyAsset
@@ -618,13 +873,16 @@ AI 可根据用户笔记自动生成：
 - 应用题
 - 错题重练卡
 
+学习卡片同时作为 `flashcard` block type 可嵌入笔记页面中。
+
 ## 10.5 学习服务闭环
 - 用户上传书
-- 系统生成知识地图
-- 用户做笔记
-- AI 抽取理解盲点
+- 系统自动解析并生成知识地图 + 笔记本页面
+- 用户在一个窗口看书，另一个窗口写笔记（窗口化工作区的典型场景）
+- AI 抽取用户的理解盲点
 - 生成复习计划
-- 每周总结“你真正学会了什么”
+- 通过 Memory Pipeline 将学习成果写入长期知识图谱
+- 每周总结”你真正学会了什么”
 
 ---
 
@@ -738,15 +996,16 @@ AI 可根据用户笔记自动生成：
 ## 13.7 Memory 连接 API
 在不破坏现有 memory 契约的基础上补充：
 
-- `POST /api/v1/pages/{page_id}/memory/extract`
-- `GET /api/v1/pages/{page_id}/memory/links`
-- `POST /api/v1/pages/{page_id}/memory/confirm`
-- `POST /api/v1/pages/{page_id}/memory/reject`
-- `GET /api/v1/pages/{page_id}/memory/trace`
+- `POST /api/v1/pages/{page_id}/memory/extract` — 触发 UnifiedMemoryPipeline（source_type=notebook_page）
+- `GET /api/v1/pages/{page_id}/memory/links` — 本页关联的 memory 节点和证据链
+- `POST /api/v1/pages/{page_id}/memory/confirm` — 走完整 promote 链路（不只改 decision）
+- `POST /api/v1/pages/{page_id}/memory/reject` — 走完整 reject 链路（降低同类 confidence）
+- `GET /api/v1/pages/{page_id}/memory/trace` — 完整的 memory trace（evidence → memory → subject → playbook）
 
 说明：
 - 真正的 memory search/explain/subgraph/outcomes 等仍优先走现有 `/api/v1/memory/*`
 - Notebook 只是补页面视角接口
+- confirm/reject 必须通过 UnifiedMemoryPipeline 执行完整链路，不可只改数据库字段
 
 ---
 
@@ -759,16 +1018,21 @@ AI 可根据用户笔记自动生成：
 - `notebook_page_snapshot_task`
 - `notebook_page_summary_task`
 
-### 14.2 记忆处理
-- `notebook_page_memory_extract_task`
-- `notebook_page_memory_link_task`
-- `notebook_page_relevance_refresh_task`
+### 14.2 记忆处理（通过 UnifiedMemoryPipeline）
+- `unified_memory_extract_task(source_type, source_ref, content, ...)` — 统一入口，替代分散的弱版提取
+- `notebook_page_memory_extract_task` — 调用 unified pipeline with source_type=notebook_page
+- `notebook_page_memory_link_task` — 建立 page ↔ memory 双向链接
+- `notebook_page_relevance_refresh_task` — 刷新相关性
+- `whiteboard_memory_extract_task` — 调用 unified pipeline with source_type=whiteboard（先文字化白板内容，再提取）
+- `document_memory_extract_task` — 调用 unified pipeline with source_type=uploaded_document
 
 ### 14.3 学习处理
-- `study_asset_ingest_task`
-- `study_asset_chunk_task`
-- `study_asset_deck_generate_task`
-- `study_asset_review_recommendation_task`
+- `study_asset_ingest_task` — 解析上传文件（不限 PDF）
+- `study_asset_chunk_task` — 切分和索引
+- `study_asset_auto_pages_task` — 自动创建概览/章节/笔记页面
+- `study_asset_deck_generate_task` — 生成 flashcards
+- `study_asset_memory_extract_task` — 调用 unified pipeline with source_type=book_chapter
+- `study_asset_review_recommendation_task` — 复习推荐
 
 ### 14.4 主动服务
 - `daily_notebook_digest_task`
@@ -916,25 +1180,33 @@ AI 可根据用户笔记自动生成：
 - 能插入/编辑 block
 - 能保存和恢复页面
 
-## Phase 2：前端编辑器
+## Phase 2：窗口管理器 + 前端编辑器
 实现：
 - `/app/notebooks`
-- `/app/notebooks/[notebookId]/pages/[pageId]`
-- block editor
+- `/app/notebooks/[notebookId]` — 笔记本工作区（画布）
+- WindowManager 核心：窗口状态管理（位置/尺寸/z-index/最小化/最大化）
+- Window 通用壳：标题栏、拖拽、缩放、关闭、边界约束（防止拖出屏幕）
+- MinimizedTray：侧栏底部最小化窗口列表
+- NoteWindow：TipTap block editor 运行在窗口容器内
 - 代码块 / latex / file / ai_output / drawing 块
 - autosave
-- 页面树
+- 侧栏页面树（点击页面 → 在画布上打开窗口）
 
 完成标准：
-- 用户可以稳定写内容
-- 重进页面后内容仍在
+- 用户可以从侧栏打开多个页面窗口
+- 窗口可自由拖拽、缩放、重叠、最小化、最大化
+- 窗口不可完全拖出可视区域
+- 最小化的窗口出现在侧栏底部，可点击恢复
+- 用户可以稳定写内容，重进页面后内容仍在
 - 可新增/删除/排序 block
 
-## Phase 3：页内 AI
+## Phase 3：页内 AI + 文件窗口
 实现：
 - selection actions
 - page actions
-- AI side panel
+- AIPanelWindow：AI 面板作为独立浮动窗口（替代固定右侧面板）
+- FileWindow：文件查看器窗口（PDF/图片/文本等）
+- ChatWindow：AI 对话窗口
 - 生成 ai_output block
 - AIActionLog
 
@@ -942,33 +1214,62 @@ AI 可根据用户笔记自动生成：
 - 用户可以选中一段文字让 AI 改写
 - 用户可以对整个页面做总结/续写/大纲整理
 - AI 输出能写回页面
+- 用户可以在一个窗口里看 PDF，另一个窗口里写笔记
+- AI 对话以独立窗口形式打开，可和笔记并排使用
 
-## Phase 4：Memory 接入
+## Phase 4：Memory V3 真正接入（P0 — 最高优先级）
 实现：
-- page → evidence
-- memory candidate extraction
-- page memory links
-- confirm / reject UI
-- 右侧相关记忆面板
-- 与现有 memory/search/explain 连接
+- **UnifiedMemoryPipeline**：从 `worker_tasks.py` 的 chat memory extraction 逻辑中抽出通用 service
+  - 支持 source_type: `chat_message | notebook_page | uploaded_document | whiteboard | book_chapter`
+  - 完整链路: extract → triage → promote → supersede → concept-parent → evidence
+- 将现有 chat memory extraction 迁移为调用 UnifiedMemoryPipeline
+- Notebook page 的异步记忆处理调用 UnifiedMemoryPipeline（替代弱版 `note_memory_bridge.py`）
+- Page memory/confirm 走完整 promote 链路（不只改 decision 字段）
+- Page memory/reject 走完整 reject 链路（降低同类 confidence）
+- MemoryWindow：记忆面板作为浮动窗口，展示双向链接
+- 与现有 memory/search/explain/subgraph 连接
 
 完成标准：
-- 页面编辑一段时间后能产生 memory candidate
-- 页面可查看关联 memory
+- 页面编辑一段时间后能通过 UnifiedMemoryPipeline 产生真正的 Memory 节点（不只是候选）
+- 用户确认候选记忆后，能看到完整的证据链（page → evidence → memory → subject）
+- Chat 和 Notebook 使用同一套 memory pipeline，行为一致
+- 页面可查看关联 memory，memory 可追溯来源页面
 - AI 回答可显示相关 evidence/memory
 
-## Phase 5：学习系统
+## Phase 4.5：Retrieval Orchestration（P1）
 实现：
-- 上传 PDF/资料
-- ingest/chunk
-- study ask
-- 自动生成知识点和 deck
-- 将用户笔记关联到 study asset
+- AI Ask 请求前的多层检索编排
+  - Page current text + selected context
+  - memory/search 命中 subject / subgraph
+  - memory/search/explain 推理结果
+  - Document chunks（上传文件）
+  - Page history / related pages
+- Token budget 控制和上下文裁剪
+- 回答中展示引用来源标记
 
 完成标准：
-- 上传一本书后能问答
-- 能生成学习卡片
+- 用户在 AI 窗口提问时，回答能引用长期记忆中的内容
+- 用户能看到回答引用了哪些 memory / page / document chunk
+- 回答质量明显优于只用当前页全文的版本
+
+## Phase 5：学习系统（P2 — 一级工作流）
+实现：
+- 上传任何文件类型（不限 PDF）
+- 自动解析/分 chunk/索引
+- 自动创建笔记本页面（书籍概览 / 章节页 / 读书笔记页）
+- study ask（通过 Retrieval Orchestration，结合 chunk + memory + 笔记）
+- 自动生成知识点和 deck（flashcard block type）
+- 将用户笔记关联到 study asset
+- 通过 UnifiedMemoryPipeline(source_type="book_chapter") 将知识点写入 Memory
+- 同时记录"用户的理解和困惑"到 Memory
+
+完成标准：
+- 上传一本书后自动生成概览页和章节页
+- 在一个窗口看书、另一个窗口写笔记
+- 能生成学习卡片（嵌入页面 flashcard block）
 - 用户笔记可关联章节
+- 书中知识点能进入 Memory 的 Subject Graph
+- 学习过程中的理解/困惑也被记忆
 
 ## Phase 6：收费
 实现：
@@ -1021,21 +1322,39 @@ AI 可根据用户笔记自动生成：
 - 查相关页面
 - 查相关记忆
 
-## 19.3 页面标题区
-展示：
-- 页面 emoji/icon
-- 页面类型
-- 最近更新时间
-- AI summary
-- 关联 notebook / project
+## 19.3 窗口标题栏
+每个窗口的标题栏展示：
+- 窗口图标（根据内容类型：页面/文件/对话/记忆等）
+- 内容标题（页面名/文件名/对话名）
+- 窗口操作按钮：最小化（缩入侧栏）、最大化（填满画布）、关闭
 
-## 19.4 右侧 AI 面板标签
-- Ask
-- Summary
-- Related
-- Memory
-- Study
-- Trace（调试）
+页面类型窗口标题栏额外展示：
+- 页面 emoji/icon
+- 页面类型标签
+- 最近更新时间
+- 自动保存状态指示
+
+## 19.4 AI 面板窗口
+AI 面板不再是固定右侧栏，而是一个独立浮动窗口，可从笔记窗口内触发打开。
+
+AI 窗口内标签页：
+- Ask（向 AI 提问）
+- Summary（页面摘要）
+- Related（相关页面/记忆/资料）
+- Memory（本页关联的记忆）
+- Study（学习卡片/测验）
+- Trace（调试模式，开发者可见）
+
+AI 窗口可以：
+- 和任意笔记窗口并排使用
+- 同时打开多个 AI 窗口（绑定不同页面上下文）
+- 最小化到侧栏
+
+## 19.5 最小化托盘（侧栏底部）
+- 所有被最小化的窗口以图标 + 缩略标题列在侧栏下半部分
+- 点击恢复窗口到原位置和尺寸
+- 右键可关闭窗口
+- 风格类似 VS Code 的面板列表
 
 ---
 
@@ -1174,28 +1493,46 @@ AI 可根据用户笔记自动生成：
 - `apps/web/lib/study-sdk.ts`
 - `apps/web/lib/billing-sdk.ts`
 
+窗口管理器核心组件：
+- `apps/web/components/notebook/WindowManager.tsx` — 管理画布上所有窗口的状态（位置/尺寸/z-index/最小化/最大化）
+- `apps/web/components/notebook/Window.tsx` — 通用窗口壳（标题栏、拖拽、缩放、关闭、边界约束）
+- `apps/web/components/notebook/WindowContent.tsx` — 多态渲染：根据窗口类型分发到对应内容组件
+- `apps/web/components/notebook/MinimizedTray.tsx` — 侧栏底部最小化窗口列表
+- `apps/web/components/notebook/contents/NoteWindow.tsx` — TipTap 混合编辑器窗口
+- `apps/web/components/notebook/contents/CodeWindow.tsx` — 纯代码编辑器窗口
+- `apps/web/components/notebook/contents/CanvasWindow.tsx` — Excalidraw 画布窗口
+- `apps/web/components/notebook/contents/FileWindow.tsx` — 文件查看器窗口（PDF/图片/文本等）
+- `apps/web/components/notebook/contents/ChatWindow.tsx` — AI 对话窗口
+- `apps/web/components/notebook/contents/MemoryWindow.tsx` — 记忆面板窗口
+- `apps/web/components/notebook/contents/AIPanelWindow.tsx` — 页面级 AI 面板窗口
+- `apps/web/components/notebook/contents/StudyWindow.tsx` — 学习卡片/复习窗口
+
 ### API
 建议新增：
 - `apps/api/app/routers/notebooks.py`
 - `apps/api/app/routers/study.py`
 - `apps/api/app/routers/notebook_ai.py`
 - `apps/api/app/routers/billing.py`
+- `apps/api/app/services/unified_memory_pipeline.py` — **核心：统一记忆管线**（从 worker_tasks.py 的 chat extraction 抽出）
+- `apps/api/app/services/retrieval_orchestration.py` — **核心：多层检索编排**（AI Ask 前的上下文组装）
 - `apps/api/app/services/notebook_*`
 - `apps/api/app/services/study_*`
 - `apps/api/app/tasks/notebook_tasks.py`
+- `apps/api/app/tasks/unified_memory_tasks.py` — 统一记忆任务入口
 
 ---
 
 ## 24. UI 风格建议
 
-整体视觉风格延续现有 console/workspace，但 notebook 页面要更偏“内容创作”：
+整体视觉风格延续现有 console/workspace，但 notebook 工作区要更偏”内容创作 + 桌面操作系统”：
 
-- 干净
-- 高可读性
-- 少噪声
-- AI 不要过度抢占页面
-- 右侧 AI 面板默认可收起
-- 调试类视图放在二级层，不要打断主写作流
+- 干净、高可读性、少噪声
+- 画布背景应微妙但可辨识，让用户感知到”这是一个工作台面”
+- 窗口风格统一：半透明/毛玻璃标题栏，轻量边框，圆角
+- 窗口获得焦点时有明确的视觉提示（边框高亮或阴影加深）
+- AI 面板作为独立窗口，不会过度抢占空间
+- 调试类视图（Memory Trace 等）放在窗口内的二级标签，不干扰主流程
+- 最小化托盘融入侧栏设计，不另起新 UI 区域
 
 ---
 

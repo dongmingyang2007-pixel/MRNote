@@ -10,8 +10,8 @@ import { apiStream } from "@/lib/api-stream";
 // ---------------------------------------------------------------------------
 
 interface AIPanelProps {
-  pageId: string;
-  pageContext: string;
+  notebookId?: string;
+  pageId?: string;
   selectedText?: string;
   onInsertToEditor?: (text: string) => void;
   onClose: () => void;
@@ -20,6 +20,46 @@ interface AIPanelProps {
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  sources?: ChatSource[];
+}
+
+interface ChatSource {
+  type: string;
+  id: string;
+  title: string;
+}
+
+function normalizeSources(value: unknown): ChatSource[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const source = item as Record<string, unknown>;
+      const type = String(source.type || "").trim();
+      const id = String(source.id || "").trim();
+      const title = String(source.title || "").trim();
+
+      if (!type && !id && !title) {
+        return null;
+      }
+
+      return {
+        type: type || "source",
+        id,
+        title,
+      };
+    })
+    .filter((item): item is ChatSource => item !== null);
+}
+
+function formatSourceType(type: string): string {
+  return type.replaceAll("_", " ");
 }
 
 // ---------------------------------------------------------------------------
@@ -27,8 +67,8 @@ interface ChatMessage {
 // ---------------------------------------------------------------------------
 
 export default function AIPanel({
+  notebookId,
   pageId,
-  pageContext,
   selectedText,
   onInsertToEditor,
   onClose,
@@ -38,6 +78,7 @@ export default function AIPanel({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamContent, setStreamContent] = useState("");
+  const [streamSources, setStreamSources] = useState<ChatSource[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -62,15 +103,18 @@ export default function AIPanel({
     setInput("");
     setStreaming(true);
     setStreamContent("");
+    setStreamSources([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
 
     let fullContent = "";
+    let fullSources: ChatSource[] = [];
     try {
       for await (const { event, data } of apiStream(
         "/api/v1/ai/notebook/ask",
         {
+          notebook_id: notebookId,
           page_id: pageId,
           message: text,
           context: selectedText || "",
@@ -78,11 +122,19 @@ export default function AIPanel({
         },
         controller.signal,
       )) {
-        if (event === "token" && data.content) {
+        if (event === "message_start") {
+          fullSources = normalizeSources(data.sources);
+          setStreamSources(fullSources);
+        } else if (event === "token" && data.content) {
           fullContent += data.content as string;
           setStreamContent(fullContent);
         } else if (event === "message_done") {
           fullContent = (data.content as string) || fullContent;
+          const doneSources = normalizeSources(data.sources);
+          if (doneSources.length > 0) {
+            fullSources = doneSources;
+            setStreamSources(doneSources);
+          }
         } else if (event === "error") {
           fullContent = `Error: ${data.message || "Unknown error"}`;
         }
@@ -93,11 +145,15 @@ export default function AIPanel({
       }
     }
 
-    setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: fullContent, sources: fullSources },
+    ]);
     setStreamContent("");
+    setStreamSources([]);
     setStreaming(false);
     abortRef.current = null;
-  }, [input, streaming, messages, pageId, selectedText]);
+  }, [input, streaming, messages, notebookId, pageId, selectedText]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -112,6 +168,30 @@ export default function AIPanel({
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
   }, []);
+
+  const renderSources = useCallback(
+    (sources: ChatSource[]) => {
+      if (sources.length === 0) {
+        return null;
+      }
+
+      return (
+        <div className="ai-panel-sources">
+          <span className="ai-panel-sources-label">{t("ai.sources")}</span>
+          {sources.map((source, index) => (
+            <span
+              key={`${source.type}-${source.id || source.title}-${index}`}
+              className="ai-panel-source-pill"
+            >
+              <span className="ai-panel-source-type">{formatSourceType(source.type)}</span>
+              <span className="ai-panel-source-title">{source.title || source.id}</span>
+            </span>
+          ))}
+        </div>
+      );
+    },
+    [t],
+  );
 
   return (
     <div className="ai-panel">
@@ -138,6 +218,7 @@ export default function AIPanel({
         {messages.map((msg, i) => (
           <div key={i} className={`ai-panel-msg ai-panel-msg-${msg.role}`}>
             <div className="ai-panel-msg-content">{msg.content}</div>
+            {msg.role === "assistant" && renderSources(msg.sources || [])}
             {msg.role === "assistant" && onInsertToEditor && (
               <button
                 type="button"
@@ -153,6 +234,7 @@ export default function AIPanel({
         {streaming && streamContent && (
           <div className="ai-panel-msg ai-panel-msg-assistant">
             <div className="ai-panel-msg-content">{streamContent}</div>
+            {renderSources(streamSources)}
           </div>
         )}
 

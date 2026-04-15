@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
+import AISelectionActions from "./AISelectionActions";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,16 +22,20 @@ import { useTranslations } from "next-intl";
 
 interface FloatingToolbarProps {
   editor: Editor;
+  pageId: string;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
+export default function FloatingToolbar({ editor, pageId }: FloatingToolbarProps) {
   const t = useTranslations("console-notebooks");
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [showAIActions, setShowAIActions] = useState(false);
+  const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
+  const [selectedText, setSelectedText] = useState("");
 
   const toggleLink = useCallback(() => {
     if (editor.isActive("link")) {
@@ -50,6 +55,42 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
     setLinkUrl("");
   }, [editor, linkUrl]);
 
+  const openAIActions = useCallback(() => {
+    const { from, to, empty } = editor.state.selection;
+    if (empty) {
+      return;
+    }
+    setShowLinkInput(false);
+    setSelectionRange({ from, to });
+    setSelectedText(editor.state.doc.textBetween(from, to, "\n"));
+    setShowAIActions(true);
+  }, [editor]);
+
+  const handleApplyAI = useCallback(
+    ({ mode, text }: { mode: "replace" | "insert_below"; text: string }) => {
+      if (!selectionRange) {
+        return;
+      }
+
+      if (mode === "replace") {
+        editor.chain().focus().insertContentAt(selectionRange, text).run();
+      } else {
+        editor.chain().focus().insertContentAt(selectionRange.to, `\n\n${text}`).run();
+      }
+
+      setShowAIActions(false);
+      setSelectionRange(null);
+      setSelectedText("");
+    },
+    [editor, selectionRange],
+  );
+
+  const handleCloseAI = useCallback(() => {
+    setShowAIActions(false);
+    setSelectionRange(null);
+    setSelectedText("");
+  }, []);
+
   const handleLinkKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
@@ -67,6 +108,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
     <BubbleMenu
       editor={editor}
       className="floating-toolbar"
+      options={{ placement: "top" }}
+      shouldShow={({ editor: currentEditor }) =>
+        showLinkInput || showAIActions || !currentEditor.state.selection.empty
+      }
     >
       {showLinkInput ? (
         <div className="floating-toolbar-link-input">
@@ -81,6 +126,13 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
             className="floating-toolbar-input"
           />
         </div>
+      ) : showAIActions ? (
+        <AISelectionActions
+          pageId={pageId}
+          selectedText={selectedText}
+          onApply={handleApplyAI}
+          onClose={handleCloseAI}
+        />
       ) : (
         <>
           <button
@@ -151,8 +203,9 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
           <button
             type="button"
             className="floating-toolbar-btn floating-toolbar-ai-btn"
+            onClick={openAIActions}
             title={t("toolbar.aiActions")}
-            disabled
+            disabled={editor.state.selection.empty}
           >
             <Sparkles size={16} />
           </button>

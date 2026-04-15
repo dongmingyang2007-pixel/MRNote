@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import NotebookSidebar from "@/components/console/NotebookSidebar";
-import { apiGet } from "@/lib/api";
-
-interface NotebookInfo {
-  id: string;
-  title: string;
-  project_id: string | null;
-}
+import { WindowManagerProvider } from "@/components/notebook/WindowManager";
 
 export default function NotebookWorkspaceLayout({
   children,
@@ -17,26 +10,18 @@ export default function NotebookWorkspaceLayout({
   children: React.ReactNode;
 }) {
   const params = useParams<{ notebookId: string }>();
-  const [notebook, setNotebook] = useState<NotebookInfo | null>(null);
-
-  useEffect(() => {
-    void apiGet<NotebookInfo>(`/api/v1/notebooks/${params.notebookId}`)
-      .then(setNotebook)
-      .catch(() => setNotebook(null));
-  }, [params.notebookId]);
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 48px - 28px)", marginLeft: -56 }}>
-      {/* NotebookSidebar replaces the global sidebar */}
-      <NotebookSidebar
-        notebookId={params.notebookId}
-        notebookTitle={notebook?.title}
-      />
+    <WindowManagerProvider>
+      <div style={{ display: "flex", height: "calc(100vh - 48px - 28px)", marginLeft: -56 }}>
+        {/* NotebookSidebar replaces the global sidebar */}
+        <NotebookSidebar notebookId={params.notebookId} />
 
-      {/* Content area */}
-      <div style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
-        {children}
+        {/* Content area */}
+        <div style={{ flex: 1, overflow: "hidden", minWidth: 0, position: "relative" }}>
+          {children}
+        </div>
       </div>
-    </div>
+    </WindowManagerProvider>
   );
 }

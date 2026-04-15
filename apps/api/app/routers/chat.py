@@ -155,6 +155,43 @@ def _normalize_memory_write_preview(value: object) -> dict[str, object] | None:
     return payload
 
 
+def _normalize_extracted_facts(value: object) -> list[dict[str, object]] | None:
+    if not isinstance(value, list):
+        return None
+
+    items: list[dict[str, object]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        fact_text = str(item.get("fact") or "").strip()
+        if not fact_text:
+            continue
+        normalized_item: dict[str, object] = {
+            "fact": fact_text,
+            "category": str(item.get("category") or "").strip(),
+            "importance": float(item.get("importance") or 0.0),
+        }
+        for field in (
+            "status",
+            "triage_action",
+            "triage_reason",
+            "target_memory_id",
+            "supersedes_memory_id",
+            "subject_memory_id",
+            "subject_kind",
+            "subject_resolution",
+            "subject_label",
+            "parent_memory_id",
+            "parent_memory_content",
+            "memory_type",
+        ):
+            field_value = str(item.get(field) or "").strip()
+            if field_value:
+                normalized_item[field] = field_value
+        items.append(normalized_item)
+    return items or None
+
+
 def _sanitize_assistant_metadata(metadata_json: dict[str, object] | None) -> dict[str, object]:
     metadata = metadata_json if isinstance(metadata_json, dict) else {}
     payload: dict[str, object] = {}
@@ -172,6 +209,10 @@ def _sanitize_assistant_metadata(metadata_json: dict[str, object] | None) -> dic
     preview = _normalize_memory_write_preview(metadata.get("memory_write_preview"))
     if preview:
         payload["memory_write_preview"] = preview
+    else:
+        extracted_facts = _normalize_extracted_facts(metadata.get("extracted_facts"))
+        if extracted_facts:
+            payload["extracted_facts"] = extracted_facts
 
     raw_memories_extracted = metadata.get("memories_extracted")
     if isinstance(raw_memories_extracted, str) and raw_memories_extracted.strip():
@@ -318,6 +359,10 @@ def _extract_live_message_metadata(message: Message) -> dict[str, object] | None
     preview = _normalize_memory_write_preview(metadata.get("memory_write_preview"))
     if preview:
         payload["memory_write_preview"] = preview
+    else:
+        extracted_facts = _normalize_extracted_facts(metadata.get("extracted_facts"))
+        if extracted_facts:
+            payload["extracted_facts"] = extracted_facts
 
     raw_memories_extracted = metadata.get("memories_extracted")
     if isinstance(raw_memories_extracted, str) and raw_memories_extracted.strip():

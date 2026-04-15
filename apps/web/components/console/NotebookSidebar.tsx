@@ -6,12 +6,13 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, FileText, MessageSquare, Brain, BookOpen, Settings } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { useWindowManager } from "@/components/notebook/WindowManager";
+import MinimizedTray from "@/components/notebook/MinimizedTray";
 
 type SideTab = "pages" | "chat" | "memory" | "learn" | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
-  notebookTitle?: string;
 }
 
 const TABS = [
@@ -21,7 +22,7 @@ const TABS = [
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
 ] as const;
 
-export default function NotebookSidebar({ notebookId, notebookTitle }: NotebookSidebarProps) {
+export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("console");
   const tn = useTranslations("console-notebooks");
@@ -50,11 +51,38 @@ export default function NotebookSidebar({ notebookId, notebookTitle }: NotebookS
     return false;
   };
 
-  const handleTabClick = useCallback((tabId: SideTab) => {
-    setActiveTab((prev) => (prev === tabId ? null : tabId));
-  }, []);
+  const { openWindow } = useWindowManager();
 
-  const panelOpen = activeTab !== null;
+  const handleTabClick = useCallback((tabId: SideTab) => {
+    // Pages tab: toggle sidebar panel as before
+    if (tabId === "pages") {
+      setActiveTab((prev) => (prev === tabId ? null : tabId));
+      return;
+    }
+    // Chat, memory, learn: open a window
+    if (tabId === "chat") {
+      openWindow({
+        type: "chat",
+        title: tn("sidebar.openChat"),
+        meta: { notebookId },
+      });
+    } else if (tabId === "memory") {
+      openWindow({
+        type: "memory",
+        title: tn("sidebar.openMemory"),
+        meta: { notebookId },
+      });
+    } else if (tabId === "learn") {
+      openWindow({
+        type: "study",
+        title: "Study",
+        meta: { notebookId },
+      });
+    }
+  }, [openWindow, notebookId, tn]);
+
+  // Only the "pages" tab opens a sidebar panel; other tabs open windows
+  const panelOpen = activeTab === "pages";
 
   return (
     <div style={{ display: "flex", height: "100%" }}>
@@ -103,6 +131,9 @@ export default function NotebookSidebar({ notebookId, notebookTitle }: NotebookS
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
+        {/* Minimized window pills */}
+        <MinimizedTray />
+
         {/* Settings */}
         <Link
           href={`${basePath}/settings`}
@@ -115,7 +146,7 @@ export default function NotebookSidebar({ notebookId, notebookTitle }: NotebookS
         </Link>
       </nav>
 
-      {/* 240px expandable panel */}
+      {/* 240px expandable panel — only for pages tab */}
       {panelOpen && (
         <div
           className="notebook-side-panel"
@@ -139,99 +170,61 @@ export default function NotebookSidebar({ notebookId, notebookTitle }: NotebookS
             color: "var(--console-text-muted, #6b7280)",
             marginBottom: 12,
           }}>
-            {activeTab && t(`nav.${activeTab}` as "nav.pages")}
+            {t("nav.pages")}
           </div>
 
-          {/* Panel content based on active tab */}
-          {activeTab === "pages" && (
-            <div style={{ fontSize: "0.8125rem" }}>
-              {pages.map((page) => (
-                <Link
-                  key={page.id}
-                  href={`${basePath}/pages/${page.id}`}
-                  prefetch={false}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    color: "var(--console-text-primary, #1a1a2e)",
-                    textDecoration: "none",
-                    fontSize: "0.8125rem",
-                    transition: "background 100ms ease",
-                  }}
-                >
-                  <FileText size={14} />
-                  {page.title || tn("common.untitled")}
-                </Link>
-              ))}
-              <Link
-                href={basePath}
-                prefetch={false}
+          {/* Pages list */}
+          <div style={{ fontSize: "0.8125rem" }}>
+            {pages.map((page) => (
+              <button
+                key={page.id}
+                type="button"
+                onClick={() =>
+                  openWindow({
+                    type: "note",
+                    title: page.title || tn("common.untitled"),
+                    meta: { notebookId, pageId: page.id },
+                  })
+                }
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  padding: "8px 12px",
+                  padding: "6px 12px",
                   borderRadius: 6,
-                  color: "var(--console-accent, #2563EB)",
-                  textDecoration: "none",
+                  color: "var(--console-text-primary, #1a1a2e)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
                   fontSize: "0.8125rem",
-                  fontWeight: 500,
-                  marginTop: 8,
+                  transition: "background 100ms ease",
+                  width: "100%",
+                  textAlign: "left",
                 }}
               >
-                + {tn("pages.create")}
-              </Link>
-            </div>
-          )}
-
-          {activeTab === "chat" && (
-            <div style={{ fontSize: "0.8125rem" }}>
-              <Link
-                href={`${basePath}/chat`}
-                prefetch={false}
-                style={{
-                  display: "block",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  color: "var(--console-text-primary, #1a1a2e)",
-                  textDecoration: "none",
-                }}
-              >
-                {tn("sidebar.openChat")}
-              </Link>
-            </div>
-          )}
-
-          {activeTab === "memory" && (
-            <div style={{ fontSize: "0.8125rem" }}>
-              <Link
-                href={`${basePath}/memory`}
-                prefetch={false}
-                style={{
-                  display: "block",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  color: "var(--console-text-primary, #1a1a2e)",
-                  textDecoration: "none",
-                }}
-              >
-                {tn("sidebar.openMemory")}
-              </Link>
-            </div>
-          )}
-
-          {activeTab === "learn" && (
-            <div style={{
-              fontSize: "0.8125rem",
-              color: "var(--console-text-muted, #6b7280)",
-              padding: "8px 12px",
-            }}>
-              {tn("sidebar.comingSoon")}
-            </div>
-          )}
+                <FileText size={14} />
+                {page.title || tn("common.untitled")}
+              </button>
+            ))}
+            <Link
+              href={basePath}
+              prefetch={false}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderRadius: 6,
+                color: "var(--console-accent, #2563EB)",
+                textDecoration: "none",
+                fontSize: "0.8125rem",
+                fontWeight: 500,
+                marginTop: 8,
+              }}
+            >
+              + {tn("pages.create")}
+            </Link>
+          </div>
         </div>
       )}
     </div>

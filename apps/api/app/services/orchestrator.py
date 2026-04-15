@@ -1282,6 +1282,27 @@ def _should_use_responses_auto_tools(
     return False
 
 
+def _build_multimodal_chat_kwargs(
+    *,
+    image_bytes: bytes | None,
+    image_mime_type: str,
+    video_bytes: bytes | None,
+    video_mime_type: str,
+    video_frame_data_urls: list[str] | None,
+    video_fps: float,
+) -> dict[str, object]:
+    kwargs: dict[str, object] = {
+        "image_bytes": image_bytes,
+        "image_mime_type": image_mime_type,
+        "video_bytes": video_bytes,
+        "video_mime_type": video_mime_type,
+    }
+    if video_frame_data_urls:
+        kwargs["video_frame_data_urls"] = video_frame_data_urls
+        kwargs["video_fps"] = video_fps
+    return kwargs
+
+
 def _build_chat_function_tool_definitions(
     *,
     llm_capabilities: set[str],
@@ -1806,18 +1827,20 @@ async def _call_llm_with_chat_api_function_tools(
             last_result = await chat_completion_multimodal_detailed(
                 tool_messages,
                 model=llm_model_id,
-                image_bytes=image_bytes,
-                image_mime_type=image_mime_type,
-                video_bytes=video_bytes,
-                video_mime_type=video_mime_type,
-                video_frame_data_urls=video_frame_data_urls,
-                video_fps=video_fps,
                 enable_thinking=enable_thinking,
                 enable_search=enable_search,
                 search_options=search_options,
                 tools=tool_definitions,
                 tool_choice="auto",
                 parallel_tool_calls=True,
+                **_build_multimodal_chat_kwargs(
+                    image_bytes=image_bytes,
+                    image_mime_type=image_mime_type,
+                    video_bytes=video_bytes,
+                    video_mime_type=video_mime_type,
+                    video_frame_data_urls=video_frame_data_urls,
+                    video_fps=video_fps,
+                ),
             )
         else:
             last_result = await chat_completion_detailed(
@@ -2137,15 +2160,17 @@ async def _build_and_call_llm(
         result = await chat_completion_multimodal_detailed(
             messages,
             model=llm_model_id,
-            image_bytes=image_bytes,
-            image_mime_type=image_mime_type,
-            video_bytes=video_bytes,
-            video_mime_type=video_mime_type,
-            video_frame_data_urls=video_frame_data_urls,
-            video_fps=video_fps,
             enable_thinking=resolved_enable_thinking,
             enable_search=search_enabled,
             search_options=search_options,
+            **_build_multimodal_chat_kwargs(
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
+                video_bytes=video_bytes,
+                video_mime_type=video_mime_type,
+                video_frame_data_urls=video_frame_data_urls,
+                video_fps=video_fps,
+            ),
         )
     else:
         result = await chat_completion_detailed(
@@ -2257,15 +2282,21 @@ async def orchestrate_inference_stream(
     search_enabled = search_decision.enable_search
     search_options = search_decision.search_options
     llm_config_json = _load_llm_config_json(db, project_id=project_id)
-    response_tool_definitions, response_tool_trace = await _select_response_tool_definitions(
+    response_tool_definitions = _build_response_tool_definitions(
         llm_model_id=llm_model_id,
         llm_capabilities=llm_capabilities,
+        enable_search=search_enabled,
         user_message=user_message,
-        recent_messages=recent_messages,
         image_bytes=None,
         llm_config_json=llm_config_json,
-        search_enabled=search_enabled,
     )
+    response_tool_trace = {
+        "source": "heuristic_rules",
+        "candidate_count": len(response_tool_definitions),
+        "selected_tool_names": [str(tool.get("type") or tool.get("name") or "") for tool in response_tool_definitions],
+        "applied": False,
+        "query": user_message.strip(),
+    }
     if model_supports_responses_api(llm_model_id):
         chat_function_tool_definitions = []
         chat_tool_trace = {

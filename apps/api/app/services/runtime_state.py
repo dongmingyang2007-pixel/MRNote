@@ -86,11 +86,15 @@ class RuntimeStateStore:
         self._memory = _InMemoryBackend()
         self._redis: Redis | None = None
 
+    def _should_use_memory_backend(self) -> bool:
+        database_url = (settings.database_url or "").lower()
+        return settings.env == "test" or database_url.startswith("sqlite")
+
     def _namespaced(self, scope: str, key: str) -> str:
         return f"{settings.redis_namespace}:{scope}:{key}"
 
     def _get_redis_client(self) -> Redis | None:
-        if settings.env == "test":
+        if self._should_use_memory_backend():
             return None
         if self._redis is None:
             self._redis = Redis.from_url(
@@ -102,9 +106,8 @@ class RuntimeStateStore:
         return self._redis
 
     def _should_fallback_to_memory(self) -> bool:
-        # Keep tests hermetic without requiring Redis, but never mask Redis
-        # failures in local/prod-style environments.
-        return settings.env == "test"
+        # Keep sqlite-backed test runs hermetic without requiring Redis.
+        return self._should_use_memory_backend()
 
     def _run(self, redis_op, fallback_op):
         client = self._get_redis_client()

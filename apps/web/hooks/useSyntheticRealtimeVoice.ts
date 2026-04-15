@@ -164,7 +164,7 @@ export function useSyntheticRealtimeVoice({
         filename: nextMedia.filename,
       });
     },
-    [base.sendJson],
+    [base],
   );
 
   const clearPendingMedia = useCallback(() => {
@@ -172,7 +172,7 @@ export function useSyntheticRealtimeVoice({
     pendingMediaRef.current = null;
     setPendingMedia(null);
     base.sendJson({ type: "media.clear" });
-  }, [base.sendJson]);
+  }, [base]);
 
   return {
     state: base.state,

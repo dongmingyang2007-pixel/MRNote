@@ -53,7 +53,7 @@ def _upload_session_ttl_seconds(session: dict) -> int:
 
 def _is_completed_data_item(item: DataItem) -> bool:
     status = (item.meta_json or {}).get("upload_status")
-    return status in {None, "completed"}
+    return status in {None, "completed", "index_failed"}
 
 
 def _run_or_enqueue_upload_followups(

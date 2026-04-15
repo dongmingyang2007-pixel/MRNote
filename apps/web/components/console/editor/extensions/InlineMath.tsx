@@ -13,13 +13,10 @@ function InlineMathView(props: any) {
   const latex: string = node.attrs.latex || "";
 
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(latex);
+  const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    setValue(node.attrs.latex || "");
-  }, [node.attrs.latex]);
+  const value = draft ?? latex;
 
   useEffect(() => {
     if (spanRef.current && !editing) {
@@ -43,6 +40,7 @@ function InlineMathView(props: any) {
   const handleBlur = useCallback(() => {
     setEditing(false);
     updateAttributes({ latex: value });
+    setDraft(null);
   }, [value, updateAttributes]);
 
   const handleKeyDown = useCallback(
@@ -62,7 +60,7 @@ function InlineMathView(props: any) {
           ref={inputRef}
           className="inline-math-input"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => setDraft(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder="LaTeX…"
@@ -72,7 +70,10 @@ function InlineMathView(props: any) {
         <span
           ref={spanRef}
           className="inline-math-preview"
-          onDoubleClick={() => setEditing(true)}
+          onDoubleClick={() => {
+            setDraft(latex);
+            setEditing(true);
+          }}
           title="Double-click to edit"
         />
       )}

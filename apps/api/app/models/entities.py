@@ -623,6 +623,31 @@ class NotebookAttachment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
 
+class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "study_assets"
+
+    notebook_id: Mapped[str] = mapped_column(ForeignKey("notebooks.id", ondelete="CASCADE"), index=True)
+    data_item_id: Mapped[str | None] = mapped_column(ForeignKey("data_items.id", ondelete="SET NULL"), nullable=True)
+    title: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    asset_type: Mapped[str] = mapped_column(String(20), default="pdf", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    total_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+
+class StudyChunk(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "study_chunks"
+
+    asset_id: Mapped[str] = mapped_column(ForeignKey("study_assets.id", ondelete="CASCADE"), index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    heading: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    embedding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
 Index("idx_model_catalog_category", ModelCatalog.category)
 Index("idx_model_catalog_provider", ModelCatalog.provider)
 Index("idx_pipeline_configs_project", PipelineConfig.project_id)

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, FileText, ArrowLeft, Pin, Trash2, ChevronRight } from "lucide-react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { useWindowManager } from "@/components/notebook/WindowManager";
+import WindowCanvas from "@/components/notebook/WindowCanvas";
 
 interface NotebookInfo {
   id: string;
@@ -24,12 +26,15 @@ interface PageItem {
 
 export default function NotebookDetailPage() {
   const params = useParams<{ notebookId: string }>();
+  const searchParams = useSearchParams();
   const t = useTranslations("console-notebooks");
   const router = useRouter();
+  const { openWindow } = useWindowManager();
   const [notebook, setNotebook] = useState<NotebookInfo | null>(null);
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const handledOpenTargetRef = useRef("");
 
   useEffect(() => {
     void apiGet<NotebookInfo>(`/api/v1/notebooks/${params.notebookId}`)
@@ -37,21 +42,49 @@ export default function NotebookDetailPage() {
       .catch(() => setNotebook(null));
   }, [params.notebookId]);
 
-  const loadPages = useCallback(async () => {
-    try {
-      const data = await apiGet<{ items: PageItem[]; total: number }>(
-        `/api/v1/notebooks/${params.notebookId}/pages`
-      );
-      setPages(data.items || []);
-    } catch {
-      setPages([]);
+  useEffect(() => {
+    const openPageId = searchParams.get("openPage");
+    const openTarget = openPageId ? `${params.notebookId}:${openPageId}` : "";
+    if (!openPageId || loading || handledOpenTargetRef.current === openTarget) {
+      return;
     }
-    setLoading(false);
-  }, [params.notebookId]);
+
+    const existingPage = pages.find((page) => page.id === openPageId);
+    openWindow({
+      type: "note",
+      title: existingPage?.title || t("pages.untitled"),
+      meta: { notebookId: params.notebookId, pageId: openPageId },
+    });
+    handledOpenTargetRef.current = openTarget;
+    router.replace(`/app/notebooks/${params.notebookId}`);
+  }, [loading, openWindow, pages, params.notebookId, router, searchParams, t]);
 
   useEffect(() => {
-    void loadPages();
-  }, [loadPages]);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const data = await apiGet<{ items: PageItem[]; total: number }>(
+          `/api/v1/notebooks/${params.notebookId}/pages`
+        );
+        if (!cancelled) {
+          setPages(data.items || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setPages([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.notebookId]);
 
   const handleCreate = useCallback(async () => {
     if (creating) return;
@@ -61,12 +94,17 @@ export default function NotebookDetailPage() {
         `/api/v1/notebooks/${params.notebookId}/pages`,
         { title: "", page_type: "document" }
       );
-      router.push(`/app/notebooks/${params.notebookId}/pages/${page.id}`);
+      openWindow({
+        type: "note",
+        title: page.title || t("pages.untitled"),
+        meta: { notebookId: params.notebookId, pageId: page.id },
+      });
+      setPages((prev) => [page, ...prev]);
     } catch {
       // ignore
     }
     setCreating(false);
-  }, [creating, params.notebookId, router]);
+  }, [creating, params.notebookId, openWindow, t]);
 
   const handleDelete = useCallback(async (pageId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -84,10 +122,20 @@ export default function NotebookDetailPage() {
     });
 
   return (
-    <div className="console-page-shell" style={{ padding: "24px 32px" }}>
-      <div style={{ width: "100%" }}>
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+      {/* Page list panel */}
+      <div
+        className="console-page-shell"
+        style={{
+          width: 320,
+          flexShrink: 0,
+          padding: "24px 20px",
+          overflowY: "auto",
+          borderRight: "1px solid var(--console-border-subtle, rgba(255,255,255,0.5))",
+        }}
+      >
         {/* Breadcrumb */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, fontSize: "0.8125rem", color: "var(--console-text-muted, #6b7280)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, fontSize: "0.8125rem", color: "var(--console-text-muted, #6b7280)" }}>
           <button
             onClick={() => router.push("/app/notebooks")}
             style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, fontSize: "inherit" }}
@@ -102,38 +150,38 @@ export default function NotebookDetailPage() {
         </div>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-          <div>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--console-text-primary)", fontFamily: "var(--font-sora, var(--font-sans))", marginBottom: 4 }}>
-              {notebook?.title || t("notebooks.untitled")}
-            </h1>
-            <p style={{ fontSize: "0.8125rem", color: "var(--console-text-muted)", margin: 0 }}>
-              {pages.length > 0 ? `${pages.length} ${t("pages.title").toLowerCase()}` : ""}
-            </p>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--console-text-primary)", fontFamily: "var(--font-sora, var(--font-sans))", margin: 0 }}>
+            {notebook?.title || t("notebooks.untitled")}
+          </h1>
           <button
             onClick={handleCreate}
             disabled={creating}
             style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "10px 20px", background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
-              color: "white", border: "none", borderRadius: 12,
-              fontSize: "0.875rem", fontWeight: 600, cursor: creating ? "not-allowed" : "pointer",
-              opacity: creating ? 0.6 : 1, boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
-              transition: "all 200ms ease",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "6px 12px", background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
+              color: "white", border: "none", borderRadius: 8,
+              fontSize: "0.75rem", fontWeight: 600, cursor: creating ? "not-allowed" : "pointer",
+              opacity: creating ? 0.6 : 1,
             }}
           >
-            <Plus size={16} />
+            <Plus size={14} />
             {t("pages.create")}
           </button>
         </div>
 
+        {pages.length > 0 && (
+          <p style={{ fontSize: "0.75rem", color: "var(--console-text-muted)", margin: "0 0 12px" }}>
+            {pages.length} {t("pages.title").toLowerCase()}
+          </p>
+        )}
+
         {/* Loading */}
         {loading && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} style={{
-                height: 60, borderRadius: 12,
+                height: 48, borderRadius: 8,
                 background: "rgba(255, 255, 255, 0.5)",
                 border: "1px solid rgba(15, 23, 42, 0.04)",
                 animation: "pulse 1.5s ease-in-out infinite",
@@ -146,33 +194,29 @@ export default function NotebookDetailPage() {
         {!loading && pages.length === 0 && (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center",
-            justifyContent: "center", minHeight: 350, textAlign: "center",
+            justifyContent: "center", minHeight: 200, textAlign: "center",
           }}>
             <div style={{
-              width: 72, height: 72, borderRadius: 18,
+              width: 56, height: 56, borderRadius: 14,
               background: "rgba(37, 99, 235, 0.06)",
-              display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20,
+              display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16,
             }}>
-              <FileText size={32} strokeWidth={1.5} color="#2563EB" />
+              <FileText size={24} strokeWidth={1.5} color="#2563EB" />
             </div>
-            <h3 style={{ fontSize: "1.0625rem", fontWeight: 600, color: "var(--console-text-primary)", marginBottom: 8 }}>
-              {t("pages.title")}
-            </h3>
-            <p style={{ fontSize: "0.875rem", color: "var(--console-text-muted)", maxWidth: 300, marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ fontSize: "0.8125rem", color: "var(--console-text-muted)", maxWidth: 240, marginBottom: 16, lineHeight: 1.6 }}>
               {t("pages.empty")}
             </p>
             <button
               onClick={handleCreate}
               disabled={creating}
               style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "10px 20px", background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
-                color: "white", border: "none", borderRadius: 12,
-                fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "8px 16px", background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
+                color: "white", border: "none", borderRadius: 8,
+                fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
               }}
             >
-              <Plus size={16} />
+              <Plus size={14} />
               {t("pages.create")}
             </button>
           </div>
@@ -185,7 +229,13 @@ export default function NotebookDetailPage() {
               <div
                 key={page.id}
                 className="page-list-item"
-                onClick={() => router.push(`/app/notebooks/${params.notebookId}/pages/${page.id}`)}
+                onClick={() =>
+                  openWindow({
+                    type: "note",
+                    title: page.title || t("pages.untitled"),
+                    meta: { notebookId: params.notebookId, pageId: page.id },
+                  })
+                }
               >
                 <div className="page-list-item-icon">
                   <FileText size={18} />
@@ -213,6 +263,11 @@ export default function NotebookDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Window canvas */}
+      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        <WindowCanvas />
       </div>
     </div>
   );

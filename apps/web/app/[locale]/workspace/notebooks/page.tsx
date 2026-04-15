@@ -22,19 +22,30 @@ export default function NotebooksPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  const loadNotebooks = useCallback(async () => {
-    try {
-      const data = await apiGet<{ items: NotebookItem[]; total: number }>("/api/v1/notebooks");
-      setNotebooks(data.items || []);
-    } catch {
-      setNotebooks([]);
-    }
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    void loadNotebooks();
-  }, [loadNotebooks]);
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const data = await apiGet<{ items: NotebookItem[]; total: number }>("/api/v1/notebooks");
+        if (!cancelled) {
+          setNotebooks(data.items || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotebooks([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCreate = useCallback(async () => {
     if (creating) return;

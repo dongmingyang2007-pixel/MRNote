@@ -13,7 +13,7 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { apiGet, apiPatch } from "@/lib/api";
-import { MathBlock, InlineMath, CalloutBlock } from "./extensions";
+import { MathBlock, InlineMath, CalloutBlock, WhiteboardBlock } from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
 
@@ -27,7 +27,6 @@ const lowlight = createLowlight(common);
 // ---------------------------------------------------------------------------
 
 interface NoteEditorProps {
-  notebookId: string;
   pageId: string;
   onPlainTextChange?: (text: string) => void;
 }
@@ -45,7 +44,7 @@ type SaveStatus = "saved" | "saving" | "unsaved";
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NoteEditor({ notebookId, pageId, onPlainTextChange }: NoteEditorProps) {
+export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProps) {
   const t = useTranslations("console-notebooks");
   const [title, setTitle] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
@@ -73,6 +72,7 @@ export default function NoteEditor({ notebookId, pageId, onPlainTextChange }: No
       MathBlock,
       InlineMath,
       CalloutBlock,
+      WhiteboardBlock,
       SlashCommand,
     ],
     editorProps: {
@@ -212,7 +212,7 @@ export default function NoteEditor({ notebookId, pageId, onPlainTextChange }: No
       </div>
 
       {/* Floating Toolbar (on text selection) */}
-      {editor && <FloatingToolbar editor={editor} />}
+      {editor && <FloatingToolbar editor={editor} pageId={pageId} />}
 
       {/* Editor */}
       <EditorContent editor={editor} />

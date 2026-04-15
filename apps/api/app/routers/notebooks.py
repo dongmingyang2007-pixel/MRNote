@@ -721,20 +721,41 @@ def export_page(
 @pages_router.post("/{page_id}/memory/extract")
 async def extract_page_memories(
     page_id: str,
+    background: bool = False,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict:
-    """Trigger memory extraction from page content."""
+    """Trigger memory extraction from page content.
+
+    Uses the full UnifiedMemoryPipeline (12-stage pipeline).
+    Pass ``?background=true`` to run asynchronously via Celery.
+    """
     _get_page_or_404(db, page_id, workspace_id)
+
+    if background:
+        from app.tasks.worker_tasks import extract_notebook_page_memories
+        task = extract_notebook_page_memories.delay(
+            str(workspace_id), str(page_id), str(current_user.id),
+        )
+        return {"status": "queued", "task_id": task.id}
+
     from app.services.note_memory_bridge import extract_memory_candidates
-    run, items = await extract_memory_candidates(db, page_id=page_id, workspace_id=workspace_id, user_id=current_user.id)
+    extraction = await extract_memory_candidates(
+        db, page_id=page_id, workspace_id=workspace_id, user_id=str(current_user.id),
+    )
+    db.commit()
+    if extraction.graph_changed:
+        from app.services.memory_graph_events import bump_project_memory_graph_revision
+        notebook = db.query(Notebook).filter(Notebook.id == _get_page_or_404(db, page_id, workspace_id).notebook_id).first()
+        if notebook and notebook.project_id:
+            bump_project_memory_graph_revision(workspace_id=str(workspace_id), project_id=str(notebook.project_id))
     return {
-        "run_id": run.id if run else None,
-        "status": run.status if run else "no_content",
-        "item_count": len(items),
+        "run_id": extraction.run.id if extraction.run else None,
+        "status": extraction.run.status if extraction.run else "no_content",
+        "item_count": len(extraction.items or []),
     }
 
 
@@ -786,7 +807,7 @@ def get_page_memory_links(
 
 
 @pages_router.post("/{page_id}/memory/confirm")
-def confirm_memory_candidate(
+async def confirm_memory_candidate(
     page_id: str,
     payload: dict[str, Any],
     db: Session = Depends(get_db_session),
@@ -795,12 +816,14 @@ def confirm_memory_candidate(
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict:
-    """Confirm a memory extraction candidate."""
-    _ = current_user
-    _get_page_or_404(db, page_id, workspace_id)
+    """Confirm a memory candidate — runs the full promote pipeline.
+
+    Creates a real Memory node with embedding and evidence, not just a
+    decision flag change.
+    """
+    page = _get_page_or_404(db, page_id, workspace_id)
     item_id = payload.get("item_id", "")
     from app.models import MemoryWriteItem, MemoryWriteRun
-    # Verify ownership: item must belong to a run in this workspace
     item = (
         db.query(MemoryWriteItem)
         .join(MemoryWriteRun, MemoryWriteRun.id == MemoryWriteItem.run_id)
@@ -809,9 +832,30 @@ def confirm_memory_candidate(
     )
     if not item:
         raise ApiError("not_found", "Memory item not found", status_code=404)
-    item.decision = "confirmed"
+
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    project_id = str(notebook.project_id) if notebook and notebook.project_id else None
+    if not project_id:
+        raise ApiError("bad_request", "Notebook has no linked project", status_code=400)
+
+    from app.services.unified_memory_pipeline import promote_write_item
+
+    memory = await promote_write_item(
+        db,
+        item=item,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        user_id=str(current_user.id),
+    )
     db.commit()
-    return {"ok": True}
+    # Bump graph revision AFTER commit so Redis revision is consistent with DB state
+    if memory:
+        from app.services.memory_graph_events import bump_project_memory_graph_revision
+        bump_project_memory_graph_revision(workspace_id=str(workspace_id), project_id=project_id)
+    return {
+        "ok": True,
+        "memory_id": str(memory.id) if memory else None,
+    }
 
 
 @pages_router.post("/{page_id}/memory/reject")
@@ -828,8 +872,8 @@ def reject_memory_candidate(
     _ = current_user
     _get_page_or_404(db, page_id, workspace_id)
     item_id = payload.get("item_id", "")
-    from app.models import MemoryWriteItem, MemoryWriteRun
-    # Verify ownership: item must belong to a run in this workspace
+    reason = str(payload.get("reason", "")).strip() or None
+    from app.models import Memory, MemoryWriteItem, MemoryWriteRun
     item = (
         db.query(MemoryWriteItem)
         .join(MemoryWriteRun, MemoryWriteRun.id == MemoryWriteItem.run_id)
@@ -839,5 +883,32 @@ def reject_memory_candidate(
     if not item:
         raise ApiError("not_found", "Memory item not found", status_code=404)
     item.decision = "rejected"
+    # Record rejection reason in metadata for future confidence adjustment
+    meta = dict(item.metadata_json or {}) if isinstance(item.metadata_json, dict) else {}
+    meta["rejection_reason"] = reason
+    meta["rejected_by"] = str(current_user.id)
+    item.metadata_json = meta
+
+    if item.target_memory_id:
+        target_memory = db.get(Memory, item.target_memory_id)
+        if (
+            target_memory is not None
+            and target_memory.workspace_id == workspace_id
+            and target_memory.node_status == "active"
+        ):
+            target_memory.confidence = min(
+                float(target_memory.confidence or 0.0),
+                max(float(item.importance or 0.0) - 0.2, 0.0),
+            )
+            target_meta = (
+                dict(target_memory.metadata_json or {})
+                if isinstance(target_memory.metadata_json, dict)
+                else {}
+            )
+            target_meta["last_rejected_write_item_id"] = item.id
+            target_meta["last_rejected_at"] = datetime.now(timezone.utc).isoformat()
+            if reason:
+                target_meta["last_rejection_reason"] = reason
+            target_memory.metadata_json = target_meta
     db.commit()
     return {"ok": True}

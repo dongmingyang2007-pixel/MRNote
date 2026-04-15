@@ -21,7 +21,7 @@ from app.core.http_security import SecurityHeadersMiddleware
 from app.core.request_id import RequestIDMiddleware
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
-from app.routers import auth, chat, datasets, memory, memory_stream, model_catalog, models, notebook_ai, notebooks, pipeline, projects, realtime, uploads
+from app.routers import auth, chat, datasets, memory, memory_stream, model_catalog, models, notebook_ai, notebooks, pipeline, projects, realtime, study, uploads
 from app.services.chat_modes import ensure_project_chat_mode_schema
 from app.services.embedding import ensure_embedding_schema
 from app.services.model_catalog_seed import seed_model_catalog
@@ -114,4 +114,5 @@ app.include_router(pipeline.router)
 app.include_router(memory_stream.router)
 app.include_router(memory.router)
 app.include_router(chat.router)
+app.include_router(study.router)
 app.include_router(realtime.router)

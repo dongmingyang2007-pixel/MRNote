@@ -687,6 +687,47 @@
   text-underline-offset: 2px;
 }
 
+.ai-panel-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ai-panel-sources-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--console-text-tertiary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-panel-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--console-text-secondary, #475569);
+  font-size: 0.6875rem;
+}
+
+.ai-panel-source-type {
+  color: var(--console-accent, #2563EB);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-panel-source-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ai-panel-spinner {
   animation: spin 1s linear infinite;
 }
@@ -816,6 +857,11 @@
 .memory-links-panel {
   border-top: 1px solid var(--console-border, #e2e8f0);
   padding: var(--space-3, 12px) var(--space-4, 16px);
+}
+
+.memory-links-panel--embedded {
+  border-top: none;
+  padding-top: 16px;
 }
 
 .memory-links-header {
@@ -1331,4 +1377,83 @@
   .glass-sidebar-nav-item {
     transition: none !important;
   }
+}
+
+/* ============================================================
+   Whiteboard Block (Excalidraw)
+   ============================================================ */
+
+.whiteboard-wrapper {
+  margin: 16px 0;
+  border-radius: var(--console-radius-md, 8px);
+  border: 1px solid var(--console-border-subtle, #e2e8f0);
+  overflow: hidden;
+  position: relative;
+  background: #ffffff;
+}
+
+.whiteboard-wrapper[data-selected] {
+  border-color: var(--console-accent, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.whiteboard-label {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 0.625rem;
+  color: var(--console-text-muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1px 6px;
+  border-radius: 4px;
+  z-index: 5;
+  pointer-events: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.whiteboard-preview {
+  cursor: pointer;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whiteboard-preview:hover {
+  background: var(--bg-raised, #f8fafc);
+}
+
+.whiteboard-preview-empty {
+  color: var(--console-text-muted, #94a3b8);
+  font-size: 0.875rem;
+}
+
+.whiteboard-preview-svg {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.whiteboard-preview-svg svg {
+  max-width: 100%;
+  max-height: 300px;
+  height: auto;
+}
+
+.whiteboard-editor {
+  min-height: 400px;
+  position: relative;
+}
+
+/* Override Excalidraw container styles to fit our block */
+.whiteboard-editor .excalidraw-container {
+  border-radius: 0 !important;
+}
+
+.whiteboard-editor .excalidraw {
+  height: 100%;
+  width: 100%;
 }

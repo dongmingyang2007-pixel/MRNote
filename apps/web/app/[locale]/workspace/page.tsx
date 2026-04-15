@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
   const [recentPages, setRecentPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     Promise.all([
@@ -41,6 +42,16 @@ export default function DashboardPage() {
     });
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const handleCreateNotebook = useCallback(async () => {
     try {
       const nb = await apiPost<NotebookItem>("/api/v1/notebooks", { title: "", notebook_type: "personal" });
@@ -49,7 +60,7 @@ export default function DashboardPage() {
   }, [router]);
 
   const formatDate = (d: string) => {
-    const diff = Date.now() - new Date(d).getTime();
+    const diff = now - new Date(d).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return t("time.justNow");
     if (mins < 60) return t("time.minutesAgo", { n: mins });
@@ -95,7 +106,7 @@ export default function DashboardPage() {
               {recentPages.map(page => (
                 <div
                   key={page.id}
-                  onClick={() => router.push(`/app/notebooks/${page.notebook_id}/pages/${page.id}`)}
+                  onClick={() => router.push(`/app/notebooks/${page.notebook_id}?openPage=${page.id}`)}
                   style={{
                     padding: 16,
                     background: "rgba(255,255,255,0.72)",

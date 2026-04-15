@@ -137,12 +137,19 @@ export function useSyntheticRealtimeCamera({
   onError,
   messages,
 }: UseSyntheticRealtimeCameraOptions): UseSyntheticRealtimeCameraReturn {
-  const [isCameraSupported, setIsCameraSupported] = useState(false);
+  const isCameraSupported =
+    enabled &&
+    typeof window !== "undefined" &&
+    Boolean(navigator.mediaDevices?.getUserMedia);
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = useState<RealtimeCameraDevice[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : window.localStorage.getItem(CAMERA_STORAGE_KEY),
+  );
 
   const streamRef = useRef<MediaStream | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -156,15 +163,6 @@ export function useSyntheticRealtimeCamera({
   useEffect(() => {
     captureAllowedRef.current = enabled && isSyntheticCaptureState(sessionState);
   }, [enabled, sessionState]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    setIsCameraSupported(Boolean(enabled && navigator.mediaDevices?.getUserMedia));
-    setSelectedDeviceId(window.localStorage.getItem(CAMERA_STORAGE_KEY));
-  }, [enabled]);
 
   const refreshDevices = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {

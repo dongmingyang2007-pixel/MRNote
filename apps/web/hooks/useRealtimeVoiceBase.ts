@@ -933,7 +933,7 @@ export function useRealtimeVoiceBase(
       setUserVolume(0);
       throw error;
     }
-  }, [ensureCaptureContext]);
+  }, [armAssistantOutputSuppression, ensureCaptureContext]);
 
   const stopCapture = useCallback(() => {
     // In vad-gated mode, flush pending segment
