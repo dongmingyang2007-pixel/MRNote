@@ -476,12 +476,15 @@ async def whiteboard_summarize(
             memory_count = pipeline_result.item_count if pipeline_result else 0
 
         log.set_output({"summary": summary, "memory_count": memory_count})
-        tok = result.get("tokens")
+        # whiteboard_service.extract_whiteboard_memories does not currently
+        # surface the underlying LLM usage. Estimate from the summarized
+        # description (description ≈ prompt input) and the produced summary.
+        # TODO(s4/s5): plumb the actual `usage` block out of summarize_whiteboard.
         log.record_usage(
             event_type="llm_completion",
-            prompt_tokens=tok or _estimate_tokens(str(elements)),
+            prompt_tokens=_estimate_tokens(str(elements)),
             completion_tokens=_estimate_tokens(summary),
-            count_source="exact" if tok else "estimated",
+            count_source="estimated",
         )
 
         return {"summary": summary, "memory_count": memory_count}

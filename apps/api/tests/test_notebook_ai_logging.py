@@ -227,7 +227,8 @@ def test_ask_creates_log_with_retrieval_sources() -> None:
 
 
 async def _fake_whiteboard_summary(*_a, **_kw):
-    return {"summary": "a sketch of X", "memory_count": 2, "tokens": 42}
+    # Mirrors the real whiteboard_service.extract_whiteboard_memories return shape.
+    return {"summary": "a sketch of X", "pipeline_result": None}
 
 
 def test_whiteboard_summarize_creates_log() -> None:
@@ -247,6 +248,10 @@ def test_whiteboard_summarize_creates_log() -> None:
     assert resp.status_code == 200
     with SessionLocal() as db:
         log = db.query(AIActionLog).one()
+        usages = db.query(AIUsageEvent).filter_by(action_log_id=log.id).all()
     assert log.action_type == "whiteboard.summarize"
     assert log.scope == "selection"
     assert log.status == "completed"
+    # whiteboard_service does not surface usage today; expect estimated count.
+    assert len(usages) == 1
+    assert usages[0].count_source == "estimated"
