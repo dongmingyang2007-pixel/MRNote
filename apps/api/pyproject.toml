@@ -45,5 +45,5 @@ include = ["app*"]
 line-length = 100
 
 [tool.pytest.ini_options]
-pythonpath = ["app"]
+pythonpath = ["app", "."]
 testpaths = ["tests"]
