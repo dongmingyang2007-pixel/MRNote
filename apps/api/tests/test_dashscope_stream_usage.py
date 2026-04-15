@@ -89,3 +89,72 @@ def test_final_chunk_without_usage_still_yielded() -> None:
     final = chunks[-1]
     assert final.usage is None
     assert final.model_id == "qwen-plus"
+
+
+def test_httpx_timeout_raises_inference_timeout() -> None:
+    """Cover the httpx.TimeoutException → InferenceTimeoutError mapping."""
+    import httpx
+    from app.services.dashscope_client import InferenceTimeoutError
+
+    class _ExplodingCtx:
+        async def __aenter__(self):
+            raise httpx.TimeoutException("upstream slow")
+
+        async def __aexit__(self, *a):
+            return None
+
+    class _ExplodingClient:
+        def stream(self, *a, **kw):
+            return _ExplodingCtx()
+
+    with patch(
+        "app.services.dashscope_stream.get_client",
+        return_value=_ExplodingClient(),
+    ):
+        with pytest.raises(InferenceTimeoutError):
+            _drain(chat_completion_stream([{"role": "user", "content": "hi"}]))
+
+
+def test_httpx_http_error_raises_upstream_service_error() -> None:
+    """Cover the httpx.HTTPError → UpstreamServiceError mapping."""
+    import httpx
+    from app.services.dashscope_client import UpstreamServiceError
+
+    class _ExplodingCtx:
+        async def __aenter__(self):
+            raise httpx.HTTPError("502")
+
+        async def __aexit__(self, *a):
+            return None
+
+    class _ExplodingClient:
+        def stream(self, *a, **kw):
+            return _ExplodingCtx()
+
+    with patch(
+        "app.services.dashscope_stream.get_client",
+        return_value=_ExplodingClient(),
+    ):
+        with pytest.raises(UpstreamServiceError):
+            _drain(chat_completion_stream([{"role": "user", "content": "hi"}]))
+
+
+def test_search_options_payload_path_does_not_break_stream() -> None:
+    """Cover the enable_search / search_options payload branch."""
+    lines = [
+        "data: " + json.dumps({
+            "model": "qwen-plus",
+            "choices": [{"delta": {"content": "ok"}, "finish_reason": "stop"}],
+        }),
+        "data: [DONE]",
+    ]
+    fake_client = _FakeClient(_FakeResponse(lines))
+    with patch("app.services.dashscope_stream.get_client", return_value=fake_client):
+        chunks = _drain(chat_completion_stream(
+            [{"role": "user", "content": "hi"}],
+            enable_search=True,
+            enable_thinking=True,
+            search_options={"forced_search": True},
+        ))
+
+    assert chunks[-1].finish_reason == "stop"
