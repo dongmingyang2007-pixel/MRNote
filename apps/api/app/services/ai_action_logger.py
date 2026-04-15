@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models import AIActionLog, AIUsageEvent
 from app.services import storage as storage_service
+from app.services.runtime_state import increment_metric
 
 logger = logging.getLogger(__name__)
 
@@ -287,11 +288,13 @@ async def action_log_context(
     except BaseException as exc:
         try:
             handle._flush_failure(exc)
-        except Exception:  # pragma: no cover
+        except Exception:
             logger.exception("ai_action_logger: flush_failure failed")
+            increment_metric("ai_action_log.flush_failures")
         raise
     else:
         try:
             handle._flush_success()
         except Exception:
             logger.exception("ai_action_logger: flush_success failed")
+            increment_metric("ai_action_log.flush_failures")

@@ -337,3 +337,29 @@ def test_enter_db_failure_returns_null_handle() -> None:
     assert is_null is True
     with SessionLocal() as db:
         assert db.query(AIActionLog).count() == 0
+
+
+from app.services.runtime_state import runtime_state
+
+
+def test_flush_failure_swallowed_and_counter_bumped() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> None:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                original = db.commit
+
+                def _boom() -> None:
+                    db.commit = original  # type: ignore[method-assign]
+                    raise RuntimeError("flush boom")
+
+                db.commit = _boom  # type: ignore[method-assign]
+
+    asyncio.run(go())
+    metrics_key = "ai_action_log.flush_failures"
+    counter_value = runtime_state.get_json("metrics", metrics_key) or 0
+    assert counter_value >= 1

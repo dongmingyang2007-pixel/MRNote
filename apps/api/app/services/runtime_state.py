@@ -222,3 +222,24 @@ class RuntimeStateStore:
 
 
 runtime_state = RuntimeStateStore()
+
+
+def increment_metric(key: str, delta: int = 1) -> int:
+    """Thread-safe integer counter in the 'metrics' namespace."""
+    namespaced_key = runtime_state._namespaced("metrics", key)
+    with runtime_state._memory._lock:
+        runtime_state._memory._purge_expired(namespaced_key)
+        entry = runtime_state._memory._data.get(namespaced_key)
+        current = 0
+        if entry is not None:
+            try:
+                current = int(json.loads(entry.value))
+            except (TypeError, ValueError):
+                current = 0
+        next_val = current + delta
+        expires_at = entry.expires_at if entry is not None else None
+        runtime_state._memory._data[namespaced_key] = _MemoryEntry(
+            value=json.dumps(next_val, ensure_ascii=False),
+            expires_at=expires_at,
+        )
+        return next_val
