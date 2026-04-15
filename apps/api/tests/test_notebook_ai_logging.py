@@ -34,6 +34,12 @@ from app.services.dashscope_stream import StreamChunk
 
 
 def setup_function() -> None:
+    # Re-acquire the current engine/SessionLocal — other test modules may
+    # reload app.db.session with a different DATABASE_URL at import time.
+    import app.db.session as _session_module
+    global SessionLocal, engine
+    SessionLocal = _session_module.SessionLocal
+    engine = _session_module.engine
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     # Reset the in-memory runtime_state backend so rate-limit counters and
