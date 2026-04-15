@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import (
+    AIActionLog,
     Annotation,
     Artifact,
     Conversation,
@@ -21,6 +22,7 @@ from app.models import (
     Model,
     ModelAlias,
     ModelVersion,
+    Notebook,
     PipelineConfig,
     Project,
     TrainingJob,
@@ -83,8 +85,28 @@ def _collect_project_object_keys(db: Session, *, project_id: str) -> set[str]:
     return object_keys
 
 
+def _collect_ai_action_overflow_keys(db: Session, *, project_id: str) -> set[str]:
+    """S1: collect MinIO overflow object keys referenced by ``AIActionLog`` rows
+    that belong to notebooks under ``project_id``."""
+    keys: set[str] = set()
+    rows = (
+        db.query(AIActionLog.input_json, AIActionLog.output_json)
+        .join(Notebook, Notebook.id == AIActionLog.notebook_id)
+        .filter(Notebook.project_id == project_id)
+        .all()
+    )
+    for input_json, output_json in rows:
+        for payload in (input_json, output_json):
+            if isinstance(payload, dict):
+                ref = payload.get("_overflow_ref")
+                if isinstance(ref, str) and ref:
+                    keys.add(ref)
+    return keys
+
+
 def delete_project_permanently(db: Session, *, project: Project) -> ProjectDeletionResult:
     object_keys = _collect_project_object_keys(db, project_id=project.id)
+    ai_action_overflow_keys = _collect_ai_action_overflow_keys(db, project_id=project.id)
     dataset_ids = [dataset_id for dataset_id, in db.query(Dataset.id).filter(Dataset.project_id == project.id).all()]
     data_item_ids = (
         [data_item_id for data_item_id, in db.query(DataItem.id).filter(DataItem.dataset_id.in_(dataset_ids)).all()]
@@ -116,6 +138,19 @@ def delete_project_permanently(db: Session, *, project: Project) -> ProjectDelet
             delete_object(bucket_name=settings.s3_private_bucket, object_key=object_key)
         except Exception:  # noqa: BLE001
             failed_object_keys.append(object_key)
+
+    # S1: also clean up any AI action-log overflow payloads.  These live in a
+    # different bucket so the loop above doesn't touch them.  Failures here
+    # do NOT block project deletion — we log and continue.
+    for object_key in sorted(ai_action_overflow_keys):
+        try:
+            delete_object(
+                bucket_name=settings.s3_ai_action_payloads_bucket,
+                object_key=object_key,
+            )
+        except Exception:  # noqa: BLE001
+            # Non-fatal: leak rather than block.
+            pass
 
     if failed_object_keys:
         raise ProjectDeletionError(failed_object_keys)
