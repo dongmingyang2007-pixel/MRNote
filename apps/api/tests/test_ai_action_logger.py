@@ -222,3 +222,30 @@ def test_set_trace_metadata_merges_keys() -> None:
         row = db.query(AIActionLog).filter_by(id=log_id).one()
     assert row.trace_metadata["token_budget"] == 4000
     assert row.trace_metadata["retrieval_sources"] == [{"type": "page"}]
+
+
+def test_exception_inside_body_marks_failed_and_reraises() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            try:
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="ask", scope="page",
+                ) as log:
+                    log.set_input({"q": "a"})
+                    log_id_local = log.log_id
+                    raise RuntimeError("upstream boom")
+            except RuntimeError:
+                return log_id_local
+            return ""
+
+    log_id = asyncio.run(go())
+    assert log_id
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.status == "failed"
+    assert row.error_code == "RuntimeError"
+    assert "upstream boom" in (row.error_message or "")
+    assert row.input_json == {"q": "a"}
