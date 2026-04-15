@@ -159,3 +159,45 @@ def test_record_usage_estimated_source() -> None:
         row = db.query(AIUsageEvent).filter_by(action_log_id=log_id).one()
     assert row.count_source == "estimated"
     assert row.total_tokens == 150
+
+
+def test_set_output_string_summary_truncates_to_200() -> None:
+    ws_id, user_id = _seed()
+    long_text = "x" * 500
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                log.set_output(long_text)
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert len(row.output_summary) == 200
+    assert row.output_summary == "x" * 200
+    assert row.output_json == {"content": long_text}
+
+
+def test_set_output_dict_uses_content_key_for_summary() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="page.tag", scope="page",
+            ) as log:
+                log.set_output({"content": "short answer", "extra": 42})
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.output_summary == "short answer"
+    assert row.output_json["extra"] == 42
