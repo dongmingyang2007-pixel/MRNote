@@ -16,6 +16,7 @@ import { apiGet, apiPatch } from "@/lib/api";
 import { MathBlock, InlineMath, CalloutBlock, WhiteboardBlock } from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
+import AIActionsList from "@/components/notebook/AIActionsList";
 
 import "katex/dist/katex.min.css";
 import "@/styles/note-editor.css";
@@ -49,6 +50,7 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
   const [title, setTitle] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [loading, setLoading] = useState(true);
+  const [panelTab, setPanelTab] = useState<"ai" | "trace">("ai");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestContentRef = useRef<Record<string, unknown> | null>(null);
   const debouncedSaveRef = useRef<(json: Record<string, unknown>) => void>(() => {});
@@ -216,6 +218,37 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
       {/* Editor */}
       <EditorContent editor={editor} />
+
+      {/* Panel with AI / Trace tabs */}
+      <div>
+        <div style={{ display: "flex", gap: 4, padding: "6px 8px", borderBottom: "1px solid #eee" }}>
+          <button
+            type="button"
+            onClick={() => setPanelTab("ai")}
+            data-testid="panel-tab-ai"
+            style={{ fontWeight: panelTab === "ai" ? 600 : 400 }}
+          >
+            AI
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanelTab("trace")}
+            data-testid="panel-tab-trace"
+            style={{ fontWeight: panelTab === "trace" ? 600 : 400 }}
+          >
+            Trace
+          </button>
+        </div>
+        {panelTab === "ai" ? (
+          <div style={{ padding: 12, fontSize: 12, color: "#888" }}>
+            {/* AI panel placeholder — existing AI workflows live in the separate chat window */}
+          </div>
+        ) : pageId ? (
+          <AIActionsList pageId={pageId} />
+        ) : (
+          <div style={{ padding: 12, fontSize: 12, color: "#888" }}>Page not loaded yet</div>
+        )}
+      </div>
     </div>
   );
 }
