@@ -201,3 +201,24 @@ def test_set_output_dict_uses_content_key_for_summary() -> None:
         row = db.query(AIActionLog).filter_by(id=log_id).one()
     assert row.output_summary == "short answer"
     assert row.output_json["extra"] == 42
+
+
+def test_set_trace_metadata_merges_keys() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="ask", scope="notebook",
+            ) as log:
+                log.set_trace_metadata({"retrieval_sources": [{"type": "memory"}]})
+                log.set_trace_metadata({"token_budget": 4000})
+                log.set_trace_metadata({"retrieval_sources": [{"type": "page"}]})
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.trace_metadata["token_budget"] == 4000
+    assert row.trace_metadata["retrieval_sources"] == [{"type": "page"}]
