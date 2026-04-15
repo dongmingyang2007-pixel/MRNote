@@ -147,6 +147,27 @@ def test_list_second_page_does_not_overlap() -> None:
     assert first_ids.isdisjoint(second_ids)
 
 
+def test_list_cross_workspace_isolation() -> None:
+    """Workspace B cannot see workspace A's logs even with the same page-id-style request.
+
+    Spec §9.3 case 3.
+    """
+    client_a, fx_a = _seed_n_logs(3, email="ws-a@x.co")
+    client_b, fx_b = _seed_n_logs(2, email="ws-b@x.co")
+
+    # Sanity: each workspace sees its own logs in isolation.
+    a_only = client_a.get(f"/api/v1/pages/{fx_a['page_id']}/ai-actions").json()
+    b_only = client_b.get(f"/api/v1/pages/{fx_b['page_id']}/ai-actions").json()
+    assert len(a_only["items"]) == 3
+    assert len(b_only["items"]) == 2
+
+    # Cross-request: workspace B asks for workspace A's page → empty list,
+    # not workspace A's data.
+    cross = client_b.get(f"/api/v1/pages/{fx_a['page_id']}/ai-actions").json()
+    assert cross["items"] == []
+    assert cross["next_cursor"] is None
+
+
 def test_detail_returns_full_payload() -> None:
     client, fx = _seed_n_logs(1, email="u3@x.co")
     list_resp = client.get(f"/api/v1/pages/{fx['page_id']}/ai-actions").json()
