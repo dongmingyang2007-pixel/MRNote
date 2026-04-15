@@ -15,6 +15,13 @@ apps/api/.venv/
 node_modules/
 apps/web/node_modules/
 apps/web/.next/
+apps/api/.next/
+apps/web/tsconfig.tsbuildinfo
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
 
 # Test outputs
 playwright-report/
