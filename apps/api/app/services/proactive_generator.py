@@ -10,23 +10,25 @@ from app.services.dashscope_client import chat_completion
 
 
 _DAILY_SYSTEM = (
-    "You are a daily digest generator. Summarize the user's last-24h "
-    "activity in 3-5 sentences, then suggest concrete next actions "
-    'pointing at existing pages. Return strict JSON: {"summary_md":"...", '
-    '"next_actions":[{"page_id":"...","title":"...","hint":"..."}]}.'
+    "你是一个每日摘要生成助手。请用 3-5 句话总结用户过去 24 小时的活动，"
+    "然后给出若干具体的下一步动作建议（每个建议指向一个已有的页面）。"
+    '必须返回严格的 JSON: {"summary_md":"...", '
+    '"next_actions":[{"page_id":"...","title":"...","hint":"..."}]}。'
+    "只返回 JSON，不要返回其他内容。"
 )
 
 _WEEKLY_SYSTEM = (
-    "You are a weekly reflection generator. Produce a 5-8 sentence "
-    "summary, a learning recap, and a blockers retrospective. Return "
-    'strict JSON: {"summary_md":"...","learning_recap_md":"...","blockers_md":"..."}.'
+    "你是一个每周反思生成助手。请基于用户过去 7 天的活动，产出一段 5-8 句话的总结、"
+    "一段学习回顾、以及一段对阻塞点的复盘。"
+    '必须返回严格的 JSON: {"summary_md":"...","learning_recap_md":"...","blockers_md":"..."}。'
+    "只返回 JSON，不要返回其他内容。"
 )
 
 _DEVIATION_SYSTEM = (
-    "You judge whether stated goals are drifting. Given goals and recent "
-    "activity, return 0-3 drift reports. Strict JSON: "
-    '{"drifts":[{"goal_memory_id":"...","drift_reason_md":"...","confidence":0.0-1.0}]}. '
-    "Empty drifts list is valid if nothing is drifting. Only return JSON."
+    "你负责判断用户当前的行动是否偏离了其明确表达过的目标。"
+    "给定目标列表和最近的活动概况，输出 0-3 条偏离报告；如果没有偏离，返回空列表也是合法的。"
+    '必须返回严格的 JSON: {"drifts":[{"goal_memory_id":"...","drift_reason_md":"...","confidence":0.0-1.0}]}。'
+    "confidence 取值范围 0.0-1.0。只返回 JSON，不要返回其他内容。"
 )
 
 
@@ -96,7 +98,7 @@ async def generate_digest_content(
         parsed = json.loads(raw)
         if not isinstance(parsed, dict):
             raise ValueError("top-level must be object")
-    except Exception:
+    except (json.JSONDecodeError, ValueError, TypeError):
         raise ApiError("llm_bad_output", "LLM returned invalid JSON", status_code=422)
 
     if kind == "daily_digest":

@@ -95,3 +95,19 @@ def test_bad_llm_output_raises() -> None:
                 project_name="P",
             ))
     assert exc.value.code == "llm_bad_output"
+
+
+def test_deviation_empty_drifts_is_valid() -> None:
+    """LLM returning zero drifts is a valid outcome (nothing is drifting)."""
+    mats = {
+        "goals": [{"memory_id": "g1", "content": "ship MVP", "importance": 0.8}],
+        "activity_summary": "on track",
+    }
+    with patch(
+        "app.services.proactive_generator._run_llm_json",
+        new=AsyncMock(return_value=FAKE_DEVIATION_EMPTY),
+    ):
+        content = asyncio.run(generate_digest_content(
+            kind="deviation_reminder", materials=mats, project_name="P"
+        ))
+    assert content["drifts"] == []
