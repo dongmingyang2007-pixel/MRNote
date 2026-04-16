@@ -13,7 +13,17 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { apiGet, apiPatch } from "@/lib/api";
-import { MathBlock, InlineMath, CalloutBlock, WhiteboardBlock } from "./extensions";
+import {
+  MathBlock,
+  InlineMath,
+  CalloutBlock,
+  WhiteboardBlock,
+  FileBlock,
+  AIOutputBlock,
+  ReferenceBlock,
+  TaskBlock,
+  FlashcardBlock,
+} from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
 
@@ -73,6 +83,11 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
       InlineMath,
       CalloutBlock,
       WhiteboardBlock,
+      FileBlock,
+      AIOutputBlock,
+      ReferenceBlock,
+      TaskBlock,
+      FlashcardBlock,
       SlashCommand,
     ],
     editorProps: {
@@ -113,6 +128,17 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
     return () => { cancelled = true; };
   }, [pageId, editor]);
+
+  // ---- Pin current pageId on window for blocks that need it --------------
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string }).__MRAI_CURRENT_PAGE_ID = pageId;
+    return () => {
+      if (typeof window === "undefined") return;
+      (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string }).__MRAI_CURRENT_PAGE_ID = undefined;
+    };
+  }, [pageId]);
 
   // ---- Auto-save ----------------------------------------------------------
 

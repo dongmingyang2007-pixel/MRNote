@@ -2,3 +2,8 @@ export { default as MathBlock } from "./MathBlock";
 export { default as InlineMath } from "./InlineMath";
 export { default as CalloutBlock } from "./CalloutBlock";
 export { default as WhiteboardBlock } from "./WhiteboardBlock";
+export { default as FileBlock } from "./FileBlock";
+export { default as AIOutputBlock } from "./AIOutputBlock";
+export { default as ReferenceBlock } from "./ReferenceBlock";
+export { default as TaskBlock } from "./TaskBlock";
+export { default as FlashcardBlock } from "./FlashcardBlock";
