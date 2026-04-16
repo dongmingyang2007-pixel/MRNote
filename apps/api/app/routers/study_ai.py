@@ -95,8 +95,8 @@ async def generate_flashcards(
     source_id = str(payload.get("source_id", ""))
     count = int(payload.get("count", 10))
     deck_id = payload.get("deck_id")
-    if count < 1 or count > 50:
-        raise ApiError("invalid_input", "count must be 1-50", status_code=400)
+    if count < 1 or count > 20:
+        raise ApiError("invalid_input", "count must be 1-20", status_code=400)
 
     text, page_id, notebook_id = _load_source_text(
         db, source_type=source_type, source_id=source_id,
@@ -162,8 +162,14 @@ async def generate_flashcards(
                     source_ref=source_id,
                 ))
             db.add_all(card_rows)
-            deck.card_count = (deck.card_count or 0) + len(card_rows)
-            db.add(deck)
+            # Atomic increment — avoids read-modify-write race under
+            # concurrent bulk-saves (spec §6.3.1 + review feedback).
+            from sqlalchemy import update as sql_update
+            db.execute(
+                sql_update(StudyDeck)
+                .where(StudyDeck.id == deck.id)
+                .values(card_count=StudyDeck.card_count + len(card_rows))
+            )
             db.commit()
             for row in card_rows:
                 db.refresh(row)

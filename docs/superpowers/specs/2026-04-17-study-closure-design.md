@@ -590,16 +590,30 @@ assembly:
 internally calls embedding search. For S4 we add a new thin helper in a
 new file `services/study_context.py` exporting
 `assemble_study_context(db, *, asset_id, query, workspace_id,
-project_id, user_id)` that:
+project_id, user_id)`.
 
-1. Loads the top 3 `StudyChunk` rows of `asset_id` by embedding
+**S4 shipped a reduced implementation** that only does step (1) below,
+by `chunk_index ASC` rather than embedding similarity. Steps 2 and 3
+are deferred to S4.1 (concept map is S4.5; embedding + reference
+scan is S4.1). The `project_id`/`user_id`/`workspace_id` kwargs are
+accepted on the signature today so callers don't change when the
+richer behavior lands.
+
+1. ~~Loads the top 3 `StudyChunk` rows of `asset_id` by embedding
    similarity to `query` (reusing `embedding.search_similar` with a
-   chunk-scoped filter).
-2. Loads the last 5 `reference` blocks across the notebook's pages
+   chunk-scoped filter).~~ **S4 ships:** loads the first 3 chunks by
+   `chunk_index ASC` — users asking about a study asset typically
+   reference the early chapters. Embedding-similarity ordering is
+   follow-up work.
+2. ~~Loads the last 5 `reference` blocks across the notebook's pages
    whose `target_type == "study_chunk"` and `target_id` is in the
-   asset's chunks (one SQL pass over page content_json).
-3. Calls `retrieval_orchestration.assemble_context` with the
-   chunk/page snippets stitched into `page_text`.
+   asset's chunks (one SQL pass over page content_json).~~ **S4
+   deferred.**
+3. ~~Calls `retrieval_orchestration.assemble_context` with the
+   chunk/page snippets stitched into `page_text`.~~ **S4 deferred.**
+   The minimum implementation stitches chunks directly into the
+   system prompt without going through the retrieval-orchestration
+   layer.
 
 `retrieval_orchestration.assemble_context` itself is **not changed**.
 This keeps S1's retrieval layer stable.

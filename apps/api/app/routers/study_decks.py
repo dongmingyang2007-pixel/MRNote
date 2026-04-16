@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
@@ -76,18 +77,17 @@ def _get_card_or_404(db: Session, card_id: str, workspace_id: str) -> StudyCard:
 @notebooks_decks_router.get("/{notebook_id}/decks", response_model=PaginatedDecks)
 def list_decks(
     notebook_id: str,
+    include_archived: bool = False,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PaginatedDecks:
     _ = current_user
     _get_notebook_or_404(db, notebook_id, workspace_id)
-    rows = (
-        db.query(StudyDeck)
-        .filter(StudyDeck.notebook_id == notebook_id)
-        .order_by(StudyDeck.created_at.desc())
-        .all()
-    )
+    q = db.query(StudyDeck).filter(StudyDeck.notebook_id == notebook_id)
+    if not include_archived:
+        q = q.filter(StudyDeck.archived_at.is_(None))
+    rows = q.order_by(StudyDeck.created_at.desc()).all()
     return PaginatedDecks(
         items=[DeckOut.model_validate(r, from_attributes=True) for r in rows],
         total=len(rows),
@@ -224,8 +224,14 @@ def create_card(
         source_ref=payload.source_ref,
     )
     db.add(card)
-    deck.card_count = (deck.card_count or 0) + 1
-    db.add(deck)
+    # Atomic increment to avoid read-modify-write races under
+    # concurrent card creation (e.g. GenerateFlashcardsModal's
+    # Promise.all bulk save).
+    db.execute(
+        sql_update(StudyDeck)
+        .where(StudyDeck.id == deck.id)
+        .values(card_count=StudyDeck.card_count + 1)
+    )
     db.commit(); db.refresh(card)
     return CardOut.model_validate(card, from_attributes=True)
 
@@ -261,11 +267,15 @@ def delete_card(
 ) -> dict[str, Any]:
     _ = current_user
     card = _get_card_or_404(db, card_id, workspace_id)
-    deck = db.query(StudyDeck).filter(StudyDeck.id == card.deck_id).first()
-    if deck and deck.card_count > 0:
-        deck.card_count -= 1
-        db.add(deck)
-    db.delete(card); db.commit()
+    deck_id_local = card.deck_id
+    db.delete(card)
+    # Atomic decrement; guarded against going below zero.
+    db.execute(
+        sql_update(StudyDeck)
+        .where(StudyDeck.id == deck_id_local, StudyDeck.card_count > 0)
+        .values(card_count=StudyDeck.card_count - 1)
+    )
+    db.commit()
     return {"ok": True}
 
 

@@ -2463,6 +2463,11 @@ async def run_pipeline(db: Session, inp: PipelineInput) -> PipelineResult:
             memory_kind=memory_kind,
         )
 
+        # S4: confusion evidence must survive triage — the downstream
+        # proactive-services subsystem depends on it staying visible.
+        if inp.source_type == "study_confusion":
+            importance = max(importance, 0.5)
+
         if importance < 0.9 and memory_kind not in {
             MEMORY_KIND_PROFILE,
             MEMORY_KIND_PREFERENCE,
