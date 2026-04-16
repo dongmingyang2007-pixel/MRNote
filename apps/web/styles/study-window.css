@@ -1,0 +1,42 @@
+.study-window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+}
+
+.study-window__tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.study-window__tabs button {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.study-window__tabs button[aria-selected="true"] {
+  color: #111827;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+
+.study-window__tabs button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.study-window__body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
