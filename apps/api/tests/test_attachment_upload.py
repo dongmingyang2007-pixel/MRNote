@@ -148,3 +148,21 @@ def test_upload_cross_workspace_404() -> None:
         files=files,
     )
     assert resp.status_code == 404
+
+
+def test_attachment_url_returns_presigned_url() -> None:
+    client, auth = _register_client("u4@x.co")
+    page_id = _seed_page(auth["ws_id"], auth["user_id"])
+    import io as _io
+    files = {"file": ("doc.pdf", _io.BytesIO(b"pdf-bytes"), "application/pdf")}
+    upload = client.post(
+        f"/api/v1/pages/{page_id}/attachments/upload",
+        files=files,
+    ).json()
+
+    resp = client.get(f"/api/v1/attachments/{upload['attachment_id']}/url")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["url"].startswith("http")
+    assert "doc.pdf" in body["url"] or upload["attachment_id"] in body["url"]
+    assert body["expires_in_seconds"] == 900
