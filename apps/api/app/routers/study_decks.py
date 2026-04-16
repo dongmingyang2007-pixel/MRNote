@@ -164,3 +164,106 @@ def delete_deck(
     deck = _get_deck_or_404(db, deck_id, workspace_id)
     db.delete(deck); db.commit()
     return {"ok": True}
+
+
+from app.schemas.study_decks import CardOut  # noqa: E402 — keep grouped
+
+
+@decks_router.get("/{deck_id}/cards")
+def list_cards(
+    deck_id: str,
+    due_only: bool = False,
+    limit: int = 50,
+    cursor: str | None = None,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+) -> dict[str, Any]:
+    _ = current_user
+    _get_deck_or_404(db, deck_id, workspace_id)
+
+    q = db.query(StudyCard).filter(StudyCard.deck_id == deck_id)
+    if due_only:
+        now = datetime.now(timezone.utc)
+        q = q.filter(
+            (StudyCard.next_review_at.is_(None)) | (StudyCard.next_review_at <= now)
+        )
+    if cursor:
+        try:
+            cursor_dt = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+        except ValueError:
+            raise ApiError("invalid_input", "Bad cursor", status_code=400)
+        q = q.filter(StudyCard.created_at < cursor_dt)
+    rows = q.order_by(StudyCard.created_at.desc()).limit(max(1, min(limit, 100)) + 1).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = rows[-1].created_at.isoformat() if rows and has_more else None
+    return {
+        "items": [CardOut.model_validate(r, from_attributes=True).model_dump(mode="json") for r in rows],
+        "next_cursor": next_cursor,
+    }
+
+
+@decks_router.post("/{deck_id}/cards", response_model=CardOut)
+def create_card(
+    deck_id: str,
+    payload: CardCreate,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> CardOut:
+    _ = current_user
+    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    card = StudyCard(
+        deck_id=deck.id,
+        front=payload.front,
+        back=payload.back,
+        source_type=payload.source_type,
+        source_ref=payload.source_ref,
+    )
+    db.add(card)
+    deck.card_count = (deck.card_count or 0) + 1
+    db.add(deck)
+    db.commit(); db.refresh(card)
+    return CardOut.model_validate(card, from_attributes=True)
+
+
+@cards_router.patch("/{card_id}", response_model=CardOut)
+def patch_card(
+    card_id: str,
+    payload: CardPatch,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> CardOut:
+    _ = current_user
+    card = _get_card_or_404(db, card_id, workspace_id)
+    if payload.front is not None:
+        card.front = payload.front
+    if payload.back is not None:
+        card.back = payload.back
+    db.add(card); db.commit(); db.refresh(card)
+    return CardOut.model_validate(card, from_attributes=True)
+
+
+@cards_router.delete("/{card_id}")
+def delete_card(
+    card_id: str,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    _ = current_user
+    card = _get_card_or_404(db, card_id, workspace_id)
+    deck = db.query(StudyDeck).filter(StudyDeck.id == card.deck_id).first()
+    if deck and deck.card_count > 0:
+        deck.card_count -= 1
+        db.add(deck)
+    db.delete(card); db.commit()
+    return {"ok": True}
