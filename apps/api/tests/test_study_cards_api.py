@@ -113,3 +113,24 @@ def test_delete_card_decrements_deck_count() -> None:
 
     deck_resp = client.get(f"/api/v1/decks/{deck_id}").json()
     assert deck_resp["card_count"] == 0
+
+
+def test_list_cards_due_only_filter() -> None:
+    client, auth = _register_client("u3@x.co")
+    _, deck_id = _seed_deck(client, auth["user_id"], auth["ws_id"])
+    # Two cards: one new (next_review_at NULL), one already due in the future.
+    card_a = client.post(
+        f"/api/v1/decks/{deck_id}/cards",
+        json={"front": "Q1", "back": "A1"},
+    ).json()
+    card_b = client.post(
+        f"/api/v1/decks/{deck_id}/cards",
+        json={"front": "Q2", "back": "A2"},
+    ).json()
+    # Push card_b into the future via a Good review.
+    client.post(f"/api/v1/cards/{card_b['id']}/review", json={"rating": 3})
+
+    due = client.get(f"/api/v1/decks/{deck_id}/cards?due_only=true").json()
+    ids = {i["id"] for i in due["items"]}
+    assert card_a["id"] in ids
+    assert card_b["id"] not in ids
