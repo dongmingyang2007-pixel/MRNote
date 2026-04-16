@@ -21,6 +21,11 @@ import {
   AlertCircle,
   Type,
   PenTool,
+  FileUp,
+  Sparkles,
+  Link2,
+  CheckCircle2,
+  Layers,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -160,6 +165,69 @@ const COMMANDS: SlashCommandItem[] = [
         })
         .run();
     },
+  },
+  {
+    title: "File",
+    description: "Upload and embed a file",
+    icon: FileUp,
+    command: (editor) =>
+      editor.chain().focus().insertContent({ type: "file" }).run(),
+  },
+  {
+    title: "AI Output",
+    description: "Placeholder AI block (use AI Panel to fill)",
+    icon: Sparkles,
+    command: (editor) =>
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "ai_output",
+          attrs: { content_markdown: "", action_type: "", action_log_id: "" },
+        })
+        .run(),
+  },
+  {
+    title: "Reference",
+    description: "Link to a page, memory, or chapter",
+    icon: Link2,
+    command: (editor) =>
+      editor.chain().focus().insertContent({ type: "reference" }).run(),
+  },
+  {
+    title: "Task",
+    description: "Standalone task with completion tracking",
+    icon: CheckCircle2,
+    command: (editor) =>
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "task",
+          attrs: {
+            block_id: crypto.randomUUID(),
+            title: "",
+            description: null,
+            due_date: null,
+            completed: false,
+            completed_at: null,
+          },
+        })
+        .run(),
+  },
+  {
+    title: "Flashcard",
+    description: "Q/A card that flips on click",
+    icon: Layers,
+    command: (editor) =>
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "flashcard",
+          attrs: { front: "", back: "", flipped: false },
+        })
+        .run(),
   },
 ];
 

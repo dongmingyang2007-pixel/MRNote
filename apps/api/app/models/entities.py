@@ -621,6 +621,7 @@ class NotebookAttachment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     data_item_id: Mapped[str | None] = mapped_column(ForeignKey("data_items.id", ondelete="SET NULL"), nullable=True)
     attachment_type: Mapped[str] = mapped_column(String(20), default="other", nullable=False)
     title: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    meta_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
 
 class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):

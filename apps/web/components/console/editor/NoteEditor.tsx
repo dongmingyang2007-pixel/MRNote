@@ -13,9 +13,20 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { apiGet, apiPatch } from "@/lib/api";
-import { MathBlock, InlineMath, CalloutBlock, WhiteboardBlock } from "./extensions";
+import {
+  MathBlock,
+  InlineMath,
+  CalloutBlock,
+  WhiteboardBlock,
+  FileBlock,
+  AIOutputBlock,
+  ReferenceBlock,
+  TaskBlock,
+  FlashcardBlock,
+} from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
+import { PageIdProvider } from "./PageIdContext";
 
 import "katex/dist/katex.min.css";
 import "@/styles/note-editor.css";
@@ -73,6 +84,11 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
       InlineMath,
       CalloutBlock,
       WhiteboardBlock,
+      FileBlock,
+      AIOutputBlock,
+      ReferenceBlock,
+      TaskBlock,
+      FlashcardBlock,
       SlashCommand,
     ],
     editorProps: {
@@ -113,6 +129,29 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
     return () => { cancelled = true; };
   }, [pageId, editor]);
+
+  // ---- Subscribe to AI Panel "Insert as AI block" events ----------------
+
+  useEffect(() => {
+    if (!editor) return;
+    function handler(e: Event) {
+      const payload = (e as CustomEvent).detail as {
+        content_markdown: string;
+        action_type: string;
+        action_log_id: string;
+        model_id: string | null;
+        sources: Array<{ type: string; id: string; title: string }>;
+      } | null;
+      if (!payload || !editor) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent({ type: "ai_output", attrs: payload })
+        .run();
+    }
+    window.addEventListener("mrai:insert-ai-output", handler);
+    return () => window.removeEventListener("mrai:insert-ai-output", handler);
+  }, [editor]);
 
   // ---- Auto-save ----------------------------------------------------------
 
@@ -195,27 +234,29 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
   }
 
   return (
-    <div className="note-editor-wrapper">
-      {/* Header */}
-      <div className="note-editor-header">
-        <input
-          className="note-editor-title"
-          type="text"
-          value={title}
-          onChange={handleTitleChange}
-          onKeyDown={handleTitleKeyDown}
-          placeholder={t("pages.untitled")}
-        />
-        <span className="note-editor-save-status" data-status={saveStatus}>
-          {t(`pages.${saveStatus}` as "pages.saving")}
-        </span>
+    <PageIdProvider pageId={pageId}>
+      <div className="note-editor-wrapper">
+        {/* Header */}
+        <div className="note-editor-header">
+          <input
+            className="note-editor-title"
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
+            placeholder={t("pages.untitled")}
+          />
+          <span className="note-editor-save-status" data-status={saveStatus}>
+            {t(`pages.${saveStatus}` as "pages.saving")}
+          </span>
+        </div>
+
+        {/* Floating Toolbar (on text selection) */}
+        {editor && <FloatingToolbar editor={editor} pageId={pageId} />}
+
+        {/* Editor */}
+        <EditorContent editor={editor} />
       </div>
-
-      {/* Floating Toolbar (on text selection) */}
-      {editor && <FloatingToolbar editor={editor} pageId={pageId} />}
-
-      {/* Editor */}
-      <EditorContent editor={editor} />
-    </div>
+    </PageIdProvider>
   );
 }

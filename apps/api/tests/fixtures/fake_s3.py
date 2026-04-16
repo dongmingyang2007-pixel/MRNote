@@ -64,3 +64,12 @@ class FakeS3Client:
             "ContentType": obj.content_type,
             "ContentLength": len(obj.body),
         }
+
+    def generate_presigned_url(
+        self, operation: str = "get_object", *, Params: dict[str, Any] | None = None,
+        ExpiresIn: int = 900, **_: Any,
+    ) -> str:
+        params = Params or {}
+        bucket = params.get("Bucket", "")
+        key = params.get("Key", "")
+        return f"http://fake-s3/{bucket}/{key}?sig=stub&expires={ExpiresIn}"
