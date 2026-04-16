@@ -649,6 +649,53 @@ class StudyChunk(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
 
+class StudyDeck(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "study_decks"
+
+    notebook_id: Mapped[str] = mapped_column(
+        ForeignKey("notebooks.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    card_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class StudyCard(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "study_cards"
+
+    deck_id: Mapped[str] = mapped_column(
+        ForeignKey("study_decks.id", ondelete="CASCADE"), index=True
+    )
+    front: Mapped[str] = mapped_column(Text, nullable=False)
+    back: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(
+        String(20), default="manual", nullable=False
+    )
+    source_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    difficulty: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
+    stability: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    last_review_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    next_review_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    lapse_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    consecutive_failures: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    confusion_memory_written_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class AIActionLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "ai_action_logs"
 
@@ -730,4 +777,14 @@ Index(
 )
 Index("idx_model_catalog_category", ModelCatalog.category)
 Index("idx_model_catalog_provider", ModelCatalog.provider)
+Index(
+    "ix_study_cards_deck_due",
+    StudyCard.deck_id,
+    StudyCard.next_review_at.asc(),
+)
+Index(
+    "ix_study_cards_deck_created",
+    StudyCard.deck_id,
+    StudyCard.created_at.desc(),
+)
 Index("idx_pipeline_configs_project", PipelineConfig.project_id)
