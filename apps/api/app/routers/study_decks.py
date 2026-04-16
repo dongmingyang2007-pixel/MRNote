@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -267,3 +267,145 @@ def delete_card(
         db.add(deck)
     db.delete(card); db.commit()
     return {"ok": True}
+
+
+from app.schemas.study_decks import ReviewRequest, ReviewResponse  # noqa: E402
+from app.services.ai_action_logger import action_log_context
+from app.services.fsrs import schedule_next
+
+
+@decks_router.post("/{deck_id}/review/next")
+async def review_next(
+    deck_id: str,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    """Return the next due card for this deck, or `{card: null, queue_empty: true}`."""
+    _ = current_user
+    deck = _get_deck_or_404(db, deck_id, workspace_id)
+
+    now = datetime.now(timezone.utc)
+    q = (
+        db.query(StudyCard)
+        .filter(StudyCard.deck_id == deck.id)
+        .filter(
+            (StudyCard.next_review_at.is_(None)) | (StudyCard.next_review_at <= now)
+        )
+        .order_by(StudyCard.next_review_at.asc().nullsfirst())
+        .limit(1)
+    )
+    card = q.first()
+    if card is None:
+        return {"card": None, "queue_empty": True}
+
+    days_since = 0.0
+    if card.last_review_at:
+        last = card.last_review_at
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        delta = (now - last).total_seconds()
+        days_since = max(0.0, delta / 86400.0)
+
+    return {
+        "card": {
+            "id": card.id,
+            "front": card.front,
+            "back": card.back,
+            "review_count": card.review_count,
+            "days_since_last": round(days_since, 3),
+        },
+        "queue_empty": False,
+    }
+
+
+@cards_router.post("/{card_id}/review", response_model=ReviewResponse)
+async def review_card(
+    card_id: str,
+    payload: ReviewRequest,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> ReviewResponse:
+    card = _get_card_or_404(db, card_id, workspace_id)
+    deck = db.query(StudyDeck).filter(StudyDeck.id == card.deck_id).first()
+    notebook_id = deck.notebook_id if deck else None
+    now = datetime.now(timezone.utc)
+
+    days_since = 0.0
+    if card.last_review_at:
+        last = card.last_review_at
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        days_since = max(0.0, (now - last).total_seconds() / 86400.0)
+
+    update = schedule_next(
+        difficulty=card.difficulty,
+        stability=card.stability,
+        rating=payload.rating,
+        days_since_last_review=days_since,
+    )
+
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="study.review_card",
+        scope="notebook",
+        notebook_id=str(notebook_id) if notebook_id else None,
+        page_id=None,
+        block_id=str(card.id),
+    ) as log:
+        log.set_input({
+            "rating": payload.rating,
+            "days_since_last": round(days_since, 3),
+            "marked_confused": payload.marked_confused,
+        })
+
+        card.difficulty = update.difficulty
+        card.stability = update.stability
+        card.last_review_at = now
+        card.next_review_at = now + timedelta(days=update.next_interval_days)
+        card.review_count += 1
+        if payload.rating == 1:
+            card.lapse_count += 1
+            card.consecutive_failures += 1
+        else:
+            card.consecutive_failures = 0
+
+        fire_confusion = False
+        if card.confusion_memory_written_at is None and (
+            card.consecutive_failures >= 3 or payload.marked_confused
+        ):
+            fire_confusion = True
+            card.confusion_memory_written_at = now
+
+        db.add(card); db.commit(); db.refresh(card)
+
+        log.set_output({
+            "next_review_at": card.next_review_at.isoformat(),
+            "difficulty": card.difficulty,
+            "stability": card.stability,
+            "consecutive_failures": card.consecutive_failures,
+            "fired_confusion_task": fire_confusion,
+        })
+
+    if fire_confusion:
+        trigger = "manual" if payload.marked_confused else "consecutive_failures"
+        from app.tasks.worker_tasks import process_study_confusion_task
+        process_study_confusion_task.delay(
+            str(card.id),
+            str(current_user.id),
+            str(workspace_id),
+            trigger,
+        )
+
+    return ReviewResponse(
+        ok=True,
+        next_review_at=card.next_review_at,
+        consecutive_failures=card.consecutive_failures,
+    )

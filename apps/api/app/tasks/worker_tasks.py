@@ -1454,3 +1454,17 @@ def process_whiteboard_memories(
         db.rollback()
     finally:
         db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.process_study_confusion")
+def process_study_confusion_task(
+    card_id: str,
+    user_id: str,
+    workspace_id: str,
+    trigger: str,
+) -> None:
+    """Stub — full implementation in S4 Task 7."""
+    logger.info(
+        "process_study_confusion_task stub: card=%s user=%s trigger=%s",
+        card_id, user_id, trigger,
+    )
