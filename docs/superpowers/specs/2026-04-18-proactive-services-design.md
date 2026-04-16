@@ -274,14 +274,17 @@ created) through 3 items (3 rows) per project.
 
 ```json
 {
-  "relationship_memory_id": "…",
+  "memory_id": "…",
   "person_label": "张三",
-  "last_mention_at": "2026-03-01T…",
-  "days_since": 47
+  "last_mention_at": "2026-03-01T…" | null,
+  "days_since": 47 | null
 }
 ```
 
-One row per stale relationship (>30 days since last evidence).
+One row per stale person-subject memory (>30 days since its latest
+evidence, or zero evidence with `days_since = null`). The
+`memory_id` points at the underlying `Memory` row whose
+`subject_kind == "person"`; the UI can link to the memory detail.
 
 ## 6. Celery tasks
 
@@ -312,10 +315,13 @@ def generate_relationship_reminders_task() -> dict[str, int]: ...
 `NotebookPage.updated_at` in the last 24 hours (daily) or last 7
 days (weekly). Implementation is a single SQL query per fan-out.
 
-Deviation and relationship tasks additionally filter to projects that
-have at least one `Memory` row with matching `memory_kind` value in
-their metadata — `memory_kind="goal"` for deviation,
-`memory_kind="relationship"` for relationship.
+Deviation and relationship tasks additionally filter to projects
+that have at least one matching memory:
+- deviation → any `Memory` with `memory_kind == "goal"` (via
+  `get_memory_kind(memory)`).
+- relationship → any `Memory` with `subject_kind == "person"` (via
+  `get_subject_kind(memory)`). See §7.4 for why `subject_kind` is
+  used instead of a dedicated `relationship` memory_kind.
 
 ### 6.2 Per-project generator
 
@@ -485,8 +491,13 @@ Same as daily but 7-day window, plus:
 
 ### 7.4 Relationship detail
 
-- Load project memories, filter to `memory_kind == "relationship"`
-  via the `get_memory_kind(memory)` helper.
+- The codebase does **not** ship a `MEMORY_KIND_RELATIONSHIP`
+  constant today. The reliable signal for "this memory is about a
+  person I know" is `subject_kind == "person"`, accessed via the
+  existing `get_subject_kind(memory)` helper in
+  `services/memory_metadata.py:356`.
+- Load project memories, filter to those where
+  `get_subject_kind(memory) == "person"`.
 - For each, query `MemoryEvidence` ordered by `created_at DESC`
   limited to 1 (most recent).
 - If `now - last_evidence.created_at > timedelta(days=30)`, include
