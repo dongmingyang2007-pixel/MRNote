@@ -23,8 +23,8 @@ from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.routers import (
     ai_actions, attachments, auth, chat, datasets, memory, memory_stream,
-    model_catalog, models, notebook_ai, notebooks, pipeline, projects,
-    realtime, study, study_ai, study_decks, uploads,
+    model_catalog, models, notebook_ai, notebooks, pipeline, proactive,
+    projects, realtime, study, study_ai, study_decks, uploads,
 )
 from app.services.chat_modes import ensure_project_chat_mode_schema
 from app.services.embedding import ensure_embedding_schema
@@ -150,6 +150,7 @@ app.include_router(uploads.router)
 app.include_router(model_catalog.router)
 app.include_router(models.router)
 app.include_router(pipeline.router)
+app.include_router(proactive.router)
 app.include_router(memory_stream.router)
 app.include_router(memory.router)
 app.include_router(chat.router)
