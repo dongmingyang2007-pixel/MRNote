@@ -37,7 +37,7 @@ def _parse_cursor(cursor: str | None) -> datetime | None:
         raise ApiError("invalid_input", "Bad cursor", status_code=400)
 
 
-def _verify_workspace(db: Session, digest: ProactiveDigest, workspace_id: str) -> None:
+def _verify_workspace(digest: ProactiveDigest, workspace_id: str) -> None:
     if digest.workspace_id != workspace_id:
         raise ApiError("not_found", "Digest not found", status_code=404)
 
@@ -111,7 +111,7 @@ def get_digest(
     d = db.query(ProactiveDigest).filter_by(id=digest_id).first()
     if d is None:
         raise ApiError("not_found", "Digest not found", status_code=404)
-    _verify_workspace(db, d, workspace_id)
+    _verify_workspace(d, workspace_id)
     if str(d.user_id) != str(current_user.id):
         raise ApiError("not_found", "Digest not found", status_code=404)
     return DigestDetail.model_validate(d, from_attributes=True)
