@@ -125,7 +125,14 @@ def test_upload_rejects_files_over_limit(monkeypatch) -> None:
     client, auth = _register_client("u2@x.co")
     page_id = _seed_page(auth["ws_id"], auth["user_id"])
 
+    # Patch both the test module's settings reference and the router's
+    # live settings reference. When an earlier test module has already
+    # loaded the router, the router's `settings` may be bound to an
+    # earlier Settings instance that our top-level reassignment does not
+    # reach.
+    import app.routers.notebooks as _notebooks_router
     monkeypatch.setattr(config_module.settings, "notebook_attachment_max_bytes", 10)
+    monkeypatch.setattr(_notebooks_router.settings, "notebook_attachment_max_bytes", 10)
     files = {"file": ("big.txt", io.BytesIO(b"this-is-way-too-long"), "text/plain")}
 
     resp = client.post(
