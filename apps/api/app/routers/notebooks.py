@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import PlainTextResponse
 
+from app.core.config import settings
 from app.core.deps import (
     get_current_user,
     get_current_workspace_id,
@@ -15,7 +16,15 @@ from app.core.deps import (
     require_workspace_write_access,
 )
 from app.core.errors import ApiError
-from app.models import Notebook, NotebookPage, NotebookPageVersion, Project, User
+from app.models import (
+    Notebook,
+    NotebookAttachment,
+    NotebookPage,
+    NotebookPageVersion,
+    Project,
+    User,
+)
+from app.services import storage as storage_service
 from app.schemas.notebook import (
     NotebookCreate,
     NotebookOut,
@@ -627,6 +636,97 @@ def delete_page(
     db.delete(page)
     db.commit()
     return {"ok": True, "status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Page attachments (S2)
+# ---------------------------------------------------------------------------
+
+
+_ATTACHMENT_TYPE_MAP: dict[str, str] = {
+    "application/pdf": "pdf",
+    "image/png": "image",
+    "image/jpeg": "image",
+    "image/gif": "image",
+    "image/webp": "image",
+    "audio/mpeg": "audio",
+    "audio/wav": "audio",
+    "video/mp4": "video",
+}
+
+
+def _classify_attachment(mime: str | None) -> str:
+    if not mime:
+        return "other"
+    if mime in _ATTACHMENT_TYPE_MAP:
+        return _ATTACHMENT_TYPE_MAP[mime]
+    if mime.startswith("image/"):
+        return "image"
+    if mime.startswith("audio/"):
+        return "audio"
+    if mime.startswith("video/"):
+        return "video"
+    return "other"
+
+
+@pages_router.post("/{page_id}/attachments/upload")
+async def upload_page_attachment(
+    page_id: str,
+    file: UploadFile = File(...),
+    title: str = Form(""),
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    """Upload a file as an attachment of the page. Stores the binary in
+    the S2 attachments bucket and returns the new NotebookAttachment row."""
+    _ = current_user
+    page = _get_page_or_404(db, page_id, workspace_id)
+
+    body = await file.read()
+    size = len(body)
+    max_bytes = settings.notebook_attachment_max_bytes
+    if size > max_bytes:
+        raise ApiError(
+            "file_too_large",
+            f"Attachment exceeds {max_bytes} bytes",
+            status_code=413,
+        )
+
+    safe_name = storage_service.sanitize_filename(file.filename or "file")
+    object_key = f"{workspace_id}/{page.id}/{uuid4().hex}/{safe_name}"
+
+    storage_service.get_s3_client().put_object(
+        Bucket=settings.s3_notebook_attachments_bucket,
+        Key=object_key,
+        Body=body,
+        ContentType=file.content_type or "application/octet-stream",
+    )
+
+    attachment = NotebookAttachment(
+        page_id=page.id,
+        data_item_id=None,
+        attachment_type=_classify_attachment(file.content_type),
+        title=title or safe_name,
+        meta_json={
+            "object_key": object_key,
+            "mime_type": file.content_type or "application/octet-stream",
+            "size_bytes": size,
+        },
+    )
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+
+    return {
+        "attachment_id": attachment.id,
+        "filename": safe_name,
+        "mime_type": file.content_type or "application/octet-stream",
+        "size_bytes": size,
+        "attachment_type": attachment.attachment_type,
+    }
 
 
 # ---------------------------------------------------------------------------
