@@ -6,6 +6,8 @@ import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileUp, Loader2, Download, ExternalLink } from "lucide-react";
 import { apiGet, apiPostFormData } from "@/lib/api";
+import { useCurrentPageId } from "@/components/console/editor/PageIdContext";
+import { useWindowManager } from "@/components/notebook/WindowManager";
 
 interface FileBlockAttrs {
   attachment_id: string;
@@ -20,16 +22,6 @@ function humanSize(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function extractPageId(): string | null {
-  if (typeof window === "undefined") return null;
-  const m = window.location.pathname.match(/\/notebooks\/[^/]+\/?.*?(?:pages\/([^/?#]+))?/);
-  // pageId is not reliably in the URL for all layouts; fall back to a
-  // window-scoped global the NoteEditor sets.
-  const fromWindow = (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string })
-    .__MRAI_CURRENT_PAGE_ID;
-  return fromWindow || (m && m[1]) || null;
-}
-
 function FileBlockView(props: NodeViewProps) {
   const attrs = props.node.attrs as FileBlockAttrs;
   const hasAttachment = Boolean(attrs.attachment_id);
@@ -38,6 +30,8 @@ function FileBlockView(props: NodeViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pageId = useCurrentPageId();
+  const { openWindow } = useWindowManager();
 
   useEffect(() => {
     if (!attrs.attachment_id) return;
@@ -56,11 +50,23 @@ function FileBlockView(props: NodeViewProps) {
 
   const handlePick = useCallback(() => inputRef.current?.click(), []);
 
+  const handleOpenInWindow = useCallback(() => {
+    if (!url) return;
+    openWindow({
+      type: "file",
+      title: attrs.filename || "File",
+      meta: {
+        url,
+        mimeType: attrs.mime_type,
+        filename: attrs.filename,
+      },
+    });
+  }, [openWindow, url, attrs.filename, attrs.mime_type]);
+
   const handleFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const pageId = extractPageId();
       if (!pageId) {
         setError("Page not ready yet, try again.");
         return;
@@ -88,7 +94,7 @@ function FileBlockView(props: NodeViewProps) {
         setUploading(false);
       }
     },
-    [props],
+    [props, pageId],
   );
 
   return (
@@ -111,17 +117,25 @@ function FileBlockView(props: NodeViewProps) {
           <span className="file-block__name">{attrs.filename}</span>
           <span className="file-block__size">{humanSize(attrs.size_bytes)}</span>
           {url && attrs.mime_type.startsWith("image/") && (
-            <img src={url} alt={attrs.filename} className="file-block__preview" />
+            <button
+              type="button"
+              onClick={handleOpenInWindow}
+              className="file-block__image-button"
+              title="Open in window"
+              data-testid="file-block-open-image"
+            >
+              <img src={url} alt={attrs.filename} className="file-block__preview" />
+            </button>
           )}
           {url && !attrs.mime_type.startsWith("image/") && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={handleOpenInWindow}
               className="file-block__open"
+              data-testid="file-block-open"
             >
               <ExternalLink size={14} /> Open
-            </a>
+            </button>
           )}
           {url && (
             <a

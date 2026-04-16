@@ -125,7 +125,7 @@ export default function AIPanel({
     let fullSources: ChatSource[] = [];
     let fullActionLogId = "";
     let fullModelId: string | null = null;
-    let fullActionType = "ask";
+    const fullActionType = "ask";
     try {
       for await (const { event, data } of apiStream(
         "/api/v1/ai/notebook/ask",

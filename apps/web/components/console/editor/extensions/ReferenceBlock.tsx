@@ -6,6 +6,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useEffect, useState } from "react";
 import { FileText, Brain, BookOpen, Link2 } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { useWindowManager } from "@/components/notebook/WindowManager";
 
 type TargetType = "page" | "memory" | "study_chunk";
 
@@ -182,6 +183,8 @@ function ReferencePickerDialog({
 function ReferenceBlockView(props: NodeViewProps) {
   const attrs = props.node.attrs as ReferenceAttrs;
   const [picking, setPicking] = useState(!attrs.target_id);
+  const { openWindow } = useWindowManager();
+  const notebookId = extractNotebookId();
 
   const handlePick = useCallback(
     (next: ReferenceAttrs) => {
@@ -192,14 +195,27 @@ function ReferenceBlockView(props: NodeViewProps) {
   );
 
   const handleOpen = useCallback(() => {
-    // Note: full openWindow wiring happens in NoteEditor context; here we
-    // dispatch a DOM event the editor layer subscribes to.
-    window.dispatchEvent(
-      new CustomEvent("mrai:open-reference", { detail: attrs }),
-    );
-  }, [attrs]);
-
-  const notebookId = extractNotebookId();
+    if (!notebookId || !attrs.target_type || !attrs.target_id) return;
+    if (attrs.target_type === "page") {
+      openWindow({
+        type: "note",
+        title: attrs.title || "Page",
+        meta: { notebookId, pageId: attrs.target_id },
+      });
+    } else if (attrs.target_type === "memory") {
+      openWindow({
+        type: "memory",
+        title: attrs.title || "Memory",
+        meta: { notebookId, pageId: attrs.target_id },
+      });
+    } else if (attrs.target_type === "study_chunk") {
+      openWindow({
+        type: "study",
+        title: attrs.title || "Study",
+        meta: { notebookId, chunkId: attrs.target_id },
+      });
+    }
+  }, [attrs, notebookId, openWindow]);
 
   return (
     <NodeViewWrapper

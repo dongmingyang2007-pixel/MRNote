@@ -6,6 +6,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useState } from "react";
 import { CalendarDays, MoreVertical } from "lucide-react";
 import { apiPost } from "@/lib/api";
+import { useCurrentPageId } from "@/components/console/editor/PageIdContext";
 
 interface TaskAttrs {
   block_id: string;
@@ -16,20 +17,13 @@ interface TaskAttrs {
   completed_at: string | null;
 }
 
-function extractPageId(): string | null {
-  if (typeof window === "undefined") return null;
-  const fromWindow = (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string })
-    .__MRAI_CURRENT_PAGE_ID;
-  return fromWindow || null;
-}
-
 function TaskBlockView(props: NodeViewProps) {
   const attrs = props.node.attrs as TaskAttrs;
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const pageId = useCurrentPageId();
 
   const handleToggle = useCallback(async () => {
-    const pageId = extractPageId();
     const nextCompleted = !attrs.completed;
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
     // Optimistic flip.
@@ -47,7 +41,7 @@ function TaskBlockView(props: NodeViewProps) {
       props.updateAttributes({ completed: attrs.completed, completed_at: attrs.completed_at });
       setFailed(true);
     }
-  }, [attrs, props]);
+  }, [attrs, props, pageId]);
 
   return (
     <NodeViewWrapper className="task-block" data-testid="task-block">

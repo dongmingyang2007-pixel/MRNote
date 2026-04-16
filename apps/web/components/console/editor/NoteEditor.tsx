@@ -26,6 +26,7 @@ import {
 } from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
+import { PageIdProvider } from "./PageIdContext";
 
 import "katex/dist/katex.min.css";
 import "@/styles/note-editor.css";
@@ -128,17 +129,6 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
     return () => { cancelled = true; };
   }, [pageId, editor]);
-
-  // ---- Pin current pageId on window for blocks that need it --------------
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string }).__MRAI_CURRENT_PAGE_ID = pageId;
-    return () => {
-      if (typeof window === "undefined") return;
-      (window as unknown as { __MRAI_CURRENT_PAGE_ID?: string }).__MRAI_CURRENT_PAGE_ID = undefined;
-    };
-  }, [pageId]);
 
   // ---- Subscribe to AI Panel "Insert as AI block" events ----------------
 
@@ -244,27 +234,29 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
   }
 
   return (
-    <div className="note-editor-wrapper">
-      {/* Header */}
-      <div className="note-editor-header">
-        <input
-          className="note-editor-title"
-          type="text"
-          value={title}
-          onChange={handleTitleChange}
-          onKeyDown={handleTitleKeyDown}
-          placeholder={t("pages.untitled")}
-        />
-        <span className="note-editor-save-status" data-status={saveStatus}>
-          {t(`pages.${saveStatus}` as "pages.saving")}
-        </span>
+    <PageIdProvider pageId={pageId}>
+      <div className="note-editor-wrapper">
+        {/* Header */}
+        <div className="note-editor-header">
+          <input
+            className="note-editor-title"
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
+            placeholder={t("pages.untitled")}
+          />
+          <span className="note-editor-save-status" data-status={saveStatus}>
+            {t(`pages.${saveStatus}` as "pages.saving")}
+          </span>
+        </div>
+
+        {/* Floating Toolbar (on text selection) */}
+        {editor && <FloatingToolbar editor={editor} pageId={pageId} />}
+
+        {/* Editor */}
+        <EditorContent editor={editor} />
       </div>
-
-      {/* Floating Toolbar (on text selection) */}
-      {editor && <FloatingToolbar editor={editor} pageId={pageId} />}
-
-      {/* Editor */}
-      <EditorContent editor={editor} />
-    </div>
+    </PageIdProvider>
   );
 }
