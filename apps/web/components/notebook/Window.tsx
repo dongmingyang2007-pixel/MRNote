@@ -8,7 +8,7 @@ import {
   Maximize2,
   X,
   FileText,
-  MessageSquare,
+  Sparkles,
   FileUp,
   Brain,
   BookOpen,
@@ -22,7 +22,7 @@ import type { WindowState, WindowType } from "./WindowManager";
 
 const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   note: FileText,
-  chat: MessageSquare,
+  ai_panel: Sparkles,
   file: FileUp,
   memory: Brain,
   study: BookOpen,
@@ -35,13 +35,18 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
 interface WindowProps {
   windowState: WindowState;
   children: React.ReactNode;
+  titlebarExtras?: React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export default function Window({ windowState, children }: WindowProps) {
+export default function Window({
+  windowState,
+  children,
+  titlebarExtras,
+}: WindowProps) {
   const {
     closeWindow,
     minimizeWindow,
@@ -137,6 +142,7 @@ export default function Window({ windowState, children }: WindowProps) {
             <span>{displayTitle}</span>
           </div>
           <div className="wm-titlebar-controls">
+            {titlebarExtras}
             <button
               type="button"
               className="wm-titlebar-btn"
