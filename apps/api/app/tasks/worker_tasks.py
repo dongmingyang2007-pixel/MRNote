@@ -1732,3 +1732,125 @@ def generate_proactive_digest_task(
         return None
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# S5 proactive services: fan-out tasks (daily / weekly / deviation / relationship)
+# ---------------------------------------------------------------------------
+
+
+def _active_project_ids(window_hours: int) -> list[str]:
+    """Return project IDs that had any AIActionLog OR NotebookPage edit
+    in the last ``window_hours`` hours."""
+    from app.models import AIActionLog, Notebook, NotebookPage
+    db = SessionLocal()
+    try:
+        threshold = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        subq_action = (
+            db.query(Notebook.project_id)
+            .join(AIActionLog, AIActionLog.notebook_id == Notebook.id)
+            .filter(AIActionLog.created_at >= threshold)
+            .distinct()
+        )
+        subq_page = (
+            db.query(Notebook.project_id)
+            .join(NotebookPage, NotebookPage.notebook_id == Notebook.id)
+            .filter(NotebookPage.last_edited_at >= threshold)
+            .distinct()
+        )
+        ids: set[str] = set()
+        for row in subq_action.all():
+            if row[0]:
+                ids.add(row[0])
+        for row in subq_page.all():
+            if row[0]:
+                ids.add(row[0])
+        return sorted(ids)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_daily_digests")
+def generate_daily_digests_task() -> dict[str, int]:
+    """Daily fan-out: enqueue per-project daily digest jobs."""
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(hours=24)
+    project_ids = _active_project_ids(window_hours=24)
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "daily_digest",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_weekly_reflections")
+def generate_weekly_reflections_task() -> dict[str, int]:
+    """Weekly fan-out: enqueue per-project weekly reflection jobs."""
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=7)
+    project_ids = _active_project_ids(window_hours=24 * 7)
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "weekly_reflection",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}
+
+
+def _projects_with_memory_matching(predicate) -> list[str]:
+    """Return project IDs where at least one active memory satisfies predicate."""
+    from app.models import Memory
+    db = SessionLocal()
+    try:
+        memories = (
+            db.query(Memory)
+            .filter(Memory.node_status == "active")
+            .all()
+        )
+        ids: set[str] = set()
+        for m in memories:
+            if predicate(m) and m.project_id:
+                ids.add(m.project_id)
+        return sorted(ids)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_deviation_reminders")
+def generate_deviation_reminders_task() -> dict[str, int]:
+    """Deviation reminders: fan-out to projects that have a 'goal' memory
+    AND had recent activity (otherwise there's nothing to compare against)."""
+    from app.services.memory_metadata import get_memory_kind
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=7)
+    project_ids = _projects_with_memory_matching(
+        lambda m: get_memory_kind(m) == "goal",
+    )
+    # Also require recent activity — goals alone aren't enough.
+    active = set(_active_project_ids(window_hours=24 * 7))
+    targets = [pid for pid in project_ids if pid in active]
+    for pid in targets:
+        generate_proactive_digest_task.delay(
+            pid, "deviation_reminder",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(targets)}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_relationship_reminders")
+def generate_relationship_reminders_task() -> dict[str, int]:
+    """Relationship reminders: fan-out to projects that have at least one
+    person-subject memory."""
+    from app.services.memory_metadata import get_subject_kind
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=30)
+    project_ids = _projects_with_memory_matching(
+        lambda m: get_subject_kind(m) == "person",
+    )
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "relationship_reminder",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}
