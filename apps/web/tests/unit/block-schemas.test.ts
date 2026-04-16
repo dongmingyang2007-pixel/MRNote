@@ -3,6 +3,7 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import FileBlock from "@/components/console/editor/extensions/FileBlock";
 import AIOutputBlock from "@/components/console/editor/extensions/AIOutputBlock";
+import ReferenceBlock from "@/components/console/editor/extensions/ReferenceBlock";
 
 function buildEditor(extensions: unknown[]) {
   return new Editor({
@@ -103,5 +104,48 @@ describe("AIOutputBlock schema", () => {
     const node = editor.getJSON().content?.[0];
     expect(node?.type).toBe("ai_output");
     expect(node?.attrs?.content_markdown).toBe("rt");
+  });
+});
+
+describe("ReferenceBlock schema", () => {
+  it("inserts with expected default attrs", () => {
+    const editor = buildEditor([ReferenceBlock]);
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "reference",
+        attrs: {
+          target_type: "page",
+          target_id: "p1",
+          title: "Intro page",
+          snippet: "short snippet",
+        },
+      })
+      .run();
+    const node = editor.getJSON().content?.find((n) => n.type === "reference");
+    expect(node?.attrs?.target_type).toBe("page");
+    expect(node?.attrs?.target_id).toBe("p1");
+  });
+
+  it("round-trips JSON through setContent", () => {
+    const editor = buildEditor([ReferenceBlock]);
+    editor.commands.setContent({
+      type: "doc",
+      content: [
+        {
+          type: "reference",
+          attrs: {
+            target_type: "memory",
+            target_id: "m1",
+            title: "Memory A",
+            snippet: "",
+          },
+        },
+      ],
+    });
+    const node = editor.getJSON().content?.[0];
+    expect(node?.type).toBe("reference");
+    expect(node?.attrs?.target_type).toBe("memory");
   });
 });
