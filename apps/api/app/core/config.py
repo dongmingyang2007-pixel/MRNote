@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"
     s3_private_bucket: str = "qihang-private"
+    s3_ai_action_payloads_bucket: str = "ai-action-payloads"
     s3_region: str = "us-east-1"
     s3_presign_expire_seconds: int = 900
 

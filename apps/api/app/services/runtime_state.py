@@ -222,3 +222,53 @@ class RuntimeStateStore:
 
 
 runtime_state = RuntimeStateStore()
+
+
+_METRIC_TTL_SECONDS = 60 * 60 * 24 * 30  # 30 days; long enough that monitoring polls catch every value
+
+
+def increment_metric(key: str, delta: int = 1) -> int:
+    """Thread-safe counter in the 'metrics' namespace.
+
+    Uses the same Redis-or-memory backend as the rest of runtime_state, so
+    the value is visible to monitoring agents in production.  Each call adds
+    ``delta`` (default 1) and returns the post-increment value.
+
+    The value is JSON-encoded so :func:`get_json` can read it back as a
+    plain int.  Each call refreshes the 30-day TTL.
+    """
+    namespaced_key = runtime_state._namespaced("metrics", key)
+
+    def redis_op(client: Redis) -> int:
+        # Read current as JSON, write back JSON; INCRBY would store a raw
+        # integer string but we want the value to stay JSON-decodable for
+        # symmetry with the memory fallback and get_json.
+        with client.pipeline() as pipe:
+            pipe.get(namespaced_key)
+            existing = pipe.execute()[0]
+        try:
+            current = int(json.loads(existing)) if existing else 0
+        except (TypeError, ValueError):
+            current = 0
+        next_val = current + delta
+        client.setex(namespaced_key, _METRIC_TTL_SECONDS, json.dumps(next_val))
+        return next_val
+
+    def fallback_op() -> int:
+        with runtime_state._memory._lock:
+            runtime_state._memory._purge_expired(namespaced_key)
+            entry = runtime_state._memory._data.get(namespaced_key)
+            current = 0
+            if entry is not None:
+                try:
+                    current = int(json.loads(entry.value))
+                except (TypeError, ValueError):
+                    current = 0
+            next_val = current + delta
+            runtime_state._memory._data[namespaced_key] = _MemoryEntry(
+                value=json.dumps(next_val, ensure_ascii=False),
+                expires_at=time.time() + _METRIC_TTL_SECONDS,
+            )
+            return next_val
+
+    return int(runtime_state._run(redis_op, fallback_op))

@@ -28,6 +28,8 @@ class StreamChunk:
     reasoning_content: str = ""
     finish_reason: str | None = None
     search_sources: list[SearchSource] = field(default_factory=list)
+    usage: dict[str, Any] | None = None
+    model_id: str | None = None
 
 
 async def chat_completion_stream(
@@ -43,8 +45,9 @@ async def chat_completion_stream(
 ) -> AsyncIterator[StreamChunk]:
     """Stream chat completion tokens from DashScope OpenAI-compatible API.
 
-    Yields StreamChunk objects as they arrive from the API.
-    The caller is responsible for accumulating content.
+    Yields StreamChunk objects as they arrive; ends with one synthetic
+    closing chunk carrying ``usage`` and ``model_id`` (either may be
+    ``None`` if the upstream did not emit them).
     """
     model = model or settings.dashscope_model
 
@@ -66,6 +69,9 @@ async def chat_completion_stream(
         payload["enable_search"] = enable_search
     if effective_search_options:
         payload["search_options"] = effective_search_options
+
+    captured_usage: dict[str, Any] | None = None
+    captured_model_id: str | None = None
 
     try:
         client = get_client()
@@ -89,9 +95,17 @@ async def chat_completion_stream(
                     logger.warning("dashscope_stream: failed to parse SSE line: %r", raw)
                     continue
 
+                # Capture model_id from any chunk that has it
+                if data.get("model") and not captured_model_id:
+                    captured_model_id = data["model"]
+                # Capture usage from any chunk that has it
+                usage_block = data.get("usage")
+                if isinstance(usage_block, dict):
+                    captured_usage = usage_block
+
                 choices = data.get("choices")
                 if not choices:
-                    # Could be a usage-only chunk; skip silently
+                    # usage-only chunk — already captured above
                     continue
 
                 delta = choices[0].get("delta", {})
@@ -108,6 +122,13 @@ async def chat_completion_stream(
                         finish_reason=finish_reason,
                         search_sources=search_sources,
                     )
+        # Synthetic closing chunk — even if usage is None
+        yield StreamChunk(
+            content="",
+            finish_reason="stop",
+            usage=captured_usage,
+            model_id=captured_model_id,
+        )
     except (InferenceTimeoutError, UpstreamServiceError):
         raise
     except httpx.TimeoutException as exc:

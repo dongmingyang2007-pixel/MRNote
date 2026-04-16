@@ -21,7 +21,7 @@ from app.core.http_security import SecurityHeadersMiddleware
 from app.core.request_id import RequestIDMiddleware
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
-from app.routers import auth, chat, datasets, memory, memory_stream, model_catalog, models, notebook_ai, notebooks, pipeline, projects, realtime, study, uploads
+from app.routers import ai_actions, auth, chat, datasets, memory, memory_stream, model_catalog, models, notebook_ai, notebooks, pipeline, projects, realtime, study, uploads
 from app.services.chat_modes import ensure_project_chat_mode_schema
 from app.services.embedding import ensure_embedding_schema
 from app.services.model_catalog_seed import seed_model_catalog
@@ -64,6 +64,24 @@ async def lifespan(_: FastAPI):
         seed_model_catalog(db)
     finally:
         db.close()
+    # S1: best-effort init of the AI action-log overflow bucket so requests
+    # that need it don't pay the bucket-create cost on the hot path.
+    try:
+        from app.services import storage as _storage_service
+        from botocore.exceptions import ClientError as _ClientError
+
+        _s3 = _storage_service.get_s3_client()
+        try:
+            _s3.head_bucket(Bucket=settings.s3_ai_action_payloads_bucket)
+        except _ClientError as _exc:
+            _code = _exc.response.get("Error", {}).get("Code", "")
+            if _code in ("404", "NoSuchBucket", "NotFound"):
+                _s3.create_bucket(Bucket=settings.s3_ai_action_payloads_bucket)
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).exception(
+            "lifespan: ai-action-payloads bucket init failed (non-fatal)"
+        )
     yield
     await close_client()
 
@@ -116,3 +134,5 @@ app.include_router(memory.router)
 app.include_router(chat.router)
 app.include_router(study.router)
 app.include_router(realtime.router)
+app.include_router(ai_actions.pages_router)
+app.include_router(ai_actions.detail_router)

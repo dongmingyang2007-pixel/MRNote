@@ -1,4 +1,6 @@
 from app.models.entities import (
+    AIActionLog,
+    AIUsageEvent,
     Annotation,
     ApiKey,
     Artifact,
@@ -41,6 +43,8 @@ from app.models.entities import (
 )
 
 __all__ = [
+    "AIActionLog",
+    "AIUsageEvent",
     "Annotation",
     "ApiKey",
     "Artifact",

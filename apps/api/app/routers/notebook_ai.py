@@ -20,6 +20,7 @@ from app.core.deps import (
 )
 from app.core.errors import ApiError
 from app.models import Notebook, NotebookPage, User
+from app.services.ai_action_logger import action_log_context
 from app.services.dashscope_stream import chat_completion_stream
 
 router = APIRouter(prefix="/api/v1/ai/notebook", tags=["notebook-ai"])
@@ -108,16 +109,42 @@ async def selection_action(
     ]
 
     async def _generate():
-        full_content = ""
-        try:
-            yield _sse("message_start", {"role": "assistant"})
-            async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
-                if chunk.content:
-                    full_content += chunk.content
-                    yield _sse("token", {"content": chunk.content, "snapshot": full_content})
-            yield _sse("message_done", {"content": full_content, "action_type": action_type})
-        except Exception as exc:
-            yield _sse("error", {"message": str(exc)})
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type=f"selection.{action_type}",
+            scope="selection",
+            notebook_id=str(page.notebook_id) if page else None,
+            page_id=str(page.id) if page else None,
+            block_id=payload.get("block_id"),
+        ) as log:
+            log.set_input({"selected_text": selected_text[:5000], "action_type": action_type})
+            full_content = ""
+            last_usage: dict[str, Any] | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {"role": "assistant", "action_log_id": log.log_id})
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                    if chunk.content:
+                        full_content += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full_content})
+                yield _sse("message_done", {"content": full_content, "action_type": action_type})
+                log.set_output(full_content)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or _estimate_tokens(user_prompt),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or _estimate_tokens(full_content),
+                    count_source="exact" if last_usage else "estimated",
+                )
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
 
     return StreamingResponse(
         _generate(),
@@ -158,16 +185,41 @@ async def page_action(
     ]
 
     async def _generate():
-        full_content = ""
-        try:
-            yield _sse("message_start", {"role": "assistant"})
-            async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
-                if chunk.content:
-                    full_content += chunk.content
-                    yield _sse("token", {"content": chunk.content, "snapshot": full_content})
-            yield _sse("message_done", {"content": full_content, "action_type": action_type})
-        except Exception as exc:
-            yield _sse("error", {"message": str(exc)})
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type=f"page.{action_type}",
+            scope="page",
+            notebook_id=str(page.notebook_id),
+            page_id=str(page.id),
+        ) as log:
+            log.set_input({"action_type": action_type, "page_text_sha": str(len(page_text))})
+            full_content = ""
+            last_usage: dict[str, Any] | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {"role": "assistant", "action_log_id": log.log_id})
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                    if chunk.content:
+                        full_content += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full_content})
+                yield _sse("message_done", {"content": full_content, "action_type": action_type})
+                log.set_output(full_content)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or _estimate_tokens(user_prompt),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or _estimate_tokens(full_content),
+                    count_source="exact" if last_usage else "estimated",
+                )
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
 
     return StreamingResponse(
         _generate(),
@@ -268,23 +320,56 @@ async def ask(
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_message})
 
+    def _scope_from_sources(sources: list[dict]) -> str:
+        types = {s.get("type") for s in sources}
+        if {"related_page", "document_chunk"} & types:
+            return "notebook"
+        return "page"
+
     async def _generate():
-        full_content = ""
-        try:
-            yield _sse("message_start", {
-                "role": "assistant",
-                "sources": retrieval_sources,
-            })
-            async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
-                if chunk.content:
-                    full_content += chunk.content
-                    yield _sse("token", {"content": chunk.content, "snapshot": full_content})
-            yield _sse("message_done", {
-                "content": full_content,
-                "sources": retrieval_sources,
-            })
-        except Exception as exc:
-            yield _sse("error", {"message": str(exc)})
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type="ask",
+            scope=_scope_from_sources(retrieval_sources),
+            notebook_id=resolved_notebook_id,
+            page_id=str(page.id) if page is not None else None,
+        ) as log:
+            log.set_input({"message": user_message[:4000], "history_turns": len(history or [])})
+            log.set_trace_metadata({"retrieval_sources": retrieval_sources})
+            full_content = ""
+            last_usage: dict[str, Any] | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {
+                    "role": "assistant",
+                    "sources": retrieval_sources,
+                    "action_log_id": log.log_id,
+                })
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                    if chunk.content:
+                        full_content += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full_content})
+                yield _sse("message_done", {
+                    "content": full_content,
+                    "sources": retrieval_sources,
+                })
+                log.set_output(full_content)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or _estimate_tokens(user_message),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or _estimate_tokens(full_content),
+                    count_source="exact" if last_usage else "estimated",
+                )
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
 
     return StreamingResponse(
         _generate(),
@@ -304,6 +389,12 @@ def _build_simple_system_prompt(page_text: str, context_text: str) -> str:
     if context_text.strip():
         parts.append(f"\n\n--- 用户选中的内容 ---\n{context_text[:2000]}")
     return "\n".join(parts)
+
+
+def _estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, len(text) // 4)
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +426,7 @@ async def whiteboard_summarize(
             "memory_count": 3
         }
     """
-    from app.services.whiteboard_service import extract_whiteboard_memories
+    from app.services import whiteboard_service
 
     page_id = payload.get("page_id", "")
     elements = payload.get("elements", [])
@@ -355,19 +446,45 @@ async def whiteboard_summarize(
 
     project_id = str(notebook.project_id)
 
-    result = await extract_whiteboard_memories(
+    async with action_log_context(
         db,
-        page_id=str(page_id),
         workspace_id=str(workspace_id),
-        project_id=project_id,
         user_id=str(current_user.id),
-        elements_json=elements,
-    )
+        action_type="whiteboard.summarize",
+        scope="selection",
+        notebook_id=str(page.notebook_id),
+        page_id=str(page.id),
+    ) as log:
+        log.set_input({"elements_count": len(elements)})
 
-    db.commit()
+        result = await whiteboard_service.extract_whiteboard_memories(
+            db,
+            page_id=str(page_id),
+            workspace_id=str(workspace_id),
+            project_id=project_id,
+            user_id=str(current_user.id),
+            elements_json=elements,
+        )
 
-    summary = result.get("summary", "")
-    pipeline_result = result.get("pipeline_result")
-    memory_count = pipeline_result.item_count if pipeline_result else 0
+        db.commit()
 
-    return {"summary": summary, "memory_count": memory_count}
+        summary = result.get("summary", "")
+        pipeline_result = result.get("pipeline_result")
+        if "memory_count" in result:
+            memory_count = int(result.get("memory_count") or 0)
+        else:
+            memory_count = pipeline_result.item_count if pipeline_result else 0
+
+        log.set_output({"summary": summary, "memory_count": memory_count})
+        # whiteboard_service.extract_whiteboard_memories does not currently
+        # surface the underlying LLM usage. Estimate from the summarized
+        # description (description ≈ prompt input) and the produced summary.
+        # TODO(s4/s5): plumb the actual `usage` block out of summarize_whiteboard.
+        log.record_usage(
+            event_type="llm_completion",
+            prompt_tokens=_estimate_tokens(str(elements)),
+            completion_tokens=_estimate_tokens(summary),
+            count_source="estimated",
+        )
+
+        return {"summary": summary, "memory_count": memory_count}

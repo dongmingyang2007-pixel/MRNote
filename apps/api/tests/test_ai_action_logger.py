@@ -1,0 +1,365 @@
+# ruff: noqa: E402
+import asyncio
+import atexit
+import os
+import shutil
+import tempfile
+from pathlib import Path
+
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-s1-logger-"))
+atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
+os.environ["ENV"] = "test"
+
+import importlib
+import app.core.config as config_module
+config_module.get_settings.cache_clear()
+config_module.settings = config_module.get_settings()
+import app.db.session as session_module
+importlib.reload(session_module)
+
+import pytest
+
+from app.db.base import Base
+from app.db.session import SessionLocal, engine
+from app.models import AIActionLog, AIUsageEvent, User, Workspace
+from app.services.ai_action_logger import action_log_context
+
+
+def setup_function() -> None:
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+
+def _seed() -> tuple[str, str]:
+    with SessionLocal() as db:
+        ws = Workspace(name="WS")
+        db.add(ws)
+        user = User(email="a@b.co", password_hash="x")
+        db.add(user)
+        db.commit()
+        db.refresh(ws)
+        db.refresh(user)
+        return ws.id, user.id
+
+
+def test_happy_path_creates_running_row_then_completed() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id,
+                user_id=user_id,
+                action_type="selection.rewrite",
+                scope="selection",
+            ) as log:
+                assert log.log_id
+                assert not log.is_null
+                mid = db.query(AIActionLog).filter_by(id=log.log_id).one()
+                assert mid.status == "running"
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+        assert row.status == "completed"
+        assert row.duration_ms is not None and row.duration_ms >= 0
+        assert row.error_code is None
+
+
+def test_record_usage_single_event() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id,
+                user_id=user_id,
+                action_type="selection.rewrite",
+                scope="selection",
+            ) as log:
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id="qwen-plus",
+                    prompt_tokens=7,
+                    completion_tokens=3,
+                    count_source="exact",
+                )
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        rows = db.query(AIUsageEvent).filter_by(action_log_id=log_id).all()
+    assert len(rows) == 1
+    assert rows[0].event_type == "llm_completion"
+    assert rows[0].model_id == "qwen-plus"
+    assert rows[0].prompt_tokens == 7
+    assert rows[0].total_tokens == 10
+    assert rows[0].count_source == "exact"
+
+
+def test_record_usage_multiple_events() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id,
+                user_id=user_id,
+                action_type="ask",
+                scope="notebook",
+            ) as log:
+                log.record_usage(event_type="llm_completion", prompt_tokens=5)
+                log.record_usage(event_type="embedding", file_count=2)
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        rows = (
+            db.query(AIUsageEvent)
+            .filter_by(action_log_id=log_id)
+            .order_by(AIUsageEvent.event_type.asc())
+            .all()
+        )
+    assert len(rows) == 2
+    assert rows[0].event_type == "embedding" and rows[0].file_count == 2
+    assert rows[1].event_type == "llm_completion" and rows[1].prompt_tokens == 5
+
+
+def test_record_usage_estimated_source() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id,
+                user_id=user_id,
+                action_type="page.summarize",
+                scope="page",
+            ) as log:
+                log.record_usage(
+                    event_type="llm_completion",
+                    prompt_tokens=100,
+                    completion_tokens=50,
+                    count_source="estimated",
+                )
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        row = db.query(AIUsageEvent).filter_by(action_log_id=log_id).one()
+    assert row.count_source == "estimated"
+    assert row.total_tokens == 150
+
+
+def test_set_output_string_summary_truncates_to_200() -> None:
+    ws_id, user_id = _seed()
+    long_text = "x" * 500
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db,
+                workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                log.set_output(long_text)
+                return log.log_id
+
+    log_id = asyncio.run(go())
+
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert len(row.output_summary) == 200
+    assert row.output_summary == "x" * 200
+    assert row.output_json == {"content": long_text}
+
+
+def test_set_output_dict_uses_content_key_for_summary() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="page.tag", scope="page",
+            ) as log:
+                log.set_output({"content": "short answer", "extra": 42})
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.output_summary == "short answer"
+    assert row.output_json["extra"] == 42
+
+
+def test_set_trace_metadata_merges_keys() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="ask", scope="notebook",
+            ) as log:
+                log.set_trace_metadata({"retrieval_sources": [{"type": "memory"}]})
+                log.set_trace_metadata({"token_budget": 4000})
+                log.set_trace_metadata({"retrieval_sources": [{"type": "page"}]})
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.trace_metadata["token_budget"] == 4000
+    assert row.trace_metadata["retrieval_sources"] == [{"type": "page"}]
+
+
+def test_exception_inside_body_marks_failed_and_reraises() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            try:
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="ask", scope="page",
+                ) as log:
+                    log.set_input({"q": "a"})
+                    log_id_local = log.log_id
+                    raise RuntimeError("upstream boom")
+            except RuntimeError:
+                return log_id_local
+            return ""
+
+    log_id = asyncio.run(go())
+    assert log_id
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.status == "failed"
+    assert row.error_code == "RuntimeError"
+    assert "upstream boom" in (row.error_message or "")
+    assert row.input_json == {"q": "a"}
+
+
+import app.services.storage as storage_service
+from tests.fixtures.fake_s3 import FakeS3Client
+
+
+def _install_fake_s3(fake: FakeS3Client) -> None:
+    clear = getattr(storage_service.get_s3_client, "cache_clear", None)
+    if clear is not None:
+        clear()
+    storage_service.get_s3_client = lambda: fake  # type: ignore[assignment]
+
+
+def test_set_input_large_payload_overflows_to_minio() -> None:
+    ws_id, user_id = _seed()
+    fake = FakeS3Client()
+    _install_fake_s3(fake)
+    payload = {"text": "a" * 20_000}
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                log.set_input(payload)
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert "_overflow_ref" in row.input_json
+    assert row.input_json["_overflow_ref"].endswith(f"{log_id}-input.json")
+    assert len(row.input_json["_preview"]) <= 500
+    key = row.input_json["_overflow_ref"]
+    stored = fake.get_object(Bucket="ai-action-payloads", Key=key)
+    import json as _json
+    assert _json.loads(stored["Body"].read().decode("utf-8")) == payload
+
+
+def test_set_output_small_payload_stored_inline() -> None:
+    ws_id, user_id = _seed()
+    fake = FakeS3Client()
+    _install_fake_s3(fake)
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="page.summarize", scope="page",
+            ) as log:
+                log.set_output("small content")
+                return log.log_id
+
+    log_id = asyncio.run(go())
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert "_overflow_ref" not in row.output_json
+    assert row.output_json == {"content": "small content"}
+
+
+from unittest.mock import patch
+
+
+def test_enter_db_failure_returns_null_handle() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> tuple[str, bool]:
+        with SessionLocal() as db:
+            with patch.object(db, "commit", side_effect=RuntimeError("db down")):
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="selection.rewrite", scope="selection",
+                ) as log:
+                    assert log.is_null is True
+                    assert log.log_id == ""
+                    log.set_input({"x": 1})
+                    log.set_output("nope")
+                    log.record_usage(event_type="llm_completion")
+                    log.set_trace_metadata({"k": "v"})
+                    return log.log_id, log.is_null
+        return "", False
+
+    log_id, is_null = asyncio.run(go())
+    assert log_id == ""
+    assert is_null is True
+    with SessionLocal() as db:
+        assert db.query(AIActionLog).count() == 0
+
+
+from app.services.runtime_state import runtime_state
+
+
+def test_flush_failure_swallowed_and_counter_bumped() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> None:
+        with SessionLocal() as db:
+            async with action_log_context(
+                db, workspace_id=ws_id, user_id=user_id,
+                action_type="selection.rewrite", scope="selection",
+            ) as log:
+                original = db.commit
+
+                def _boom() -> None:
+                    db.commit = original  # type: ignore[method-assign]
+                    raise RuntimeError("flush boom")
+
+                db.commit = _boom  # type: ignore[method-assign]
+
+    asyncio.run(go())
+    metrics_key = "ai_action_log.flush_failures"
+    counter_value = runtime_state.get_json("metrics", metrics_key) or 0
+    assert counter_value >= 1

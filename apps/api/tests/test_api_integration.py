@@ -5600,7 +5600,9 @@ def test_chat_completion_stream_explicitly_sends_false_enable_thinking(monkeypat
 
     chunks = asyncio.run(collect_chunks())
 
-    assert [chunk.content for chunk in chunks] == ["你好"]
+    # Filter the empty synthetic closing chunk added by S1 (carries usage/model_id only).
+    assert [chunk.content for chunk in chunks if chunk.content] == ["你好"]
+    assert chunks[-1].finish_reason == "stop"
     assert isinstance(captured["json"], dict)
     assert captured["json"]["enable_thinking"] is False
 
