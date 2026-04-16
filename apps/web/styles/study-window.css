@@ -40,3 +40,72 @@
   overflow: auto;
   min-height: 0;
 }
+
+.deck-picker {
+  position: absolute;
+  z-index: 10;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  padding: 10px;
+  min-width: 240px;
+  max-width: 320px;
+}
+.deck-picker__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.deck-picker__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6b7280;
+}
+.deck-picker__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+}
+.deck-picker__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+}
+.deck-picker__item:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+.deck-picker__count {
+  color: #9ca3af;
+  font-size: 10px;
+}
+.deck-picker__empty {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+}
+.deck-picker__create {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.deck-picker__create input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+}
