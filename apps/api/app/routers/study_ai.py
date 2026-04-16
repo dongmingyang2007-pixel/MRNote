@@ -167,3 +167,78 @@ async def generate_flashcards(
             card_ids = [r.id for r in card_rows]
 
     return {"cards": cards, "card_ids": card_ids}
+
+
+_QUIZ_SYSTEM = (
+    "You produce multiple-choice quizzes as strict JSON. No prose. "
+    'Format: {"questions":[{"question":"...","options":["a","b","c","d"],'
+    '"correct_index":0,"explanation":"..."}]}. Exactly 4 options each, '
+    "correct_index in 0..3."
+)
+
+
+@router.post("/quiz")
+async def generate_quiz(
+    payload: dict[str, Any],
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    source_type = str(payload.get("source_type", ""))
+    source_id = str(payload.get("source_id", ""))
+    count = int(payload.get("count", 5))
+    if count < 1 or count > 20:
+        raise ApiError("invalid_input", "count must be 1-20", status_code=400)
+
+    text, page_id, notebook_id = _load_source_text(
+        db, source_type=source_type, source_id=source_id,
+        workspace_id=workspace_id,
+    )
+
+    prompt = (
+        f"Produce exactly {count} MCQs from the following text.\n\n{text}"
+    )
+
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="study.quiz",
+        scope="study_asset" if source_type == "chunk" else "page",
+        notebook_id=str(notebook_id) if notebook_id else None,
+        page_id=str(page_id) if page_id else None,
+    ) as log:
+        log.set_input({"source_type": source_type, "source_id": source_id, "count": count})
+
+        raw = await _run_llm_json(_QUIZ_SYSTEM, prompt)
+        try:
+            parsed = json.loads(raw)
+            questions = parsed["questions"]
+            if not isinstance(questions, list) or not questions:
+                raise ValueError("questions missing")
+            for q in questions:
+                options = q.get("options")
+                if not isinstance(options, list) or len(options) != 4:
+                    raise ValueError("options must be length 4")
+                if not all(isinstance(o, str) and o.strip() for o in options):
+                    raise ValueError("options must be non-empty strings")
+                ci = q.get("correct_index")
+                if not isinstance(ci, int) or not 0 <= ci < 4:
+                    raise ValueError("correct_index out of range")
+                if not isinstance(q.get("question"), str):
+                    raise ValueError("question must be str")
+        except Exception as exc:
+            log.set_output({"error": str(exc), "raw_length": len(raw)})
+            raise ApiError("llm_bad_output", "LLM returned invalid MCQ JSON", status_code=422)
+
+        log.set_output({"question_count": len(questions)})
+        log.record_usage(
+            event_type="llm_completion",
+            prompt_tokens=max(1, len(prompt) // 4),
+            completion_tokens=max(1, len(raw) // 4),
+            count_source="estimated",
+        )
+
+    return {"questions": questions}

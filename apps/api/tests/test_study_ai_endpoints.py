@@ -151,3 +151,50 @@ def test_flashcards_bad_llm_output_returns_422() -> None:
         )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "llm_bad_output"
+
+
+FAKE_QUIZ_JSON = """
+{"questions": [
+  {
+    "question": "What is X?",
+    "options": ["a","b","c","d"],
+    "correct_index": 2,
+    "explanation": "because…"
+  }
+]}
+""".strip()
+
+
+def test_quiz_returns_valid_mcq_schema() -> None:
+    client, auth = _register_client("u_quiz@x.co")
+    _, page_id = _seed_page(auth["ws_id"], auth["user_id"], "text")
+
+    fake = AsyncMock(return_value=FAKE_QUIZ_JSON)
+    with patch("app.routers.study_ai._run_llm_json", fake):
+        resp = client.post(
+            "/api/v1/ai/study/quiz",
+            json={"source_type": "page", "source_id": page_id, "count": 1},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["questions"]) == 1
+    q = body["questions"][0]
+    assert len(q["options"]) == 4
+    assert 0 <= q["correct_index"] < 4
+
+    with SessionLocal() as db:
+        assert db.query(AIActionLog).filter_by(action_type="study.quiz").count() == 1
+
+
+def test_quiz_bad_shape_returns_422() -> None:
+    client, auth = _register_client("u_quiz2@x.co")
+    _, page_id = _seed_page(auth["ws_id"], auth["user_id"], "text")
+
+    bad = '{"questions": [{"question": "Q", "options": ["a","b"], "correct_index": 0, "explanation": ""}]}'
+    fake = AsyncMock(return_value=bad)
+    with patch("app.routers.study_ai._run_llm_json", fake):
+        resp = client.post(
+            "/api/v1/ai/study/quiz",
+            json={"source_type": "page", "source_id": page_id, "count": 1},
+        )
+    assert resp.status_code == 422
