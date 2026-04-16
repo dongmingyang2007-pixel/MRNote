@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 // Types
 // ---------------------------------------------------------------------------
 
-export type WindowType = "note" | "chat" | "file" | "memory" | "study";
+export type WindowType = "note" | "ai_panel" | "file" | "memory" | "study";
 
 export interface WindowState {
   id: string;
@@ -55,7 +55,7 @@ type WindowAction =
 
 const DEFAULT_SIZES: Record<WindowType, { width: number; height: number }> = {
   note: { width: 780, height: 600 },
-  chat: { width: 420, height: 550 },
+  ai_panel: { width: 480, height: 620 },
   file: { width: 700, height: 500 },
   memory: { width: 500, height: 600 },
   study: { width: 600, height: 500 },
@@ -96,7 +96,8 @@ function windowReducer(
   switch (action.kind) {
     case "OPEN_WINDOW": {
       const { type, title, meta = {} } = action.payload;
-      const supportsMultiOpen = type === "note" || type === "file";
+      const supportsMultiOpen =
+        type === "note" || type === "file" || type === "ai_panel";
 
       const existing = supportsMultiOpen
         ? undefined
