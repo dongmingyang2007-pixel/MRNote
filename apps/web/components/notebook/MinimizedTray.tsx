@@ -2,7 +2,7 @@
 
 import {
   FileText,
-  MessageSquare,
+  Sparkles,
   FileUp,
   Brain,
   BookOpen,
@@ -16,7 +16,7 @@ import type { WindowType } from "./WindowManager";
 
 const TRAY_ICONS: Record<WindowType, typeof FileText> = {
   note: FileText,
-  chat: MessageSquare,
+  ai_panel: Sparkles,
   file: FileUp,
   memory: Brain,
   study: BookOpen,

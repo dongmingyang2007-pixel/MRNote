@@ -4,16 +4,21 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
 } from "react";
 import type { ReactNode } from "react";
+import {
+  loadPersistedLayout,
+  savePersistedLayout,
+} from "./window-persistence";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WindowType = "note" | "chat" | "file" | "memory" | "study";
+export type WindowType = "note" | "ai_panel" | "file" | "memory" | "study";
 
 export interface WindowState {
   id: string;
@@ -55,7 +60,7 @@ type WindowAction =
 
 const DEFAULT_SIZES: Record<WindowType, { width: number; height: number }> = {
   note: { width: 780, height: 600 },
-  chat: { width: 420, height: 550 },
+  ai_panel: { width: 480, height: 620 },
   file: { width: 700, height: 500 },
   memory: { width: 500, height: 600 },
   study: { width: 600, height: 500 },
@@ -96,7 +101,8 @@ function windowReducer(
   switch (action.kind) {
     case "OPEN_WINDOW": {
       const { type, title, meta = {} } = action.payload;
-      const supportsMultiOpen = type === "note" || type === "file";
+      const supportsMultiOpen =
+        type === "note" || type === "file" || type === "ai_panel";
 
       const existing = supportsMultiOpen
         ? undefined
@@ -208,8 +214,26 @@ const WindowManagerContext = createContext<WindowManagerContextValue | null>(
 // Provider
 // ---------------------------------------------------------------------------
 
-export function WindowManagerProvider({ children }: { children: ReactNode }) {
-  const [windows, dispatch] = useReducer(windowReducer, []);
+export function WindowManagerProvider({
+  children,
+  notebookId,
+}: {
+  children: ReactNode;
+  notebookId: string;
+}) {
+  const [windows, dispatch] = useReducer(
+    windowReducer,
+    undefined,
+    () => loadPersistedLayout(notebookId),
+  );
+
+  // Debounced persist on change.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      savePersistedLayout(notebookId, windows);
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [notebookId, windows]);
 
   const openWindow = useCallback(
     (payload: OpenWindowPayload) => dispatch({ kind: "OPEN_WINDOW", payload }),

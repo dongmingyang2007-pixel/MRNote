@@ -3,13 +3,13 @@
 import { useCallback } from "react";
 import AIPanel from "@/components/console/editor/AIPanel";
 
-interface ChatWindowProps {
+interface AskTabProps {
   notebookId: string;
-  pageId?: string;
+  pageId: string;
 }
 
-export default function ChatWindow({ notebookId, pageId }: ChatWindowProps) {
-  // onClose is a no-op because the Window shell handles closing
+export default function AskTab({ notebookId, pageId }: AskTabProps) {
+  // The Window shell already handles close; onClose is a no-op here.
   const noop = useCallback(() => {}, []);
 
   return (

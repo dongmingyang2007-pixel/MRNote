@@ -16,7 +16,6 @@ import { apiGet, apiPatch } from "@/lib/api";
 import { MathBlock, InlineMath, CalloutBlock, WhiteboardBlock } from "./extensions";
 import SlashCommand from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
-import AIActionsList from "@/components/notebook/AIActionsList";
 
 import "katex/dist/katex.min.css";
 import "@/styles/note-editor.css";
@@ -217,25 +216,6 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
       {/* Editor */}
       <EditorContent editor={editor} />
-
-      {/* Collapsible AI Trace footer (S1) */}
-      {pageId && (
-        <details style={{ borderTop: "1px solid #eee", marginTop: 12 }}>
-          <summary
-            data-testid="panel-tab-trace"
-            style={{
-              cursor: "pointer",
-              padding: "6px 12px",
-              fontSize: 12,
-              color: "#666",
-              userSelect: "none",
-            }}
-          >
-            AI Actions
-          </summary>
-          <AIActionsList pageId={pageId} />
-        </details>
-      )}
     </div>
   );
 }

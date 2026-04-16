@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
-import { Layers } from "lucide-react";
-import { useWindows } from "./WindowManager";
+import { useCallback, useRef } from "react";
+import { Layers, Sparkles } from "lucide-react";
+import { useWindowManager, useWindows } from "./WindowManager";
 import Window from "./Window";
 import NoteWindow from "./contents/NoteWindow";
-import ChatWindow from "./contents/ChatWindow";
+import AIPanelWindow from "./contents/AIPanelWindow";
 import FileWindow from "./contents/FileWindow";
 import MemoryWindow from "./contents/MemoryWindow";
 import StudyWindow from "./contents/StudyWindow";
@@ -18,17 +18,13 @@ import type { WindowState } from "./WindowManager";
 function WindowContent({ windowState }: { windowState: WindowState }) {
   switch (windowState.type) {
     case "note":
-      return (
-        <NoteWindow
-          pageId={windowState.meta.pageId || ""}
-        />
-      );
+      return <NoteWindow pageId={windowState.meta.pageId || ""} />;
 
-    case "chat":
+    case "ai_panel":
       return (
-        <ChatWindow
+        <AIPanelWindow
           notebookId={windowState.meta.notebookId || ""}
-          pageId={windowState.meta.pageId}
+          pageId={windowState.meta.pageId || ""}
         />
       );
 
@@ -67,9 +63,7 @@ function EmptyState() {
   return (
     <div className="wm-empty-state">
       <Layers size={48} strokeWidth={1.2} className="wm-empty-state-icon" />
-      <span className="wm-empty-state-text">
-        打开侧栏中的页面开始工作
-      </span>
+      <span className="wm-empty-state-text">打开侧栏中的页面开始工作</span>
     </div>
   );
 }
@@ -81,12 +75,45 @@ function EmptyState() {
 export default function WindowCanvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const windows = useWindows();
+  const { openWindow } = useWindowManager();
   const visibleWindows = windows.filter((w) => !w.minimized);
+
+  const buildNoteExtras = useCallback(
+    (w: WindowState) => {
+      if (w.type !== "note" || !w.meta.pageId) return undefined;
+      return (
+        <button
+          type="button"
+          className="wm-titlebar-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            openWindow({
+              type: "ai_panel",
+              title: `AI · ${w.title}`,
+              meta: {
+                pageId: w.meta.pageId || "",
+                notebookId: w.meta.notebookId || "",
+              },
+            });
+          }}
+          title="Open AI Panel"
+          data-testid="note-open-ai-panel"
+        >
+          <Sparkles size={14} />
+        </button>
+      );
+    },
+    [openWindow],
+  );
 
   return (
     <div ref={canvasRef} className="wm-canvas">
       {visibleWindows.map((w) => (
-        <Window key={w.id} windowState={w}>
+        <Window
+          key={w.id}
+          windowState={w}
+          titlebarExtras={buildNoteExtras(w)}
+        >
           <WindowContent windowState={w} />
         </Window>
       ))}
