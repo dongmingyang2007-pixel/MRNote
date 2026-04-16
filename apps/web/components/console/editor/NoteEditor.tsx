@@ -140,6 +140,29 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
     };
   }, [pageId]);
 
+  // ---- Subscribe to AI Panel "Insert as AI block" events ----------------
+
+  useEffect(() => {
+    if (!editor) return;
+    function handler(e: Event) {
+      const payload = (e as CustomEvent).detail as {
+        content_markdown: string;
+        action_type: string;
+        action_log_id: string;
+        model_id: string | null;
+        sources: Array<{ type: string; id: string; title: string }>;
+      } | null;
+      if (!payload || !editor) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent({ type: "ai_output", attrs: payload })
+        .run();
+    }
+    window.addEventListener("mrai:insert-ai-output", handler);
+    return () => window.removeEventListener("mrai:insert-ai-output", handler);
+  }, [editor]);
+
   // ---- Auto-save ----------------------------------------------------------
 
   const saveContent = useCallback(

@@ -9,11 +9,20 @@ import { apiStream } from "@/lib/api-stream";
 // Types
 // ---------------------------------------------------------------------------
 
+interface AIOutputInsertPayload {
+  content_markdown: string;
+  action_type: string;
+  action_log_id: string;
+  model_id: string | null;
+  sources: Array<{ type: string; id: string; title: string }>;
+}
+
 interface AIPanelProps {
   notebookId?: string;
   pageId?: string;
   selectedText?: string;
   onInsertToEditor?: (text: string) => void;
+  onInsertAIOutput?: (payload: AIOutputInsertPayload) => void;
   onClose: () => void;
 }
 
@@ -21,6 +30,9 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: ChatSource[];
+  action_log_id?: string;
+  model_id?: string | null;
+  action_type?: string;
 }
 
 interface ChatSource {
@@ -71,6 +83,7 @@ export default function AIPanel({
   pageId,
   selectedText,
   onInsertToEditor,
+  onInsertAIOutput,
   onClose,
 }: AIPanelProps) {
   const t = useTranslations("console-notebooks");
@@ -110,6 +123,9 @@ export default function AIPanel({
 
     let fullContent = "";
     let fullSources: ChatSource[] = [];
+    let fullActionLogId = "";
+    let fullModelId: string | null = null;
+    let fullActionType = "ask";
     try {
       for await (const { event, data } of apiStream(
         "/api/v1/ai/notebook/ask",
@@ -125,6 +141,9 @@ export default function AIPanel({
         if (event === "message_start") {
           fullSources = normalizeSources(data.sources);
           setStreamSources(fullSources);
+          if (typeof data.action_log_id === "string") {
+            fullActionLogId = data.action_log_id;
+          }
         } else if (event === "token" && data.content) {
           fullContent += data.content as string;
           setStreamContent(fullContent);
@@ -134,6 +153,12 @@ export default function AIPanel({
           if (doneSources.length > 0) {
             fullSources = doneSources;
             setStreamSources(doneSources);
+          }
+          if (typeof data.action_log_id === "string") {
+            fullActionLogId = data.action_log_id;
+          }
+          if (typeof data.model_id === "string") {
+            fullModelId = data.model_id;
           }
         } else if (event === "error") {
           fullContent = `Error: ${data.message || "Unknown error"}`;
@@ -147,7 +172,14 @@ export default function AIPanel({
 
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: fullContent, sources: fullSources },
+      {
+        role: "assistant",
+        content: fullContent,
+        sources: fullSources,
+        action_log_id: fullActionLogId,
+        model_id: fullModelId,
+        action_type: fullActionType,
+      },
     ]);
     setStreamContent("");
     setStreamSources([]);
@@ -226,6 +258,28 @@ export default function AIPanel({
                 onClick={() => onInsertToEditor(msg.content)}
               >
                 {t("ai.insertToEditor")}
+              </button>
+            )}
+            {msg.role === "assistant" && onInsertAIOutput && msg.content && (
+              <button
+                type="button"
+                data-testid="ai-panel-insert-ai-block"
+                className="ai-panel-insert-btn ai-panel-insert-btn--block"
+                onClick={() =>
+                  onInsertAIOutput({
+                    content_markdown: msg.content,
+                    action_type: msg.action_type || "ask",
+                    action_log_id: msg.action_log_id || "",
+                    model_id: msg.model_id ?? null,
+                    sources: (msg.sources || []).map((s) => ({
+                      type: s.type,
+                      id: s.id,
+                      title: s.title,
+                    })),
+                  })
+                }
+              >
+                Insert as AI block
               </button>
             )}
           </div>
