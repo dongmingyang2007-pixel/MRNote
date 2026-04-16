@@ -224,3 +224,27 @@ def test_collect_relationship_materials_skips_fresh_person() -> None:
 
         items = collect_relationship_materials(db, project_id=project_id, now=now)
     assert items == []
+
+
+def test_collect_relationship_materials_includes_person_with_no_evidence() -> None:
+    """Branch coverage: a person memory with zero evidence rows
+    should still appear with last_mention_at=None, days_since=None."""
+    ws_id, user_id, project_id, notebook_id = _seed_base()
+    now = datetime.now(timezone.utc)
+    with SessionLocal() as db:
+        m = Memory(
+            workspace_id=ws_id,
+            project_id=project_id,
+            content="李四",
+            confidence=0.6,
+            node_status="active",
+            subject_kind="person",
+            metadata_json={"subject_kind": "person"},
+        )
+        db.add(m); db.commit(); db.refresh(m)
+
+        items = collect_relationship_materials(db, project_id=project_id, now=now)
+    assert len(items) == 1
+    assert items[0]["memory_id"] == m.id
+    assert items[0]["last_mention_at"] is None
+    assert items[0]["days_since"] is None

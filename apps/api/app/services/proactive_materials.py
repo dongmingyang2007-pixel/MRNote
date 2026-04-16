@@ -247,7 +247,10 @@ def collect_goal_materials(
         {
             "memory_id": g.id,
             "content": g.content,
-            "confidence": float(getattr(g, "confidence", 0.0) or 0.0),
+            # Surfaced as "importance" for downstream LLM prompt semantics.
+            # The column on Memory is actually `confidence`; we preserve the
+            # public dict key that generator.py expects.
+            "importance": float(g.confidence or 0.0),
         }
         for g in goals
     ]
@@ -290,6 +293,10 @@ def collect_relationship_materials(
         .all()
     )
     out: list[dict[str, Any]] = []
+    # TODO(perf): This is an N+1 query — we fetch last-evidence per-memory.
+    # At expected scale (~hundreds of person memories per project) it's
+    # acceptable; when that grows, rewrite as a single GROUP BY memory_id
+    # with MAX(created_at) + LEFT JOIN for the no-evidence branch.
     for memory in memories:
         if get_subject_kind(memory) != "person":
             continue
