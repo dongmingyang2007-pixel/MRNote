@@ -1567,9 +1567,17 @@ def generate_proactive_digest_task(
     try:
         project = db.get(Project, project_id)
         if not project:
+            logger.warning(
+                "proactive_digest: project not found",
+                extra={"project_id": project_id, "kind": kind},
+            )
             return None
         workspace = db.get(Workspace, project.workspace_id)
         if not workspace:
+            logger.warning(
+                "proactive_digest: workspace not found",
+                extra={"project_id": project_id, "workspace_id": project.workspace_id, "kind": kind},
+            )
             return None
         # Creator defaults to workspace owner — first workspace membership.
         owner = (
@@ -1579,6 +1587,10 @@ def generate_proactive_digest_task(
         )
         user_id = owner.user_id if owner else None
         if not user_id:
+            logger.warning(
+                "proactive_digest: workspace has no owner membership",
+                extra={"project_id": project_id, "workspace_id": workspace.id, "kind": kind},
+            )
             return None
 
         # Idempotency guard (pre-check + unique constraint backup)
@@ -1654,9 +1666,9 @@ def generate_proactive_digest_task(
                             period_start=period_start,
                             period_end=period_end,
                             title=(
-                                f"Daily digest · {period_end.date().isoformat()}"
+                                f"每日摘要 · {period_end.date().isoformat()}"
                                 if kind == "daily_digest"
-                                else f"Weekly reflection · {period_end.date().isoformat()}"
+                                else f"每周反思 · {period_end.date().isoformat()}"
                             ),
                             content_markdown=content.get("summary_md", ""),
                             content_json=content,
@@ -1677,7 +1689,7 @@ def generate_proactive_digest_task(
                                 kind=kind,
                                 period_start=period_start + timedelta(seconds=len(inserted_ids)),
                                 period_end=period_end,
-                                title=f"Goal drift: {drift.get('goal_memory_id','')[:20]}",
+                                title=f"目标偏离：{drift.get('goal_memory_id','')[:20]}",
                                 content_markdown=drift.get("drift_reason_md", ""),
                                 content_json=drift,
                                 action_log_id=log.log_id,
@@ -1693,11 +1705,11 @@ def generate_proactive_digest_task(
                                 kind=kind,
                                 period_start=period_start + timedelta(seconds=idx),
                                 period_end=period_end,
-                                title=f"Stale contact: {item['person_label']}",
+                                title=f"久未联系：{item['person_label']}",
                                 content_markdown=(
-                                    f"No mention in {item['days_since']} day(s)."
+                                    f"已有 {item['days_since']} 天未提及。"
                                     if item.get("days_since") is not None
-                                    else "No evidence recorded yet."
+                                    else "暂无相关记录。"
                                 ),
                                 content_json=item,
                                 action_log_id=log.log_id,
