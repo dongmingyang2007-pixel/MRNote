@@ -27,6 +27,10 @@ def setup_function() -> None:
     global engine, SessionLocal
     engine = _s.engine
     SessionLocal = _s.SessionLocal
+    # worker_tasks.py imports SessionLocal at module load; rebind so the
+    # Celery task opens a session on the current test engine.
+    import app.tasks.worker_tasks as _wt
+    _wt.SessionLocal = _s.SessionLocal
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
