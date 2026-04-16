@@ -133,6 +133,8 @@ SourceType = Literal[
     "uploaded_document",
     "whiteboard",
     "book_chapter",
+    # S4: user kept getting a card wrong, or explicitly marked it confusing.
+    "study_confusion",
 ]
 
 
