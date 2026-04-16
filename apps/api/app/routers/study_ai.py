@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
 
 from app.core.deps import (
     get_current_user,
@@ -21,6 +22,8 @@ from app.models import (
 )
 from app.services.ai_action_logger import action_log_context
 from app.services.dashscope_client import chat_completion
+from app.services.dashscope_stream import chat_completion_stream
+from app.services.study_context import assemble_study_context
 
 router = APIRouter(prefix="/api/v1/ai/study", tags=["study-ai"])
 
@@ -242,3 +245,100 @@ async def generate_quiz(
         )
 
     return {"questions": questions}
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/ask")
+async def study_ask(
+    payload: dict[str, Any],
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> StreamingResponse:
+    asset_id = str(payload.get("asset_id", ""))
+    message = str(payload.get("message", "")).strip()
+    history = payload.get("history") or []
+    if not asset_id or not message:
+        raise ApiError("invalid_input", "asset_id and message are required", status_code=400)
+
+    asset = db.query(StudyAsset).filter_by(id=asset_id).first()
+    if not asset:
+        raise ApiError("not_found", "Asset not found", status_code=404)
+    nb = (
+        db.query(Notebook)
+        .filter(Notebook.id == asset.notebook_id, Notebook.workspace_id == workspace_id)
+        .first()
+    )
+    if not nb:
+        raise ApiError("not_found", "Asset not found", status_code=404)
+
+    ctx, sources = assemble_study_context(
+        db,
+        asset_id=asset_id,
+        workspace_id=str(workspace_id),
+        project_id=str(nb.project_id) if nb.project_id else "",
+        user_id=str(current_user.id),
+        query=message,
+    )
+
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": ctx["system_prompt"]}
+    ]
+    for m in (history or [])[-10:]:
+        role = m.get("role"); content = m.get("content")
+        if role in ("user", "assistant") and isinstance(content, str) and content.strip():
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message})
+
+    async def _generate():
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type="study.ask",
+            scope="study_asset",
+            notebook_id=str(nb.id),
+            page_id=None,
+        ) as log:
+            log.set_input({"asset_id": asset_id, "message": message[:4000]})
+            log.set_trace_metadata({"retrieval_sources": sources})
+            full = ""
+            last_usage: dict | None = None
+            last_model_id: str | None = None
+            try:
+                yield _sse("message_start", {
+                    "role": "assistant",
+                    "sources": sources,
+                    "action_log_id": log.log_id,
+                })
+                async for chunk in chat_completion_stream(messages, temperature=0.7, max_tokens=4096):
+                    if chunk.content:
+                        full += chunk.content
+                        yield _sse("token", {"content": chunk.content, "snapshot": full})
+                    if chunk.usage:
+                        last_usage = chunk.usage
+                    if chunk.model_id:
+                        last_model_id = chunk.model_id
+                log.set_output(full)
+                log.record_usage(
+                    event_type="llm_completion",
+                    model_id=last_model_id,
+                    prompt_tokens=(last_usage or {}).get("prompt_tokens") or max(1, len(message) // 4),
+                    completion_tokens=(last_usage or {}).get("completion_tokens") or max(1, len(full) // 4),
+                    count_source="exact" if last_usage else "estimated",
+                )
+                yield _sse("message_done", {"content": full, "sources": sources, "action_log_id": log.log_id})
+            except Exception as exc:
+                yield _sse("error", {"message": str(exc)})
+                raise
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

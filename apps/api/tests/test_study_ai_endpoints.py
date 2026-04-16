@@ -198,3 +198,47 @@ def test_quiz_bad_shape_returns_422() -> None:
             json={"source_type": "page", "source_id": page_id, "count": 1},
         )
     assert resp.status_code == 422
+
+
+async def _fake_ask_stream(*_a, **_kw):
+    from app.services.dashscope_stream import StreamChunk
+    yield StreamChunk(content="answer text", finish_reason=None)
+    yield StreamChunk(
+        content="", finish_reason="stop",
+        usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        model_id="qwen-plus",
+    )
+
+
+def test_ask_streaming_produces_action_log_with_sources() -> None:
+    client, auth = _register_client("u_ask@x.co")
+
+    # Seed a notebook + study asset to scope the ask.
+    with SessionLocal() as db:
+        pr = Project(workspace_id=auth["ws_id"], name="P"); db.add(pr); db.commit(); db.refresh(pr)
+        nb = Notebook(workspace_id=auth["ws_id"], project_id=pr.id, created_by=auth["user_id"],
+                      title="NB", slug="nb"); db.add(nb); db.commit(); db.refresh(nb)
+        asset = StudyAsset(
+            notebook_id=nb.id, title="Book",
+            created_by=auth["user_id"],
+        )
+        db.add(asset); db.commit(); db.refresh(asset)
+        asset_id = asset.id
+
+    with patch(
+        "app.routers.study_ai.chat_completion_stream",
+        side_effect=lambda *a, **kw: _fake_ask_stream(),
+    ), patch(
+        "app.routers.study_ai.assemble_study_context",
+        return_value=({"system_prompt": "SYS"}, [{"type": "chunk", "id": "c1", "title": "Chapter 1"}]),
+    ):
+        resp = client.post(
+            "/api/v1/ai/study/ask",
+            json={"asset_id": asset_id, "message": "what about X?"},
+        )
+        _ = resp.text  # drain SSE
+
+    assert resp.status_code == 200
+    with SessionLocal() as db:
+        log = db.query(AIActionLog).filter_by(action_type="study.ask").one()
+        assert log.trace_metadata.get("retrieval_sources")
