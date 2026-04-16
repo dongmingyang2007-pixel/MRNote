@@ -4,10 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
 } from "react";
 import type { ReactNode } from "react";
+import {
+  loadPersistedLayout,
+  savePersistedLayout,
+} from "./window-persistence";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -209,8 +214,26 @@ const WindowManagerContext = createContext<WindowManagerContextValue | null>(
 // Provider
 // ---------------------------------------------------------------------------
 
-export function WindowManagerProvider({ children }: { children: ReactNode }) {
-  const [windows, dispatch] = useReducer(windowReducer, []);
+export function WindowManagerProvider({
+  children,
+  notebookId,
+}: {
+  children: ReactNode;
+  notebookId: string;
+}) {
+  const [windows, dispatch] = useReducer(
+    windowReducer,
+    undefined,
+    () => loadPersistedLayout(notebookId),
+  );
+
+  // Debounced persist on change.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      savePersistedLayout(notebookId, windows);
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [notebookId, windows]);
 
   const openWindow = useCallback(
     (payload: OpenWindowPayload) => dispatch({ kind: "OPEN_WINDOW", payload }),
