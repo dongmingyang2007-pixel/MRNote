@@ -4,12 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, FileText, MessageSquare, Brain, BookOpen, Settings } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Sparkles,
+  Brain,
+  BookOpen,
+  Settings,
+} from "lucide-react";
 import { apiGet } from "@/lib/api";
-import { useWindowManager } from "@/components/notebook/WindowManager";
+import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
 
-type SideTab = "pages" | "chat" | "memory" | "learn" | null;
+type SideTab = "pages" | "ai_panel" | "memory" | "learn" | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
@@ -17,7 +24,7 @@ interface NotebookSidebarProps {
 
 const TABS = [
   { id: "pages" as const, Icon: FileText, key: "nav.pages" },
-  { id: "chat" as const, Icon: MessageSquare, key: "nav.chat" },
+  { id: "ai_panel" as const, Icon: Sparkles, key: "nav.aiPanel" },
   { id: "memory" as const, Icon: Brain, key: "nav.memory" },
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
 ] as const;
@@ -27,12 +34,14 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const t = useTranslations("console");
   const tn = useTranslations("console-notebooks");
   const [activeTab, setActiveTab] = useState<SideTab>("pages");
-  const [pages, setPages] = useState<Array<{ id: string; title: string; page_type: string }>>([]);
+  const [pages, setPages] = useState<
+    Array<{ id: string; title: string; page_type: string }>
+  >([]);
 
   useEffect(() => {
-    void apiGet<{ items: Array<{ id: string; title: string; page_type: string }> }>(
-      `/api/v1/notebooks/${notebookId}/pages`,
-    )
+    void apiGet<{
+      items: Array<{ id: string; title: string; page_type: string }>;
+    }>(`/api/v1/notebooks/${notebookId}/pages`)
       .then((data) => setPages(data.items || []))
       .catch(() => setPages([]));
   }, [notebookId]);
@@ -41,47 +50,68 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
 
   const isRouteActive = (tabId: string) => {
     if (tabId === "pages") {
-      return pathname === basePath ||
+      return (
+        pathname === basePath ||
         pathname.endsWith(`/notebooks/${notebookId}`) ||
-        pathname.includes(`/notebooks/${notebookId}/pages/`);
+        pathname.includes(`/notebooks/${notebookId}/pages/`)
+      );
     }
-    if (tabId === "chat") return pathname.includes(`/notebooks/${notebookId}/chat`);
-    if (tabId === "memory") return pathname.includes(`/notebooks/${notebookId}/memory`);
-    if (tabId === "learn") return pathname.includes(`/notebooks/${notebookId}/learn`);
+    if (tabId === "memory")
+      return pathname.includes(`/notebooks/${notebookId}/memory`);
+    if (tabId === "learn")
+      return pathname.includes(`/notebooks/${notebookId}/learn`);
     return false;
   };
 
   const { openWindow } = useWindowManager();
+  const windows = useWindows();
 
-  const handleTabClick = useCallback((tabId: SideTab) => {
-    // Pages tab: toggle sidebar panel as before
-    if (tabId === "pages") {
-      setActiveTab((prev) => (prev === tabId ? null : tabId));
-      return;
-    }
-    // Chat, memory, learn: open a window
-    if (tabId === "chat") {
-      openWindow({
-        type: "chat",
-        title: tn("sidebar.openChat"),
-        meta: { notebookId },
-      });
-    } else if (tabId === "memory") {
-      openWindow({
-        type: "memory",
-        title: tn("sidebar.openMemory"),
-        meta: { notebookId },
-      });
-    } else if (tabId === "learn") {
-      openWindow({
-        type: "study",
-        title: "Study",
-        meta: { notebookId },
-      });
-    }
-  }, [openWindow, notebookId, tn]);
+  const handleTabClick = useCallback(
+    (tabId: SideTab) => {
+      if (tabId === "pages") {
+        setActiveTab((prev) => (prev === tabId ? null : tabId));
+        return;
+      }
+      if (tabId === "ai_panel") {
+        // Spec §4.7 — find the focused, non-minimized note window.
+        const focusedNote = [...windows]
+          .filter(
+            (w) => w.type === "note" && !w.minimized && w.meta.pageId,
+          )
+          .sort((a, b) => b.zIndex - a.zIndex)[0];
+        if (!focusedNote) {
+          console.warn(
+            "ai-panel-sidebar: no focused note window; open a page first",
+          );
+          return;
+        }
+        openWindow({
+          type: "ai_panel",
+          title: `AI · ${focusedNote.title}`,
+          meta: {
+            pageId: focusedNote.meta.pageId || "",
+            notebookId: focusedNote.meta.notebookId || notebookId,
+          },
+        });
+        return;
+      }
+      if (tabId === "memory") {
+        openWindow({
+          type: "memory",
+          title: tn("sidebar.openMemory"),
+          meta: { notebookId },
+        });
+      } else if (tabId === "learn") {
+        openWindow({
+          type: "study",
+          title: "Study",
+          meta: { notebookId },
+        });
+      }
+    },
+    [openWindow, notebookId, tn, windows],
+  );
 
-  // Only the "pages" tab opens a sidebar panel; other tabs open windows
   const panelOpen = activeTab === "pages";
 
   return (
@@ -102,7 +132,6 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           zIndex: 2,
         }}
       >
-        {/* Back button */}
         <Link
           href="/app/notebooks"
           prefetch={false}
@@ -114,12 +143,14 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           <ArrowLeft size={20} strokeWidth={1.8} />
         </Link>
 
-        {/* Tab icons */}
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
-            className={`glass-sidebar-nav-item${isRouteActive(tab.id) || activeTab === tab.id ? " is-active" : ""}`}
+            data-testid={`sidebar-tab-${tab.id}`}
+            className={`glass-sidebar-nav-item${
+              isRouteActive(tab.id) || activeTab === tab.id ? " is-active" : ""
+            }`}
             title={t(tab.key)}
             aria-label={t(tab.key)}
             onClick={() => handleTabClick(tab.id)}
@@ -128,17 +159,16 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           </button>
         ))}
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Minimized window pills */}
         <MinimizedTray />
 
-        {/* Settings */}
         <Link
           href={`${basePath}/settings`}
           prefetch={false}
-          className={`glass-sidebar-nav-item${pathname.includes("/settings") ? " is-active" : ""}`}
+          className={`glass-sidebar-nav-item${
+            pathname.includes("/settings") ? " is-active" : ""
+          }`}
           title={t("nav.notebookSettings")}
           aria-label={t("nav.notebookSettings")}
         >
@@ -146,13 +176,13 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         </Link>
       </nav>
 
-      {/* 240px expandable panel — only for pages tab */}
       {panelOpen && (
         <div
           className="notebook-side-panel"
           style={{
             width: 240,
-            borderRight: "1px solid var(--console-border, rgba(255,255,255,0.7))",
+            borderRight:
+              "1px solid var(--console-border, rgba(255,255,255,0.7))",
             background: "rgba(255, 255, 255, 0.55)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
@@ -161,19 +191,19 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
             flexShrink: 0,
           }}
         >
-          {/* Panel header */}
-          <div style={{
-            fontSize: "0.6875rem",
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            color: "var(--console-text-muted, #6b7280)",
-            marginBottom: 12,
-          }}>
+          <div
+            style={{
+              fontSize: "0.6875rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              color: "var(--console-text-muted, #6b7280)",
+              marginBottom: 12,
+            }}
+          >
             {t("nav.pages")}
           </div>
 
-          {/* Pages list */}
           <div style={{ fontSize: "0.8125rem" }}>
             {pages.map((page) => (
               <button
