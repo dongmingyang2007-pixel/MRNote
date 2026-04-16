@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import FileBlock from "@/components/console/editor/extensions/FileBlock";
+import AIOutputBlock from "@/components/console/editor/extensions/AIOutputBlock";
 
 function buildEditor(extensions: unknown[]) {
   return new Editor({
@@ -54,5 +55,53 @@ describe("FileBlock schema", () => {
     const roundtripped = editor.getJSON();
     expect(roundtripped.content?.[0].type).toBe("file");
     expect(roundtripped.content?.[0].attrs?.filename).toBe("x.png");
+  });
+});
+
+describe("AIOutputBlock schema", () => {
+  it("inserts with expected default attrs", () => {
+    const editor = buildEditor([AIOutputBlock]);
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "ai_output",
+        attrs: {
+          content_markdown: "hello world",
+          action_type: "selection.rewrite",
+          action_log_id: "log_1",
+          model_id: "qwen-plus",
+          sources: [{ type: "memory", id: "m1", title: "M" }],
+        },
+      })
+      .run();
+    const json = editor.getJSON();
+    const node = json.content?.find((n) => n.type === "ai_output");
+    expect(node?.attrs?.content_markdown).toBe("hello world");
+    expect(node?.attrs?.model_id).toBe("qwen-plus");
+    expect((node?.attrs?.sources as { id: string }[] | undefined)?.[0]?.id).toBe("m1");
+  });
+
+  it("round-trips JSON through setContent", () => {
+    const editor = buildEditor([AIOutputBlock]);
+    const original = {
+      type: "doc",
+      content: [
+        {
+          type: "ai_output",
+          attrs: {
+            content_markdown: "rt",
+            action_type: "ask",
+            action_log_id: "log_2",
+            model_id: null,
+            sources: [],
+          },
+        },
+      ],
+    };
+    editor.commands.setContent(original);
+    const node = editor.getJSON().content?.[0];
+    expect(node?.type).toBe("ai_output");
+    expect(node?.attrs?.content_markdown).toBe("rt");
   });
 });
