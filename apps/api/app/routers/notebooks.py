@@ -25,6 +25,7 @@ from app.models import (
     User,
 )
 from app.services import storage as storage_service
+from app.services.ai_action_logger import action_log_context
 from app.schemas.notebook import (
     NotebookCreate,
     NotebookOut,
@@ -1011,4 +1012,44 @@ def reject_memory_candidate(
                 target_meta["last_rejection_reason"] = reason
             target_memory.metadata_json = target_meta
     db.commit()
+    return {"ok": True}
+
+
+@pages_router.post("/{page_id}/tasks/{block_id}/complete")
+async def complete_task_block(
+    page_id: str,
+    block_id: str,
+    payload: dict[str, Any],
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    """Record a task-block completion toggle as an AIActionLog.
+
+    No LLM usage is involved — this is a pure audit entry so later
+    subsystems (S5 proactive services) can mine it.
+    """
+    page = _get_page_or_404(db, page_id, workspace_id)
+    completed = bool(payload.get("completed", True))
+    completed_at = payload.get("completed_at")
+
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="task.complete" if completed else "task.reopen",
+        scope="page",
+        notebook_id=str(page.notebook_id),
+        page_id=str(page.id),
+        block_id=block_id,
+    ) as log:
+        log.set_input({
+            "block_id": block_id,
+            "completed": completed,
+            "completed_at": completed_at,
+        })
+        log.set_output({"ok": True})
+
     return {"ok": True}
