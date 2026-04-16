@@ -1456,15 +1456,59 @@ def process_whiteboard_memories(
         db.close()
 
 
+def _run_study_confusion_pipeline(db, pipeline_input) -> None:
+    """Isolated sync wrapper so the task can be patched in tests without
+    also patching the async pipeline internals."""
+    import asyncio
+    from app.services.unified_memory_pipeline import run_pipeline
+    asyncio.run(run_pipeline(db, pipeline_input))
+
+
 @celery_app.task(name="app.tasks.worker_tasks.process_study_confusion")
 def process_study_confusion_task(
     card_id: str,
     user_id: str,
     workspace_id: str,
-    trigger: str,
+    trigger: str,  # "consecutive_failures" | "manual"
 ) -> None:
-    """Stub — full implementation in S4 Task 7."""
-    logger.info(
-        "process_study_confusion_task stub: card=%s user=%s trigger=%s",
-        card_id, user_id, trigger,
+    """Write a confusion-memory evidence for a StudyCard the user keeps
+    getting wrong. Idempotent: returns early if the card is gone."""
+    from app.models import Notebook, StudyCard, StudyDeck
+    from app.services.unified_memory_pipeline import (
+        PipelineInput,
+        SourceContext,
     )
+
+    db = SessionLocal()
+    try:
+        card = db.get(StudyCard, card_id)
+        if not card:
+            return
+        deck = db.get(StudyDeck, card.deck_id)
+        if not deck:
+            return
+        notebook = db.get(Notebook, deck.notebook_id)
+        if not notebook or not notebook.project_id:
+            return
+
+        source_text = (
+            f"User is confused about this study card (trigger: {trigger}).\n"
+            f"Question: {card.front}\n"
+            f"Answer: {card.back}\n"
+            f"Lapses: {card.lapse_count}, consecutive failures: {card.consecutive_failures}."
+        )
+        pipeline_input = PipelineInput(
+            source_type="study_confusion",
+            source_text=source_text[:6000],
+            source_ref=str(card.id),
+            workspace_id=str(workspace_id),
+            project_id=str(notebook.project_id),
+            user_id=str(user_id),
+            context=SourceContext(owner_user_id=str(user_id)),
+            context_text=f"Study confusion ({trigger})",
+        )
+        _run_study_confusion_pipeline(db, pipeline_input)
+    except Exception:
+        logger.exception("process_study_confusion_task failed for card %s", card_id)
+    finally:
+        db.close()
