@@ -5,6 +5,7 @@ import FileBlock from "@/components/console/editor/extensions/FileBlock";
 import AIOutputBlock from "@/components/console/editor/extensions/AIOutputBlock";
 import ReferenceBlock from "@/components/console/editor/extensions/ReferenceBlock";
 import TaskBlock from "@/components/console/editor/extensions/TaskBlock";
+import FlashcardBlock from "@/components/console/editor/extensions/FlashcardBlock";
 
 function buildEditor(extensions: unknown[]) {
   return new Editor({
@@ -196,5 +197,39 @@ describe("TaskBlock schema", () => {
     expect(node?.type).toBe("task");
     expect(node?.attrs?.completed).toBe(true);
     expect(node?.attrs?.due_date).toBe("2026-05-01");
+  });
+});
+
+describe("FlashcardBlock schema", () => {
+  it("inserts with expected default attrs", () => {
+    const editor = buildEditor([FlashcardBlock]);
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "flashcard",
+        attrs: { front: "Q", back: "A", flipped: false },
+      })
+      .run();
+    const node = editor.getJSON().content?.find((n) => n.type === "flashcard");
+    expect(node?.attrs?.front).toBe("Q");
+    expect(node?.attrs?.back).toBe("A");
+    expect(node?.attrs?.flipped).toBe(false);
+  });
+
+  it("round-trips JSON through setContent", () => {
+    const editor = buildEditor([FlashcardBlock]);
+    editor.commands.setContent({
+      type: "doc",
+      content: [
+        {
+          type: "flashcard",
+          attrs: { front: "rt-q", back: "rt-a", flipped: true },
+        },
+      ],
+    });
+    const node = editor.getJSON().content?.[0];
+    expect(node?.type).toBe("flashcard");
+    expect(node?.attrs?.flipped).toBe(true);
   });
 });
