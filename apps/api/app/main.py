@@ -82,6 +82,23 @@ async def lifespan(_: FastAPI):
         logging.getLogger(__name__).exception(
             "lifespan: ai-action-payloads bucket init failed (non-fatal)"
         )
+    # S2: ensure the attachments bucket exists.
+    try:
+        from app.services import storage as _storage_service
+        from botocore.exceptions import ClientError as _ClientError
+
+        _s3 = _storage_service.get_s3_client()
+        try:
+            _s3.head_bucket(Bucket=settings.s3_notebook_attachments_bucket)
+        except _ClientError as _exc:
+            _code = _exc.response.get("Error", {}).get("Code", "")
+            if _code in ("404", "NoSuchBucket", "NotFound"):
+                _s3.create_bucket(Bucket=settings.s3_notebook_attachments_bucket)
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).exception(
+            "lifespan: notebook-attachments bucket init failed (non-fatal)"
+        )
     yield
     await close_client()
 
