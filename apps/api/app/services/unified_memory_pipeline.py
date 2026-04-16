@@ -133,6 +133,8 @@ SourceType = Literal[
     "uploaded_document",
     "whiteboard",
     "book_chapter",
+    # S4: user kept getting a card wrong, or explicitly marked it confusing.
+    "study_confusion",
 ]
 
 
@@ -2460,6 +2462,11 @@ async def run_pipeline(db: Session, inp: PipelineInput) -> PipelineResult:
             fact_text=fact_text,
             memory_kind=memory_kind,
         )
+
+        # S4: confusion evidence must survive triage — the downstream
+        # proactive-services subsystem depends on it staying visible.
+        if inp.source_type == "study_confusion":
+            importance = max(importance, 0.5)
 
         if importance < 0.9 and memory_kind not in {
             MEMORY_KIND_PROFILE,

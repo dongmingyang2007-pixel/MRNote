@@ -5,11 +5,20 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useState } from "react";
 import { Layers, Pencil, Eye } from "lucide-react";
+import DeckPickerDialog from "@/components/notebook/contents/study/DeckPickerDialog";
+import { apiPost } from "@/lib/api";
+
+function extractNotebookId(): string | null {
+  if (typeof window === "undefined") return null;
+  const m = window.location.pathname.match(/\/notebooks\/([^/?#]+)/);
+  return m ? m[1] : null;
+}
 
 interface FlashcardAttrs {
   front: string;
   back: string;
   flipped: boolean;
+  card_id: string | null;
 }
 
 function FlashcardBlockView(props: NodeViewProps) {
@@ -17,10 +26,38 @@ function FlashcardBlockView(props: NodeViewProps) {
   const [mode, setMode] = useState<"edit" | "preview">(
     attrs.front || attrs.back ? "preview" : "edit",
   );
+  const [picking, setPicking] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const notebookId = extractNotebookId();
 
   const handleFlip = useCallback(() => {
     props.updateAttributes({ flipped: !attrs.flipped });
   }, [attrs.flipped, props]);
+
+  const handleAddToDeck = useCallback(
+    async (deck: { id: string; name: string }) => {
+      if (!attrs.front.trim() || !attrs.back.trim()) {
+        setPicking(false);
+        return;
+      }
+      setAdding(true);
+      try {
+        const card = await apiPost<{ id: string }>(
+          `/api/v1/decks/${deck.id}/cards`,
+          {
+            front: attrs.front,
+            back: attrs.back,
+            source_type: "block",
+          },
+        );
+        props.updateAttributes({ card_id: card.id });
+      } finally {
+        setAdding(false);
+        setPicking(false);
+      }
+    },
+    [attrs, props],
+  );
 
   const isBack = attrs.flipped;
 
@@ -44,6 +81,26 @@ function FlashcardBlockView(props: NodeViewProps) {
         >
           <Eye size={12} /> Preview
         </button>
+        {!attrs.card_id && (
+          <button
+            type="button"
+            className="flashcard-block__mode"
+            onClick={() => setPicking(true)}
+            disabled={adding}
+            data-testid="flashcard-add-to-deck"
+          >
+            {adding ? "Adding…" : "Add to Deck"}
+          </button>
+        )}
+        {attrs.card_id && (
+          <span
+            className="flashcard-block__in-deck"
+            data-testid="flashcard-in-deck"
+            style={{ fontSize: 10, color: "#2563eb", marginLeft: 6 }}
+          >
+            In deck ✓
+          </span>
+        )}
       </div>
       {mode === "edit" ? (
         <div className="flashcard-block__editor">
@@ -78,6 +135,13 @@ function FlashcardBlockView(props: NodeViewProps) {
           </div>
         </button>
       )}
+      {picking && notebookId && (
+        <DeckPickerDialog
+          notebookId={notebookId}
+          onPick={(d) => void handleAddToDeck(d)}
+          onCancel={() => setPicking(false)}
+        />
+      )}
     </NodeViewWrapper>
   );
 }
@@ -93,6 +157,7 @@ const FlashcardBlock = Node.create({
       front: { default: "" },
       back: { default: "" },
       flipped: { default: false },
+      card_id: { default: null as string | null },
     };
   },
 
