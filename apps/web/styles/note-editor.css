@@ -1457,3 +1457,315 @@
   height: 100%;
   width: 100%;
 }
+
+/* S2 new blocks ----------------------------------------------------------- */
+
+.file-block,
+.ai-output-block,
+.reference-block,
+.task-block,
+.flashcard-block {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: rgba(249, 250, 251, 0.6);
+}
+
+.file-block__picker,
+.file-block__open,
+.file-block__download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #1a1a2e;
+  font-size: 12px;
+  cursor: pointer;
+}
+.file-block__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.file-block__size {
+  color: #6b7280;
+  font-size: 11px;
+}
+.file-block__preview {
+  max-width: 100%;
+  margin-top: 8px;
+  border-radius: 6px;
+}
+.file-block__error {
+  color: #b91c1c;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.ai-output-block__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+.ai-output-block__badge {
+  font-weight: 600;
+}
+.ai-output-block__trace-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #2563eb;
+}
+.ai-output-block__body p {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ai-output-block__empty {
+  color: #9ca3af;
+  font-style: italic;
+}
+.ai-output-block__sources {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ai-output-block__source {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reference-block {
+  padding: 0;
+}
+.reference-block__card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+.reference-block__content {
+  flex: 1;
+}
+.reference-block__title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.reference-block__snippet {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.reference-picker {
+  padding: 8px;
+}
+.reference-picker__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+.reference-picker__tabs button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.reference-picker__tabs button.is-active {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-weight: 600;
+}
+.reference-picker__close {
+  margin-left: auto;
+  font-size: 14px;
+  color: #6b7280;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.reference-picker__search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.reference-picker__results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.reference-picker__results li {
+  border-radius: 4px;
+}
+.reference-picker__results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.reference-picker__results button:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+.reference-picker__item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+.reference-picker__item-snippet {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+.reference-picker__empty {
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.task-block__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-block__title {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  outline: none;
+}
+.task-block__due {
+  font-size: 11px;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.task-block__menu {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+}
+.task-block__expanded {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-block__expanded textarea,
+.task-block__expanded input[type="date"] {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.task-block__error {
+  color: #b91c1c;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.flashcard-block__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.flashcard-block__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #6b7280;
+}
+.flashcard-block__mode.is-active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+  font-weight: 600;
+}
+.flashcard-block__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flashcard-block__editor textarea {
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 13px;
+  min-height: 60px;
+}
+.flashcard-block__card {
+  width: 100%;
+  min-height: 120px;
+  padding: 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff 0%, #f9fafb 100%);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 150ms ease;
+}
+.flashcard-block__card:hover {
+  transform: translateY(-1px);
+}
+.flashcard-block__card.is-flipped {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(37, 99, 235, 0.08) 100%);
+}
+.flashcard-block__hint {
+  font-size: 10px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.flashcard-block__body {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.55;
+}
