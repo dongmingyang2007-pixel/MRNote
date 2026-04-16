@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { apiStream } from "@/lib/api-stream";
 
@@ -12,18 +12,26 @@ export default function SummaryTab({ pageId }: SummaryTabProps) {
   const [summary, setSummary] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight stream when the tab/window unmounts.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const handleGenerate = useCallback(async () => {
     if (streaming) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStreaming(true);
     setError(null);
     setSummary("");
     try {
       let acc = "";
-      for await (const event of apiStream("/api/v1/ai/notebook/page-action", {
-        page_id: pageId,
-        action_type: "summarize",
-      })) {
+      for await (const event of apiStream(
+        "/api/v1/ai/notebook/page-action",
+        { page_id: pageId, action_type: "summarize" },
+        controller.signal,
+      )) {
         if (event.event === "token") {
           const tok = (event.data as { content?: string }).content || "";
           acc += tok;
@@ -35,9 +43,13 @@ export default function SummaryTab({ pageId }: SummaryTabProps) {
         }
       }
     } catch (err) {
+      // Aborted streams are not errors from the user's perspective.
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Summary failed");
     } finally {
-      setStreaming(false);
+      if (abortRef.current === controller) {
+        setStreaming(false);
+      }
     }
   }, [pageId, streaming]);
 
