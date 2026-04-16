@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import FileBlock from "@/components/console/editor/extensions/FileBlock";
 import AIOutputBlock from "@/components/console/editor/extensions/AIOutputBlock";
 import ReferenceBlock from "@/components/console/editor/extensions/ReferenceBlock";
+import TaskBlock from "@/components/console/editor/extensions/TaskBlock";
 
 function buildEditor(extensions: unknown[]) {
   return new Editor({
@@ -147,5 +148,53 @@ describe("ReferenceBlock schema", () => {
     const node = editor.getJSON().content?.[0];
     expect(node?.type).toBe("reference");
     expect(node?.attrs?.target_type).toBe("memory");
+  });
+});
+
+describe("TaskBlock schema", () => {
+  it("inserts with expected default attrs", () => {
+    const editor = buildEditor([TaskBlock]);
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "task",
+        attrs: {
+          block_id: "b1",
+          title: "do X",
+          description: null,
+          due_date: null,
+          completed: false,
+          completed_at: null,
+        },
+      })
+      .run();
+    const node = editor.getJSON().content?.find((n) => n.type === "task");
+    expect(node?.attrs?.block_id).toBe("b1");
+    expect(node?.attrs?.completed).toBe(false);
+  });
+
+  it("round-trips JSON through setContent", () => {
+    const editor = buildEditor([TaskBlock]);
+    editor.commands.setContent({
+      type: "doc",
+      content: [
+        {
+          type: "task",
+          attrs: {
+            block_id: "b2",
+            title: "rt",
+            description: "desc",
+            due_date: "2026-05-01",
+            completed: true,
+            completed_at: "2026-04-16T00:00:00Z",
+          },
+        },
+      ],
+    });
+    const node = editor.getJSON().content?.[0];
+    expect(node?.type).toBe("task");
+    expect(node?.attrs?.completed).toBe(true);
+    expect(node?.attrs?.due_date).toBe("2026-05-01");
   });
 });
