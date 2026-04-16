@@ -1,5 +1,6 @@
 "use client";
 
+import "@/styles/ai-panel-window.css";
 import { useParams } from "next/navigation";
 import NotebookSidebar from "@/components/console/NotebookSidebar";
 import { WindowManagerProvider } from "@/components/notebook/WindowManager";
