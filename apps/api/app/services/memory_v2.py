@@ -90,9 +90,9 @@ def find_reconfirm_candidates(
                 when = datetime.fromisoformat(
                     reconfirm_after_raw.replace("Z", "+00:00")
                 )
-            except ValueError:
+            except (ValueError, TypeError):
                 when = resolved_now  # treat bad data as due
-            if when > resolved_now:
+            if when.tzinfo is not None and when > resolved_now:
                 continue
         out.append(memory)
         if len(out) >= limit:
@@ -947,6 +947,7 @@ def refresh_memory_health_signals(
         if memory.node_status == "conflict":
             next_flags.append("conflict")
         reconfirm_after = str(metadata.get("reconfirm_after") or "").strip()
+        # NOTE: Selection rule mirrors find_reconfirm_candidates(); keep in sync.
         if bool(metadata.get("single_source_explicit")):
             needs_reconfirm = True
             if reconfirm_after:
@@ -1029,6 +1030,7 @@ def summarize_memory_health(
             counts["conflict"] += 1
             entries.append({"kind": "conflict", "memory": memory, "reason": "该记忆处于冲突状态。"})
         reconfirm_after = str(metadata.get("reconfirm_after") or "").strip()
+        # NOTE: Selection rule mirrors find_reconfirm_candidates(); keep in sync.
         single_source = bool(metadata.get("single_source_explicit"))
         if single_source:
             should_reconfirm = True
