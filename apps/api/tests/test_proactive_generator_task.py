@@ -129,3 +129,74 @@ def test_task_empty_activity_returns_none() -> None:
     assert result is None
     with SessionLocal() as db:
         assert db.query(ProactiveDigest).count() == 0
+
+
+def _seed_goal_project() -> tuple[str, str, list[str]]:
+    """Return (workspace_id, project_id, [goal_memory_ids])."""
+    with SessionLocal() as db:
+        ws = Workspace(name="W"); user = User(email="gu@x.co", password_hash="x")
+        db.add(ws); db.add(user); db.commit(); db.refresh(ws); db.refresh(user)
+        db.add(Membership(workspace_id=ws.id, user_id=user.id, role="owner"))
+        db.commit()
+        pr = Project(workspace_id=ws.id, name="P")
+        db.add(pr); db.commit(); db.refresh(pr)
+        nb = Notebook(workspace_id=ws.id, project_id=pr.id, created_by=user.id,
+                      title="NB", slug="nb")
+        db.add(nb); db.commit(); db.refresh(nb)
+        db.add(AIActionLog(
+            workspace_id=ws.id, user_id=user.id, notebook_id=nb.id,
+            action_type="selection.rewrite", scope="selection",
+            status="completed", output_summary="out",
+            trace_metadata={},
+        ))
+        g1 = Memory(workspace_id=ws.id, project_id=pr.id, content="goal 1",
+                    node_type="fact", node_status="active",
+                    metadata_json={"memory_kind": "goal"})
+        g2 = Memory(workspace_id=ws.id, project_id=pr.id, content="goal 2",
+                    node_type="fact", node_status="active",
+                    metadata_json={"memory_kind": "goal"})
+        db.add(g1); db.add(g2); db.commit(); db.refresh(g1); db.refresh(g2)
+        return ws.id, pr.id, [g1.id, g2.id]
+
+
+def test_deviation_partial_retry_backfills_remaining() -> None:
+    ws_id, project_id, goal_ids = _seed_goal_project()
+    g1_id, g2_id = goal_ids
+    now = datetime.now(timezone.utc)
+    ps = (now - timedelta(days=7)).isoformat()
+    pe = now.isoformat()
+
+    import json
+    from app.tasks.worker_tasks import generate_proactive_digest_task
+
+    first_payload = json.dumps({"drifts": [
+        {"goal_memory_id": g1_id, "drift_reason_md": "r1", "confidence": 0.7},
+    ]})
+    with patch(
+        "app.services.proactive_generator._run_llm_json",
+        AsyncMock(return_value=first_payload),
+    ):
+        generate_proactive_digest_task.run(
+            project_id, "deviation_reminder", ps, pe,
+        )
+    with SessionLocal() as db:
+        rows = db.query(ProactiveDigest).filter_by(kind="deviation_reminder").all()
+    assert len(rows) == 1
+    assert rows[0].series_key == g1_id
+
+    second_payload = json.dumps({"drifts": [
+        {"goal_memory_id": g1_id, "drift_reason_md": "r1", "confidence": 0.7},
+        {"goal_memory_id": g2_id, "drift_reason_md": "r2", "confidence": 0.6},
+    ]})
+    with patch(
+        "app.services.proactive_generator._run_llm_json",
+        AsyncMock(return_value=second_payload),
+    ):
+        generate_proactive_digest_task.run(
+            project_id, "deviation_reminder", ps, pe,
+        )
+    with SessionLocal() as db:
+        rows = db.query(ProactiveDigest).filter_by(kind="deviation_reminder").all()
+    series_keys = sorted(r.series_key for r in rows)
+    assert len(rows) == 2
+    assert series_keys == sorted([g1_id, g2_id])

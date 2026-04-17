@@ -1592,19 +1592,6 @@ def generate_proactive_digest_task(
             )
             return None
 
-        # Idempotency guard (pre-check + unique constraint backup)
-        existing = (
-            db.query(ProactiveDigest)
-            .filter(
-                ProactiveDigest.project_id == project_id,
-                ProactiveDigest.kind == kind,
-                ProactiveDigest.period_start == period_start,
-            )
-            .first()
-        )
-        if existing is not None:
-            return None
-
         # Collect materials per-kind
         if kind == "daily_digest":
             materials = collect_daily_materials(
@@ -1651,12 +1638,43 @@ def generate_proactive_digest_task(
                                "period_start": period_start_iso,
                                "period_end": period_end_iso})
                 inserted_ids: list[str] = []
-                try:
-                    if kind in ("daily_digest", "weekly_reflection"):
-                        content = await generate_digest_content(
-                            kind=kind, materials=materials,
-                            project_name=project.name,
+                if kind in ("daily_digest", "weekly_reflection"):
+                    content = await generate_digest_content(
+                        kind=kind, materials=materials,
+                        project_name=project.name,
+                    )
+                    row = ProactiveDigest(
+                        workspace_id=str(workspace.id),
+                        project_id=project_id,
+                        user_id=str(user_id),
+                        kind=kind,
+                        period_start=period_start,
+                        period_end=period_end,
+                        title=(
+                            f"每日摘要 · {period_end.date().isoformat()}"
+                            if kind == "daily_digest"
+                            else f"每周反思 · {period_end.date().isoformat()}"
+                        ),
+                        content_markdown=content.get("summary_md", ""),
+                        content_json=content,
+                        action_log_id=log.log_id,
+                    )
+                    try:
+                        db.add(row); db.commit(); db.refresh(row)
+                        inserted_ids.append(row.id)
+                    except IntegrityError:
+                        db.rollback()
+                        logger.info(
+                            "proactive_digest: dup (%s, %s, %s) — skipping",
+                            project_id, kind, period_start.isoformat(),
                         )
+                elif kind == "deviation_reminder":
+                    content = await generate_digest_content(
+                        kind=kind, materials=materials,
+                        project_name=project.name,
+                    )
+                    for drift in content.get("drifts", []):
+                        goal_mid = str(drift.get("goal_memory_id") or "")[:64]
                         row = ProactiveDigest(
                             workspace_id=str(workspace.id),
                             project_id=project_id,
@@ -1664,67 +1682,50 @@ def generate_proactive_digest_task(
                             kind=kind,
                             period_start=period_start,
                             period_end=period_end,
-                            title=(
-                                f"每日摘要 · {period_end.date().isoformat()}"
-                                if kind == "daily_digest"
-                                else f"每周反思 · {period_end.date().isoformat()}"
-                            ),
-                            content_markdown=content.get("summary_md", ""),
-                            content_json=content,
+                            series_key=goal_mid,
+                            title=f"目标偏离：{goal_mid[:20]}",
+                            content_markdown=drift.get("drift_reason_md", ""),
+                            content_json=drift,
                             action_log_id=log.log_id,
                         )
-                        db.add(row); db.commit(); db.refresh(row)
-                        inserted_ids.append(row.id)
-                    elif kind == "deviation_reminder":
-                        content = await generate_digest_content(
-                            kind=kind, materials=materials,
-                            project_name=project.name,
+                        try:
+                            db.add(row); db.commit(); db.refresh(row)
+                            inserted_ids.append(row.id)
+                        except IntegrityError:
+                            db.rollback()
+                            logger.info(
+                                "proactive_digest: dup deviation %s/%s skipped",
+                                project_id, goal_mid,
+                            )
+                elif kind == "relationship_reminder":
+                    for item in materials["items"]:
+                        series_key = str(item.get("memory_id") or "")[:64]
+                        row = ProactiveDigest(
+                            workspace_id=str(workspace.id),
+                            project_id=project_id,
+                            user_id=str(user_id),
+                            kind=kind,
+                            period_start=period_start,
+                            period_end=period_end,
+                            series_key=series_key,
+                            title=f"久未联系：{item['person_label']}",
+                            content_markdown=(
+                                f"已有 {item['days_since']} 天未提及。"
+                                if item.get("days_since") is not None
+                                else "暂无相关记录。"
+                            ),
+                            content_json=item,
+                            action_log_id=log.log_id,
                         )
-                        for drift in content.get("drifts", []):
-                            goal_mid = str(drift.get("goal_memory_id") or "")[:64]
-                            row = ProactiveDigest(
-                                workspace_id=str(workspace.id),
-                                project_id=project_id,
-                                user_id=str(user_id),
-                                kind=kind,
-                                period_start=period_start,
-                                period_end=period_end,
-                                series_key=goal_mid,
-                                title=f"目标偏离：{goal_mid[:20]}",
-                                content_markdown=drift.get("drift_reason_md", ""),
-                                content_json=drift,
-                                action_log_id=log.log_id,
-                            )
+                        try:
                             db.add(row); db.commit(); db.refresh(row)
                             inserted_ids.append(row.id)
-                    elif kind == "relationship_reminder":
-                        for item in materials["items"]:
-                            series_key = str(item.get("memory_id") or "")[:64]
-                            row = ProactiveDigest(
-                                workspace_id=str(workspace.id),
-                                project_id=project_id,
-                                user_id=str(user_id),
-                                kind=kind,
-                                period_start=period_start,
-                                period_end=period_end,
-                                series_key=series_key,
-                                title=f"久未联系：{item['person_label']}",
-                                content_markdown=(
-                                    f"已有 {item['days_since']} 天未提及。"
-                                    if item.get("days_since") is not None
-                                    else "暂无相关记录。"
-                                ),
-                                content_json=item,
-                                action_log_id=log.log_id,
+                        except IntegrityError:
+                            db.rollback()
+                            logger.info(
+                                "proactive_digest: dup relationship %s/%s skipped",
+                                project_id, series_key,
                             )
-                            db.add(row); db.commit(); db.refresh(row)
-                            inserted_ids.append(row.id)
-                except IntegrityError:
-                    db.rollback()
-                    logger.info(
-                        "proactive_digest: unique constraint hit for %s/%s — skipping",
-                        project_id, kind,
-                    )
                 log.set_output({"inserted_ids": inserted_ids, "count": len(inserted_ids)})
             return inserted_ids
 
