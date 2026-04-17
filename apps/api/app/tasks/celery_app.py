@@ -26,6 +26,7 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.generate_relationship_reminders": {"queue": "memory"},
     "app.tasks.worker_tasks.backfill_notebook_page_embeddings": {"queue": "memory"},
     "app.tasks.worker_tasks.regenerate_notebook_page_embedding": {"queue": "memory"},
+    "app.tasks.worker_tasks.expire_one_time_subscriptions": {"queue": "memory"},
 }
 celery_app.conf.update(
     accept_content=["json"],
@@ -65,5 +66,9 @@ celery_app.conf.beat_schedule = {
     "backfill-notebook-page-embeddings-nightly": {
         "task": "app.tasks.worker_tasks.backfill_notebook_page_embeddings",
         "schedule": crontab(hour=4, minute=0),
+    },
+    "expire-one-time-subscriptions-daily": {
+        "task": "app.tasks.worker_tasks.expire_one_time_subscriptions",
+        "schedule": crontab(hour=2, minute=15),
     },
 }

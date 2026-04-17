@@ -1969,3 +1969,53 @@ def regenerate_notebook_page_embedding_task(page_id: str) -> str | None:
             return None
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# S6 Billing — One-time subscription expiry
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(name="app.tasks.worker_tasks.expire_one_time_subscriptions")
+def expire_one_time_subscriptions_task() -> dict[str, int]:
+    """Find expired one-time subscriptions, mark canceled, downgrade
+    the workspace to free plan, and refresh entitlements. Idempotent."""
+    from app.core.entitlements import refresh_workspace_entitlements
+    from app.models import Subscription, Workspace
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        all_rows = (
+            db.query(Subscription)
+            .filter(Subscription.provider == "stripe_one_time")
+            .filter(Subscription.status == "manual")
+            .all()
+        )
+        rows = []
+        for sub in all_rows:
+            end = sub.current_period_end
+            if end is None:
+                continue
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            if end < now:
+                rows.append(sub)
+        n = 0
+        for sub in rows:
+            sub.status = "canceled"
+            db.add(sub)
+            ws = db.get(Workspace, sub.workspace_id)
+            if ws is not None:
+                ws.plan = "free"
+                db.add(ws)
+            db.commit()
+            try:
+                refresh_workspace_entitlements(db, workspace_id=sub.workspace_id)
+            except Exception:
+                logger.warning("expire: refresh entitlements failed for %s",
+                               sub.workspace_id, exc_info=False)
+            n += 1
+        return {"expired": n}
+    finally:
+        db.close()
