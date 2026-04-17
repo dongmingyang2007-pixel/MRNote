@@ -173,9 +173,9 @@ def get_related(
 
 - Load target page + its `embedding_id`. If no embedding, fall back to shared-subject only.
 - **Semantic branch:** query pgvector for k-NN against the target page's embedding, filter to same workspace, exclude self.
-- **Shared-subject branch:** look up memories linked to the page via `NotebookSelectionMemoryLink` (or equivalent `memory_evidences` linked to `memory_owner_kind="notebook_page"`). For each memory, find other pages that also link to it. Score = number of shared subjects / max observed.
+- **Shared-subject branch:** look up memories linked to the page via the `MemoryEpisode` chain — `notebook_pages.id` ← `memory_episodes.source_id` (where `memory_episodes.source_type = 'notebook_page'`) ← `memory_evidences.episode_id` → `memory_evidences.memory_id` (the shared subject). For each shared memory, find other pages whose episodes also carry that memory. Score = number of shared subjects / max observed.
 - Merge: pages appearing in both get `reason: "semantic"` (stronger signal wins). Pages only in shared-subject get `reason: "shared_subject"`.
-- Memory branch: memories directly connected to the page (1-hop evidence), sorted by importance.
+- Memory branch: memories directly connected to the page (1-hop evidence), sorted by `Memory.confidence` desc.
 
 ## 5. Page embedding maintenance
 
