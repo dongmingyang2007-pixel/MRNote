@@ -18,7 +18,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export type WindowType = "note" | "ai_panel" | "file" | "memory" | "study";
+export type WindowType = "note" | "ai_panel" | "file" | "memory" | "study" | "digest";
 
 export interface WindowState {
   id: string;
@@ -64,6 +64,7 @@ const DEFAULT_SIZES: Record<WindowType, { width: number; height: number }> = {
   file: { width: 700, height: 500 },
   memory: { width: 500, height: 600 },
   study: { width: 600, height: 500 },
+  digest: { width: 520, height: 620 },
 };
 
 function generateId(): string {

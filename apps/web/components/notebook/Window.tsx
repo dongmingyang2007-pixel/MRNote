@@ -12,6 +12,7 @@ import {
   FileUp,
   Brain,
   BookOpen,
+  Bell,
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowState, WindowType } from "./WindowManager";
@@ -26,6 +27,7 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   file: FileUp,
   memory: Brain,
   study: BookOpen,
+  digest: Bell,
 };
 
 // ---------------------------------------------------------------------------
