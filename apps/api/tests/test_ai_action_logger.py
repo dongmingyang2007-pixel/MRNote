@@ -251,6 +251,56 @@ def test_exception_inside_body_marks_failed_and_reraises() -> None:
     assert row.input_json == {"q": "a"}
 
 
+def test_api_error_records_code_not_class_name() -> None:
+    from app.core.errors import ApiError
+
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            try:
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="proactive.daily_digest", scope="project",
+                ) as log:
+                    log_id_local = log.log_id
+                    raise ApiError("llm_bad_output", "bad", 422)
+            except ApiError:
+                return log_id_local
+            return ""
+
+    log_id = asyncio.run(go())
+    assert log_id
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.status == "failed"
+    assert row.error_code == "llm_bad_output"
+
+
+def test_plain_exception_falls_back_to_class_name() -> None:
+    ws_id, user_id = _seed()
+
+    async def go() -> str:
+        with SessionLocal() as db:
+            try:
+                async with action_log_context(
+                    db, workspace_id=ws_id, user_id=user_id,
+                    action_type="ask", scope="page",
+                ) as log:
+                    log_id_local = log.log_id
+                    raise ValueError("oops")
+            except ValueError:
+                return log_id_local
+            return ""
+
+    log_id = asyncio.run(go())
+    assert log_id
+    with SessionLocal() as db:
+        row = db.query(AIActionLog).filter_by(id=log_id).one()
+    assert row.status == "failed"
+    assert row.error_code == "ValueError"
+
+
 import app.services.storage as storage_service
 from tests.fixtures.fake_s3 import FakeS3Client
 

@@ -200,7 +200,8 @@ class ActionLogHandle:
         row = self._db.query(AIActionLog).filter_by(id=self._log_id).one()
         row.status = "failed"
         row.duration_ms = self._duration_ms()
-        row.error_code = type(exc).__name__[:50]
+        code = getattr(exc, "code", None)
+        row.error_code = (code if isinstance(code, str) and code else type(exc).__name__)[:50]
         row.error_message = str(exc)[:2000]
         if self._input is not None:
             row.input_json = _maybe_overflow(
