@@ -204,6 +204,15 @@ async function parseResponse<T>(
       handleUnauthorizedSession();
     } else if (res.status === 403) {
       clearCachedSecurityState();
+    } else if (res.status === 402) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mrai:plan-required", { detail: data?.error || data }));
+      }
+      throw new ApiRequestError(data?.error?.message || data?.detail || "Plan upgrade required", {
+        status: res.status,
+        code: data?.error?.code,
+        details: data?.error?.details,
+      });
     }
     const errorMessage = data?.error?.message || `Request failed with status ${res.status}`;
     throw new ApiRequestError(errorMessage, {

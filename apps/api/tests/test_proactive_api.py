@@ -217,11 +217,22 @@ def test_unread_count_visible_to_other_workspace_member() -> None:
 
 def test_generate_now_enqueues_task() -> None:
     client, auth = _register_client("u7@x.co")
-    from app.models import Project
+    from app.models import Project, Subscription
+    from app.core.entitlements import refresh_workspace_entitlements
     with SessionLocal() as db:
         pr = Project(workspace_id=auth["ws_id"], name="P")
         db.add(pr); db.commit(); db.refresh(pr)
         project_id = pr.id
+        # Upgrade to pro so daily_digest.enabled = True passes the gate.
+        sub = Subscription(
+            workspace_id=auth["ws_id"],
+            plan="pro",
+            status="active",
+            provider="free",
+            billing_cycle="monthly",
+        )
+        db.add(sub); db.commit()
+        refresh_workspace_entitlements(db, workspace_id=auth["ws_id"])
 
     with patch(
         "app.tasks.worker_tasks.generate_proactive_digest_task.delay",

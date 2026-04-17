@@ -16,6 +16,7 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import (
     Conversation,
@@ -2250,6 +2251,7 @@ def get_memory_subgraph_route(
     current_user: User = Depends(get_current_user),
     workspace_role: str = Depends(get_current_workspace_role),
     workspace_id: str = Depends(get_current_workspace_id),
+    _adv: None = Depends(require_entitlement("advanced_memory_insights.enabled")),
 ) -> SubgraphOut:
     _enforce_memory_read_rate_limit(request, current_user_id=current_user.id)
     memory = _get_accessible_memory_or_404(
@@ -2755,6 +2757,7 @@ async def explain_memory_search(
     current_user: User = Depends(get_current_user),
     workspace_role: str = Depends(get_current_workspace_role),
     workspace_id: str = Depends(get_current_workspace_id),
+    _adv: None = Depends(require_entitlement("advanced_memory_insights.enabled")),
 ) -> MemoryExplainOut:
     _enforce_memory_read_rate_limit(request, current_user_id=current_user.id)
     project = get_project_in_workspace_or_404(db, payload.project_id, workspace_id)

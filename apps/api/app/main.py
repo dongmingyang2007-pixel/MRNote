@@ -22,7 +22,7 @@ from app.core.request_id import RequestIDMiddleware
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.routers import (
-    ai_actions, attachments, auth, chat, datasets, memory, memory_stream,
+    ai_actions, attachments, auth, billing, chat, datasets, memory, memory_stream,
     model_catalog, models, notebook_ai, notebooks, pipeline, proactive,
     projects, realtime, search, study, study_ai, study_decks, uploads,
 )
@@ -141,6 +141,7 @@ def health() -> dict:
 
 
 app.include_router(auth.router)
+app.include_router(billing.router)
 app.include_router(projects.router)
 app.include_router(notebooks.router)
 app.include_router(notebooks.pages_router)

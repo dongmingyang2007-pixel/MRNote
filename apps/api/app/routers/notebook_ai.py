@@ -18,8 +18,10 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import Notebook, NotebookPage, User
+from app.services.quota_counters import count_ai_actions_this_month
 from app.services.ai_action_logger import action_log_context
 from app.services.dashscope_stream import chat_completion_stream
 
@@ -88,6 +90,7 @@ async def selection_action(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> StreamingResponse:
     page_id = payload.get("page_id", "")
     selected_text = payload.get("selected_text", "")
@@ -165,6 +168,7 @@ async def page_action(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> StreamingResponse:
     page_id = payload.get("page_id", "")
     action_type = payload.get("action_type", "summarize")
@@ -240,6 +244,7 @@ async def ask(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> StreamingResponse:
     """In-editor AI chat with multi-layer retrieval orchestration.
 
@@ -409,6 +414,7 @@ async def whiteboard_summarize(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> dict[str, Any]:
     """Summarize whiteboard content and extract memories.
 

@@ -12,8 +12,10 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import Notebook, StudyAsset, StudyChunk, User
+from app.services.quota_counters import count_study_assets
 from app.schemas.study import (
     PaginatedStudyAssets,
     PaginatedStudyChunks,
@@ -98,6 +100,8 @@ def create_study_asset(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
+    _quota: None = Depends(require_entitlement("study_assets.max", counter=count_study_assets)),
+    _book: None = Depends(require_entitlement("book_upload.enabled")),
 ) -> StudyAssetOut:
     _get_notebook_or_404(db, notebook_id, workspace_id)
 

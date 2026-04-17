@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ModalProvider } from "@/components/ui/modal-dialog";
 import { AuthSessionGuard } from "@/components/AuthSessionGuard";
 import { GlassTopBar, GlassStatusBar } from "@/components/console/glass";
+import UpgradeModal from "@/components/billing/UpgradeModal";
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,6 +30,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
               <CommandPalette />
               <AuthSessionGuard />
               <Toaster />
+              <UpgradeModal />
             </div>
           </ModalProvider>
         </MobileMenuProvider>
