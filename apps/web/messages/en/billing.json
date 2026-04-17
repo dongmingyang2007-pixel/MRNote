@@ -1,0 +1,17 @@
+{
+  "page.title": "Billing",
+  "current.plan": "Current plan",
+  "current.renewal": "Renews",
+  "current.manage": "Manage billing",
+  "usage.title": "Usage",
+  "plans.cycle.monthly": "Monthly",
+  "plans.cycle.yearly": "Yearly (15% off)",
+  "plan.free.name": "Free",
+  "plan.pro.name": "Pro",
+  "plan.power.name": "Power",
+  "plan.team.name": "Team",
+  "upgrade.button": "Upgrade",
+  "upgrade.required.title": "Upgrade required",
+  "upgrade.modal.dismiss": "Dismiss",
+  "upgrade.modal.see_plans": "See plans"
+}

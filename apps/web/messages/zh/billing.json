@@ -1,0 +1,17 @@
+{
+  "page.title": "计费",
+  "current.plan": "当前套餐",
+  "current.renewal": "续期日期",
+  "current.manage": "管理账单",
+  "usage.title": "使用量",
+  "plans.cycle.monthly": "月付",
+  "plans.cycle.yearly": "年付（85 折）",
+  "plan.free.name": "免费版",
+  "plan.pro.name": "专业版",
+  "plan.power.name": "高级版",
+  "plan.team.name": "团队版",
+  "upgrade.button": "升级",
+  "upgrade.required.title": "需要升级",
+  "upgrade.modal.dismiss": "稍后",
+  "upgrade.modal.see_plans": "查看套餐"
+}

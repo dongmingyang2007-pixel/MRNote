@@ -17,6 +17,7 @@ import {
 import { apiGet } from "@/lib/api";
 import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
 import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
+import { useBillingMe } from "@/hooks/useBillingMe";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
 
 type SideTab = "pages" | "ai_panel" | "memory" | "learn" | "digest" | "search" | null;
@@ -71,6 +72,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const { openWindow } = useWindowManager();
   const windows = useWindows();
   const unreadCount = useDigestUnreadCount();
+  const billingMe = useBillingMe();
 
   const handleTabClick = useCallback(
     (tabId: SideTab) => {
@@ -212,8 +214,23 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           }`}
           title={t("nav.notebookSettings")}
           aria-label={t("nav.notebookSettings")}
+          style={{ position: "relative" }}
         >
           <Settings size={20} strokeWidth={1.8} />
+          {billingMe && billingMe.plan !== "free" && (
+            <span
+              data-testid="sidebar-plan-badge"
+              style={{
+                position: "absolute", bottom: 4, right: 4,
+                background: "#2563eb", color: "#fff",
+                fontSize: 8, fontWeight: 700,
+                padding: "1px 4px", borderRadius: 3,
+                lineHeight: 1,
+              }}
+            >
+              {billingMe.plan.toUpperCase()}
+            </span>
+          )}
         </Link>
       </nav>
 
