@@ -589,6 +589,7 @@ class NotebookPage(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source_conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
+    embedding_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
 
 class NotebookBlock(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
