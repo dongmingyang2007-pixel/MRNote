@@ -16,11 +16,13 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import (
     Notebook, NotebookPage, StudyAsset, StudyCard, StudyChunk, StudyDeck, User,
 )
 from app.services.ai_action_logger import action_log_context
+from app.services.quota_counters import count_ai_actions_this_month
 from app.services.dashscope_client import chat_completion
 from app.services.dashscope_stream import chat_completion_stream
 from app.services.study_context import assemble_study_context
@@ -90,6 +92,7 @@ async def generate_flashcards(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> dict[str, Any]:
     source_type = str(payload.get("source_type", ""))
     source_id = str(payload.get("source_id", ""))
@@ -194,6 +197,7 @@ async def generate_quiz(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> dict[str, Any]:
     source_type = str(payload.get("source_type", ""))
     source_id = str(payload.get("source_id", ""))
@@ -265,6 +269,7 @@ async def study_ask(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> StreamingResponse:
     asset_id = str(payload.get("asset_id", ""))
     message = str(payload.get("message", "")).strip()

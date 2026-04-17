@@ -20,6 +20,7 @@ from app.core.deps import (
     is_token_revoked_for_user,
     require_allowed_origin,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.db.session import SessionLocal
 from app.models import Conversation, Membership, Message, ModelCatalog, Project, User
@@ -98,6 +99,7 @@ def create_realtime_ws_ticket(
     request: Request,
     current_user: User = Depends(get_current_user),
     _: None = Depends(require_allowed_origin),
+    _voice: None = Depends(require_entitlement("voice.enabled")),
 ) -> dict[str, object]:
     access_token = getattr(request.state, "access_token", None)
     if not isinstance(access_token, str) or not access_token:

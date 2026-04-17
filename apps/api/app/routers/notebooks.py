@@ -24,8 +24,10 @@ from app.models import (
     Project,
     User,
 )
+from app.core.entitlements import require_entitlement
 from app.services import storage as storage_service
 from app.services.ai_action_logger import action_log_context
+from app.services.quota_counters import count_notebooks, count_pages
 from app.schemas.notebook import (
     NotebookCreate,
     NotebookOut,
@@ -207,6 +209,7 @@ def create_notebook(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
+    _quota: None = Depends(require_entitlement("notebooks.max", counter=count_notebooks)),
 ) -> NotebookOut:
     notebook = Notebook(
         workspace_id=workspace_id,
@@ -385,6 +388,7 @@ def create_page(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
+    _quota: None = Depends(require_entitlement("pages.max", counter=count_pages)),
 ) -> PageOut:
     notebook = (
         db.query(Notebook)

@@ -15,6 +15,7 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import ProactiveDigest, Project, User
 from app.schemas.proactive import (
@@ -158,6 +159,7 @@ def generate_now(
     workspace_id: str = Depends(get_current_workspace_id),
     _: None = Depends(require_workspace_write_access),
     __: None = Depends(require_csrf_protection),
+    _digest: None = Depends(require_entitlement("daily_digest.enabled")),
 ) -> dict[str, Any]:
     project = db.query(Project).filter_by(id=payload.project_id).first()
     if project is None or project.workspace_id != workspace_id:
