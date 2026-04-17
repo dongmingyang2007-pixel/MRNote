@@ -24,6 +24,8 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.generate_weekly_reflections": {"queue": "memory"},
     "app.tasks.worker_tasks.generate_deviation_reminders": {"queue": "memory"},
     "app.tasks.worker_tasks.generate_relationship_reminders": {"queue": "memory"},
+    "app.tasks.worker_tasks.backfill_notebook_page_embeddings": {"queue": "memory"},
+    "app.tasks.worker_tasks.regenerate_notebook_page_embedding": {"queue": "memory"},
 }
 celery_app.conf.update(
     accept_content=["json"],
@@ -59,5 +61,9 @@ celery_app.conf.beat_schedule = {
     "generate-relationship-reminders": {
         "task": "app.tasks.worker_tasks.generate_relationship_reminders",
         "schedule": crontab(hour=8, minute=17, day_of_week=1),
+    },
+    "backfill-notebook-page-embeddings-nightly": {
+        "task": "app.tasks.worker_tasks.backfill_notebook_page_embeddings",
+        "schedule": crontab(hour=4, minute=0),
     },
 }
