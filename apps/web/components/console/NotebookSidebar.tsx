@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
+  Bell,
   FileText,
   Sparkles,
   Brain,
@@ -14,9 +15,10 @@ import {
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
+import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
 
-type SideTab = "pages" | "ai_panel" | "memory" | "learn" | null;
+type SideTab = "pages" | "ai_panel" | "memory" | "learn" | "digest" | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
@@ -27,6 +29,7 @@ const TABS = [
   { id: "ai_panel" as const, Icon: Sparkles, key: "nav.aiPanel" },
   { id: "memory" as const, Icon: Brain, key: "nav.memory" },
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
+  { id: "digest" as const, Icon: Bell, key: "nav.digest" },
 ] as const;
 
 export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
@@ -65,6 +68,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
 
   const { openWindow } = useWindowManager();
   const windows = useWindows();
+  const unreadCount = useDigestUnreadCount();
 
   const handleTabClick = useCallback(
     (tabId: SideTab) => {
@@ -105,6 +109,12 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         openWindow({
           type: "study",
           title: "Study",
+          meta: { notebookId },
+        });
+      } else if (tabId === "digest") {
+        openWindow({
+          type: "digest",
+          title: tn("digest.windowTitle"),
           meta: { notebookId },
         });
       }
@@ -154,8 +164,31 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
             title={t(tab.key)}
             aria-label={t(tab.key)}
             onClick={() => handleTabClick(tab.id)}
+            style={{ position: "relative" }}
           >
             <tab.Icon size={20} strokeWidth={1.8} />
+            {tab.id === "digest" && unreadCount > 0 && (
+              <span
+                data-testid="sidebar-digest-badge"
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  minWidth: 14,
+                  height: 14,
+                  borderRadius: 999,
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontSize: 9,
+                  lineHeight: "14px",
+                  textAlign: "center",
+                  padding: "0 3px",
+                  fontWeight: 700,
+                }}
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </button>
         ))}
 

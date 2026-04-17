@@ -85,5 +85,6 @@
   "common.description": "描述",
   "common.untitled": "无标题",
   "common.noProject": "笔记本还没有关联 AI 项目。",
-  "settings.projectId": "项目 ID"
+  "settings.projectId": "项目 ID",
+  "digest.windowTitle": "主动摘要"
 }

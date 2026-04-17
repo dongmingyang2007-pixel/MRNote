@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
@@ -1512,3 +1512,349 @@ def process_study_confusion_task(
         logger.exception("process_study_confusion_task failed for card %s", card_id)
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# S5 proactive services: per-project digest generator
+# ---------------------------------------------------------------------------
+
+
+def _materials_empty(kind: str, materials: dict) -> bool:
+    """Heuristic: skip row creation when there's nothing to digest."""
+    if kind == "daily_digest":
+        return (
+            not materials.get("action_counts")
+            and not materials.get("page_edits")
+            and not materials.get("reconfirm_items")
+        )
+    if kind == "weekly_reflection":
+        return (
+            not materials.get("action_counts")
+            and not materials.get("page_edits")
+            and materials.get("study_stats", {}).get("cards_reviewed", 0) == 0
+        )
+    if kind == "deviation_reminder":
+        return not materials.get("goals")
+    return False  # relationship_reminder handled via separate fan-out
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_proactive_digest")
+def generate_proactive_digest_task(
+    project_id: str,
+    kind: str,
+    period_start_iso: str,
+    period_end_iso: str,
+) -> str | None:
+    """Generate one (or zero, or many for *_reminder) ProactiveDigest rows.
+
+    Idempotent via the unique constraint (project_id, kind, period_start).
+    """
+    import asyncio as _asyncio
+    from datetime import datetime as _dt
+    from sqlalchemy.exc import IntegrityError
+    from app.models import Membership, ProactiveDigest, Project, Workspace
+    from app.services.ai_action_logger import action_log_context
+    from app.services.proactive_generator import generate_digest_content
+    from app.services.proactive_materials import (
+        collect_daily_materials, collect_goal_materials,
+        collect_relationship_materials, collect_weekly_materials,
+    )
+
+    period_start = _dt.fromisoformat(period_start_iso.replace("Z", "+00:00"))
+    period_end = _dt.fromisoformat(period_end_iso.replace("Z", "+00:00"))
+
+    db = SessionLocal()
+    try:
+        project = db.get(Project, project_id)
+        if not project:
+            logger.warning(
+                "proactive_digest: project not found",
+                extra={"project_id": project_id, "kind": kind},
+            )
+            return None
+        workspace = db.get(Workspace, project.workspace_id)
+        if not workspace:
+            logger.warning(
+                "proactive_digest: workspace not found",
+                extra={"project_id": project_id, "workspace_id": project.workspace_id, "kind": kind},
+            )
+            return None
+        member = (
+            db.query(Membership)
+            .filter(Membership.workspace_id == workspace.id)
+            .first()
+        )
+        user_id = member.user_id if member else None
+        if not user_id:
+            logger.warning(
+                "proactive_digest: workspace has no membership",
+                extra={"project_id": project_id, "workspace_id": workspace.id, "kind": kind},
+            )
+            return None
+
+        # Collect materials per-kind
+        if kind == "daily_digest":
+            materials = collect_daily_materials(
+                db, project_id=project_id,
+                period_start=period_start, period_end=period_end,
+            )
+        elif kind == "weekly_reflection":
+            materials = collect_weekly_materials(
+                db, project_id=project_id,
+                period_start=period_start, period_end=period_end,
+            )
+        elif kind == "deviation_reminder":
+            materials = collect_goal_materials(
+                db, project_id=project_id,
+                period_start=period_start, period_end=period_end,
+            )
+        elif kind == "relationship_reminder":
+            rel_items = collect_relationship_materials(
+                db, project_id=project_id, now=period_end,
+            )
+            materials = {"items": rel_items}
+        else:
+            return None
+
+        # Skip when nothing to report (daily/weekly/deviation only)
+        if kind in ("daily_digest", "weekly_reflection", "deviation_reminder") and _materials_empty(kind, materials):
+            return None
+        if kind == "relationship_reminder" and not materials["items"]:
+            return None
+
+        # Use the action logger for traceability (reuses async context manager)
+        async def _async_work() -> list[str]:
+            async with action_log_context(
+                db,
+                workspace_id=str(workspace.id),
+                user_id=str(user_id),
+                action_type=f"proactive.{kind}",
+                scope="project",
+                notebook_id=None,
+                page_id=None,
+                block_id=project_id,
+            ) as log:
+                log.set_input({"kind": kind,
+                               "period_start": period_start_iso,
+                               "period_end": period_end_iso})
+                inserted_ids: list[str] = []
+                if kind in ("daily_digest", "weekly_reflection"):
+                    content = await generate_digest_content(
+                        kind=kind, materials=materials,
+                        project_name=project.name,
+                    )
+                    row = ProactiveDigest(
+                        workspace_id=str(workspace.id),
+                        project_id=project_id,
+                        user_id=str(user_id),
+                        kind=kind,
+                        period_start=period_start,
+                        period_end=period_end,
+                        title=(
+                            f"每日摘要 · {period_end.date().isoformat()}"
+                            if kind == "daily_digest"
+                            else f"每周反思 · {period_end.date().isoformat()}"
+                        ),
+                        content_markdown=content.get("summary_md", ""),
+                        content_json=content,
+                        action_log_id=log.log_id,
+                    )
+                    try:
+                        db.add(row); db.commit(); db.refresh(row)
+                        inserted_ids.append(row.id)
+                    except IntegrityError:
+                        db.rollback()
+                        logger.info(
+                            "proactive_digest: dup (%s, %s, %s) — skipping",
+                            project_id, kind, period_start.isoformat(),
+                        )
+                elif kind == "deviation_reminder":
+                    content = await generate_digest_content(
+                        kind=kind, materials=materials,
+                        project_name=project.name,
+                    )
+                    for drift in content.get("drifts", []):
+                        goal_mid = str(drift.get("goal_memory_id") or "")[:64]
+                        row = ProactiveDigest(
+                            workspace_id=str(workspace.id),
+                            project_id=project_id,
+                            user_id=str(user_id),
+                            kind=kind,
+                            period_start=period_start,
+                            period_end=period_end,
+                            series_key=goal_mid,
+                            title=f"目标偏离：{goal_mid[:20]}",
+                            content_markdown=drift.get("drift_reason_md", ""),
+                            content_json=drift,
+                            action_log_id=log.log_id,
+                        )
+                        try:
+                            db.add(row); db.commit(); db.refresh(row)
+                            inserted_ids.append(row.id)
+                        except IntegrityError:
+                            db.rollback()
+                            logger.info(
+                                "proactive_digest: dup deviation %s/%s skipped",
+                                project_id, goal_mid,
+                            )
+                elif kind == "relationship_reminder":
+                    for item in materials["items"]:
+                        series_key = str(item.get("memory_id") or "")[:64]
+                        row = ProactiveDigest(
+                            workspace_id=str(workspace.id),
+                            project_id=project_id,
+                            user_id=str(user_id),
+                            kind=kind,
+                            period_start=period_start,
+                            period_end=period_end,
+                            series_key=series_key,
+                            title=f"久未联系：{item['person_label']}",
+                            content_markdown=(
+                                f"已有 {item['days_since']} 天未提及。"
+                                if item.get("days_since") is not None
+                                else "暂无相关记录。"
+                            ),
+                            content_json=item,
+                            action_log_id=log.log_id,
+                        )
+                        try:
+                            db.add(row); db.commit(); db.refresh(row)
+                            inserted_ids.append(row.id)
+                        except IntegrityError:
+                            db.rollback()
+                            logger.info(
+                                "proactive_digest: dup relationship %s/%s skipped",
+                                project_id, series_key,
+                            )
+                log.set_output({"inserted_ids": inserted_ids, "count": len(inserted_ids)})
+            return inserted_ids
+
+        inserted = _asyncio.run(_async_work())
+        return inserted[0] if inserted else None
+    except Exception:
+        logger.exception("generate_proactive_digest_task failed")
+        return None
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# S5 proactive services: fan-out tasks (daily / weekly / deviation / relationship)
+# ---------------------------------------------------------------------------
+
+
+def _active_project_ids(window_hours: int) -> list[str]:
+    """Return project IDs that had any AIActionLog OR NotebookPage edit
+    in the last ``window_hours`` hours."""
+    from app.models import AIActionLog, Notebook, NotebookPage
+    db = SessionLocal()
+    try:
+        threshold = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        subq_action = (
+            db.query(Notebook.project_id)
+            .join(AIActionLog, AIActionLog.notebook_id == Notebook.id)
+            .filter(AIActionLog.created_at >= threshold)
+            .distinct()
+        )
+        subq_page = (
+            db.query(Notebook.project_id)
+            .join(NotebookPage, NotebookPage.notebook_id == Notebook.id)
+            .filter(NotebookPage.last_edited_at >= threshold)
+            .distinct()
+        )
+        ids: set[str] = set()
+        for row in subq_action.all():
+            if row[0]:
+                ids.add(row[0])
+        for row in subq_page.all():
+            if row[0]:
+                ids.add(row[0])
+        return sorted(ids)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_daily_digests")
+def generate_daily_digests_task() -> dict[str, int]:
+    """Daily fan-out: enqueue per-project daily digest jobs."""
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(hours=24)
+    project_ids = _active_project_ids(window_hours=24)
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "daily_digest",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_weekly_reflections")
+def generate_weekly_reflections_task() -> dict[str, int]:
+    """Weekly fan-out: enqueue per-project weekly reflection jobs."""
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=7)
+    project_ids = _active_project_ids(window_hours=24 * 7)
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "weekly_reflection",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}
+
+
+def _projects_with_memory_matching(predicate) -> list[str]:
+    """Return project IDs where at least one active memory satisfies predicate."""
+    from app.models import Memory
+    db = SessionLocal()
+    try:
+        memories = (
+            db.query(Memory)
+            .filter(Memory.node_status == "active")
+            .all()
+        )
+        ids: set[str] = set()
+        for m in memories:
+            if predicate(m) and m.project_id:
+                ids.add(m.project_id)
+        return sorted(ids)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_deviation_reminders")
+def generate_deviation_reminders_task() -> dict[str, int]:
+    """Deviation reminders: fan-out to projects that have a 'goal' memory
+    AND had recent activity (otherwise there's nothing to compare against)."""
+    from app.services.memory_metadata import get_memory_kind
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=7)
+    project_ids = _projects_with_memory_matching(
+        lambda m: get_memory_kind(m) == "goal",
+    )
+    # Also require recent activity — goals alone aren't enough.
+    active = set(_active_project_ids(window_hours=24 * 7))
+    targets = [pid for pid in project_ids if pid in active]
+    for pid in targets:
+        generate_proactive_digest_task.delay(
+            pid, "deviation_reminder",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(targets)}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.generate_relationship_reminders")
+def generate_relationship_reminders_task() -> dict[str, int]:
+    """Relationship reminders: fan-out to projects that have at least one
+    person-subject memory."""
+    from app.services.memory_metadata import get_subject_kind
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=30)
+    project_ids = _projects_with_memory_matching(
+        lambda m: get_subject_kind(m) == "person",
+    )
+    for pid in project_ids:
+        generate_proactive_digest_task.delay(
+            pid, "relationship_reminder",
+            period_start.isoformat(), now.isoformat(),
+        )
+    return {"dispatched": len(project_ids)}

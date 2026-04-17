@@ -9,6 +9,7 @@ import AIPanelWindow from "./contents/AIPanelWindow";
 import FileWindow from "./contents/FileWindow";
 import MemoryWindow from "./contents/MemoryWindow";
 import StudyWindow from "./contents/StudyWindow";
+import DigestWindow from "./contents/DigestWindow";
 import type { WindowState } from "./WindowManager";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,11 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
     case "study":
       return (
         <StudyWindow notebookId={windowState.meta.notebookId || ""} />
+      );
+
+    case "digest":
+      return (
+        <DigestWindow notebookId={windowState.meta.notebookId || ""} />
       );
 
     default:

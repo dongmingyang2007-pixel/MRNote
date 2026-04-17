@@ -19,6 +19,11 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.backfill_project_memory_v2": {"queue": "memory"},
     "app.tasks.worker_tasks.run_project_memory_sleep_cycle": {"queue": "memory"},
     "app.tasks.worker_tasks.run_nightly_memory_sleep_cycle": {"queue": "memory"},
+    "app.tasks.worker_tasks.generate_proactive_digest": {"queue": "memory"},
+    "app.tasks.worker_tasks.generate_daily_digests": {"queue": "memory"},
+    "app.tasks.worker_tasks.generate_weekly_reflections": {"queue": "memory"},
+    "app.tasks.worker_tasks.generate_deviation_reminders": {"queue": "memory"},
+    "app.tasks.worker_tasks.generate_relationship_reminders": {"queue": "memory"},
 }
 celery_app.conf.update(
     accept_content=["json"],
@@ -38,5 +43,21 @@ celery_app.conf.beat_schedule = {
     "memory-sleep-cycle-nightly": {
         "task": "app.tasks.worker_tasks.run_nightly_memory_sleep_cycle",
         "schedule": crontab(hour=2, minute=30),
+    },
+    "generate-daily-digests": {
+        "task": "app.tasks.worker_tasks.generate_daily_digests",
+        "schedule": crontab(hour=7, minute=3),
+    },
+    "generate-weekly-reflections": {
+        "task": "app.tasks.worker_tasks.generate_weekly_reflections",
+        "schedule": crontab(hour=8, minute=7, day_of_week=1),
+    },
+    "generate-deviation-reminders": {
+        "task": "app.tasks.worker_tasks.generate_deviation_reminders",
+        "schedule": crontab(hour=8, minute=12, day_of_week=1),
+    },
+    "generate-relationship-reminders": {
+        "task": "app.tasks.worker_tasks.generate_relationship_reminders",
+        "schedule": crontab(hour=8, minute=17, day_of_week=1),
     },
 }

@@ -57,6 +57,49 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def find_reconfirm_candidates(
+    db: Session,
+    *,
+    project_id: str,
+    limit: int = 5,
+    now: datetime | None = None,
+) -> list[Memory]:
+    """Return the oldest memories that currently need reconfirmation.
+
+    A memory needs reconfirmation when its metadata has
+    ``single_source_explicit == True`` and its ``reconfirm_after``
+    timestamp is in the past (or absent). Callers pass ``now`` so
+    the result is deterministic in tests.
+    """
+    resolved_now = now or datetime.now(timezone.utc)
+    rows = (
+        db.query(Memory)
+        .filter(Memory.project_id == project_id)
+        .filter(Memory.node_status == "active")
+        .order_by(Memory.created_at.asc())
+        .all()
+    )
+    out: list[Memory] = []
+    for memory in rows:
+        metadata = memory.metadata_json or {}
+        if not bool(metadata.get("single_source_explicit")):
+            continue
+        reconfirm_after_raw = str(metadata.get("reconfirm_after") or "").strip()
+        if reconfirm_after_raw:
+            try:
+                when = datetime.fromisoformat(
+                    reconfirm_after_raw.replace("Z", "+00:00")
+                )
+            except (ValueError, TypeError):
+                when = resolved_now  # treat bad data as due
+            if when.tzinfo is not None and when > resolved_now:
+                continue
+        out.append(memory)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _normalize_string_list(values: object) -> list[str]:
     if not isinstance(values, list):
         return []
@@ -904,6 +947,7 @@ def refresh_memory_health_signals(
         if memory.node_status == "conflict":
             next_flags.append("conflict")
         reconfirm_after = str(metadata.get("reconfirm_after") or "").strip()
+        # NOTE: Selection rule mirrors find_reconfirm_candidates(); keep in sync.
         if bool(metadata.get("single_source_explicit")):
             needs_reconfirm = True
             if reconfirm_after:
@@ -986,6 +1030,7 @@ def summarize_memory_health(
             counts["conflict"] += 1
             entries.append({"kind": "conflict", "memory": memory, "reason": "该记忆处于冲突状态。"})
         reconfirm_after = str(metadata.get("reconfirm_after") or "").strip()
+        # NOTE: Selection rule mirrors find_reconfirm_candidates(); keep in sync.
         single_source = bool(metadata.get("single_source_explicit"))
         if single_source:
             should_reconfirm = True
