@@ -147,6 +147,33 @@ def test_cross_workspace_returns_404() -> None:
     assert resp.status_code == 404
 
 
+def test_cross_workspace_read_returns_404() -> None:
+    _client_a, auth_a = _register_client("rwa@x.co")
+    d_id = _seed_digest(auth_a["ws_id"], auth_a["user_id"])
+    client_b, _ = _register_client("rwb@x.co")
+    resp = client_b.post(f"/api/v1/digests/{d_id}/read")
+    assert resp.status_code == 404
+
+
+def test_cross_workspace_dismiss_returns_404() -> None:
+    _client_a, auth_a = _register_client("rda@x.co")
+    d_id = _seed_digest(auth_a["ws_id"], auth_a["user_id"])
+    client_b, _ = _register_client("rdb@x.co")
+    resp = client_b.post(f"/api/v1/digests/{d_id}/dismiss")
+    assert resp.status_code == 404
+
+
+def test_unread_count_is_workspace_scoped() -> None:
+    _client_a, auth_a = _register_client("uca@x.co")
+    _seed_digest(auth_a["ws_id"], auth_a["user_id"], status="unread")
+    _seed_digest(auth_a["ws_id"], auth_a["user_id"], status="unread")
+
+    client_b, _ = _register_client("ucb@x.co")
+    resp = client_b.get("/api/v1/digests/unread-count")
+    assert resp.status_code == 200
+    assert resp.json()["unread_count"] == 0
+
+
 def test_generate_now_enqueues_task() -> None:
     client, auth = _register_client("u7@x.co")
     from app.models import Project
