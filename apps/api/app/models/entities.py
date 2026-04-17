@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -761,8 +762,12 @@ class ProactiveDigest(
     __tablename__ = "proactive_digests"
     __table_args__ = (
         UniqueConstraint(
-            "project_id", "kind", "period_start",
-            name="uq_proactive_digests_project_kind_period_start",
+            "project_id", "kind", "period_start", "series_key",
+            name="uq_proactive_digests_project_kind_period_series",
+        ),
+        CheckConstraint(
+            "status IN ('unread','read','dismissed')",
+            name="ck_proactive_digests_status",
         ),
     )
 
@@ -782,6 +787,9 @@ class ProactiveDigest(
     )
     period_end: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
+    )
+    series_key: Mapped[str] = mapped_column(
+        String(64), default="", nullable=False
     )
 
     title: Mapped[str] = mapped_column(String(200), default="", nullable=False)

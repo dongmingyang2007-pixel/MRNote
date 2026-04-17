@@ -58,7 +58,7 @@ def test_digest_insert_and_defaults() -> None:
     assert d.dismissed_at is None
 
 
-def test_unique_constraint_project_kind_period_start() -> None:
+def test_unique_constraint_project_kind_period_series() -> None:
     ws_id, user_id, project_id = _seed()
     now = datetime.now(timezone.utc)
     with SessionLocal() as db:
@@ -75,3 +75,39 @@ def test_unique_constraint_project_kind_period_start() -> None:
             content_markdown="b", content_json={},
         )
         db.add(d2); db.commit()
+
+
+def test_series_key_allows_multiple_rows_per_period() -> None:
+    ws_id, user_id, project_id = _seed()
+    now = datetime.now(timezone.utc)
+    with SessionLocal() as db:
+        d1 = ProactiveDigest(
+            workspace_id=ws_id, project_id=project_id, user_id=user_id,
+            kind="deviation_reminder", period_start=now, period_end=now,
+            series_key="g1",
+            content_markdown="a", content_json={},
+        )
+        d2 = ProactiveDigest(
+            workspace_id=ws_id, project_id=project_id, user_id=user_id,
+            kind="deviation_reminder", period_start=now, period_end=now,
+            series_key="g2",
+            content_markdown="b", content_json={},
+        )
+        db.add(d1); db.add(d2); db.commit()
+        count = db.query(ProactiveDigest).filter_by(
+            kind="deviation_reminder", project_id=project_id,
+        ).count()
+    assert count == 2
+
+
+def test_status_check_constraint() -> None:
+    ws_id, user_id, project_id = _seed()
+    now = datetime.now(timezone.utc)
+    with SessionLocal() as db, pytest.raises(IntegrityError):
+        d = ProactiveDigest(
+            workspace_id=ws_id, project_id=project_id, user_id=user_id,
+            kind="daily_digest", period_start=now, period_end=now,
+            content_markdown="x", content_json={},
+            status="garbage",
+        )
+        db.add(d); db.commit()

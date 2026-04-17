@@ -1682,14 +1682,16 @@ def generate_proactive_digest_task(
                             project_name=project.name,
                         )
                         for drift in content.get("drifts", []):
+                            goal_mid = str(drift.get("goal_memory_id") or "")[:64]
                             row = ProactiveDigest(
                                 workspace_id=str(workspace.id),
                                 project_id=project_id,
                                 user_id=str(user_id),
                                 kind=kind,
-                                period_start=period_start + timedelta(seconds=len(inserted_ids)),
+                                period_start=period_start,
                                 period_end=period_end,
-                                title=f"目标偏离：{drift.get('goal_memory_id','')[:20]}",
+                                series_key=goal_mid,
+                                title=f"目标偏离：{goal_mid[:20]}",
                                 content_markdown=drift.get("drift_reason_md", ""),
                                 content_json=drift,
                                 action_log_id=log.log_id,
@@ -1697,14 +1699,16 @@ def generate_proactive_digest_task(
                             db.add(row); db.commit(); db.refresh(row)
                             inserted_ids.append(row.id)
                     elif kind == "relationship_reminder":
-                        for idx, item in enumerate(materials["items"]):
+                        for item in materials["items"]:
+                            series_key = str(item.get("memory_id") or "")[:64]
                             row = ProactiveDigest(
                                 workspace_id=str(workspace.id),
                                 project_id=project_id,
                                 user_id=str(user_id),
                                 kind=kind,
-                                period_start=period_start + timedelta(seconds=idx),
+                                period_start=period_start,
                                 period_end=period_end,
+                                series_key=series_key,
                                 title=f"久未联系：{item['person_label']}",
                                 content_markdown=(
                                     f"已有 {item['days_since']} 天未提及。"
