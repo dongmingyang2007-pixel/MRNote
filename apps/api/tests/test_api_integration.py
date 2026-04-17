@@ -108,6 +108,22 @@ def public_headers() -> dict[str, str]:
     return {"origin": ORIGIN}
 
 
+def _seed_pro_subscription(workspace_id: str, plan: str = "pro") -> None:
+    """Bypass S6 entitlement gates by upgrading the test workspace.
+    Default plan='pro' covers voice / daily_digest gates; pass plan='power'
+    when the test exercises advanced_memory_insights."""
+    from app.core.entitlements import refresh_workspace_entitlements
+    from app.models import Subscription
+    with SessionLocal() as db:
+        db.add(Subscription(
+            workspace_id=workspace_id,
+            plan=plan, status="active",
+            provider="free", billing_cycle="monthly",
+        ))
+        db.commit()
+        refresh_workspace_entitlements(db, workspace_id=workspace_id)
+
+
 def verification_code_key(email: str, purpose: str) -> str:
     raw = f"{email.lower().strip()}:{purpose}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -434,6 +450,7 @@ def test_realtime_ws_ticket_allows_cookie_free_websocket_session(monkeypatch) ->
     client = TestClient(main_module.app)
     owner_info = register_user(client, "realtime-ticket@example.com", "Realtime Ticket")
     workspace_id = owner_info["workspace"]["id"]
+    _seed_pro_subscription(workspace_id)
     owner_user_id = owner_info["user"]["id"]
     project = create_project(client, "Realtime Ticket Project")
     conversation_id = create_conversation_record(
@@ -471,6 +488,7 @@ def test_realtime_ws_ticket_is_single_use(monkeypatch) -> None:
     client = TestClient(main_module.app)
     owner_info = register_user(client, "realtime-ticket-once@example.com", "Realtime Ticket Once")
     workspace_id = owner_info["workspace"]["id"]
+    _seed_pro_subscription(workspace_id)
     owner_user_id = owner_info["user"]["id"]
     project = create_project(client, "Realtime Ticket Single Use")
     conversation_id = create_conversation_record(
@@ -7827,6 +7845,7 @@ def test_memory_search_explain_returns_trace_suppressed_candidates_and_subgraph(
     client = TestClient(main_module.app)
     user_info = register_user(client, "memory-explain@example.com", "Memory Explain User")
     workspace_id = user_info["workspace"]["id"]
+    _seed_pro_subscription(workspace_id, plan="power")
     user_id = user_info["user"]["id"]
     project = create_project(client, "Memory Explain Project")
     conversation_id = create_conversation_record(
@@ -7969,6 +7988,7 @@ def test_memory_subgraph_route_returns_parent_edge_for_visible_neighbors() -> No
     client = TestClient(main_module.app)
     owner_info = register_user(client, "memory-subgraph@example.com", "Memory Subgraph User")
     workspace_id = owner_info["workspace"]["id"]
+    _seed_pro_subscription(workspace_id, plan="power")
     project = create_project(client, "Memory Subgraph Project")
 
     subject = client.post(
