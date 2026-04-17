@@ -52,6 +52,7 @@ from app.services.memory_v2 import (
     refresh_subject_views,
 )
 from app.services import project_cleanup as project_cleanup_service
+from app.services.embedding import embed_and_store
 from app.services.project_cleanup import ProjectDeletionError, delete_project_permanently
 from app.services.runtime_state import runtime_state
 from app.tasks.celery_app import celery_app
@@ -1858,3 +1859,113 @@ def generate_relationship_reminders_task() -> dict[str, int]:
             period_start.isoformat(), now.isoformat(),
         )
     return {"dispatched": len(project_ids)}
+
+
+# ---------------------------------------------------------------------------
+# S7 Search: NotebookPage embedding maintenance
+# ---------------------------------------------------------------------------
+
+
+MIN_PAGE_TEXT_LEN_FOR_EMBEDDING = 20
+
+
+@celery_app.task(name="app.tasks.worker_tasks.backfill_notebook_page_embeddings")
+def backfill_notebook_page_embeddings_task(
+    workspace_id: str | None = None,
+    batch_size: int = 50,
+) -> dict[str, int]:
+    """Embed all NotebookPage rows whose embedding_id IS NULL and whose
+    plain_text is long enough. Idempotent."""
+    import asyncio as _asyncio
+    from app.models import Notebook, NotebookPage
+
+    db = SessionLocal()
+    try:
+        q = (
+            db.query(NotebookPage)
+            .join(Notebook, Notebook.id == NotebookPage.notebook_id)
+            .filter(NotebookPage.embedding_id.is_(None))
+            .filter(NotebookPage.plain_text.isnot(None))
+        )
+        if workspace_id:
+            q = q.filter(Notebook.workspace_id == workspace_id)
+        pages = q.limit(batch_size * 10).all()
+
+        total = 0
+        succeeded = 0
+        failed = 0
+        for page in pages:
+            text = (page.plain_text or "").strip()
+            if len(text) < MIN_PAGE_TEXT_LEN_FOR_EMBEDDING:
+                continue
+            total += 1
+            nb = db.get(Notebook, page.notebook_id)
+            if nb is None:
+                failed += 1
+                continue
+            try:
+                emb_id = _asyncio.run(embed_and_store(
+                    db,
+                    workspace_id=str(nb.workspace_id),
+                    project_id=str(nb.project_id or ""),
+                    chunk_text=text[:4000],
+                    auto_commit=False,
+                ))
+                page.embedding_id = emb_id
+                db.add(page)
+                db.commit()
+                succeeded += 1
+            except Exception:
+                logger.warning(
+                    "backfill_notebook_page_embedding failed for %s",
+                    page.id, exc_info=False,
+                )
+                db.rollback()
+                failed += 1
+        return {
+            "total_processed": total,
+            "succeeded": succeeded,
+            "failed": failed,
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.regenerate_notebook_page_embedding")
+def regenerate_notebook_page_embedding_task(page_id: str) -> str | None:
+    """Regenerate embedding for one page (called on plain_text change)."""
+    import asyncio as _asyncio
+    from app.models import Notebook, NotebookPage
+
+    db = SessionLocal()
+    try:
+        page = db.get(NotebookPage, page_id)
+        if page is None:
+            return None
+        text = (page.plain_text or "").strip()
+        if len(text) < MIN_PAGE_TEXT_LEN_FOR_EMBEDDING:
+            return None
+        nb = db.get(Notebook, page.notebook_id)
+        if nb is None:
+            return None
+        try:
+            emb_id = _asyncio.run(embed_and_store(
+                db,
+                workspace_id=str(nb.workspace_id),
+                project_id=str(nb.project_id or ""),
+                chunk_text=text[:4000],
+                auto_commit=False,
+            ))
+            page.embedding_id = emb_id
+            db.add(page)
+            db.commit()
+            return emb_id
+        except Exception:
+            logger.warning(
+                "regenerate_notebook_page_embedding failed for %s",
+                page_id, exc_info=False,
+            )
+            db.rollback()
+            return None
+    finally:
+        db.close()

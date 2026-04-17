@@ -86,5 +86,7 @@
   "common.untitled": "Untitled",
   "common.noProject": "No AI project linked to this notebook yet.",
   "settings.projectId": "Project ID",
-  "digest.windowTitle": "Proactive digest"
+  "digest.windowTitle": "Proactive digest",
+  "search.windowTitle": "Search",
+  "search.placeholder": "Search pages, blocks, memory, study…"
 }

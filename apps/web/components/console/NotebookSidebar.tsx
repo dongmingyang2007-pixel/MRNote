@@ -12,13 +12,14 @@ import {
   Brain,
   BookOpen,
   Settings,
+  Search,
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
 import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
 
-type SideTab = "pages" | "ai_panel" | "memory" | "learn" | "digest" | null;
+type SideTab = "pages" | "ai_panel" | "memory" | "learn" | "digest" | "search" | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
@@ -26,6 +27,7 @@ interface NotebookSidebarProps {
 
 const TABS = [
   { id: "pages" as const, Icon: FileText, key: "nav.pages" },
+  { id: "search" as const, Icon: Search, key: "nav.search" },
   { id: "ai_panel" as const, Icon: Sparkles, key: "nav.aiPanel" },
   { id: "memory" as const, Icon: Brain, key: "nav.memory" },
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
@@ -115,6 +117,12 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         openWindow({
           type: "digest",
           title: tn("digest.windowTitle"),
+          meta: { notebookId },
+        });
+      } else if (tabId === "search") {
+        openWindow({
+          type: "search",
+          title: tn("search.windowTitle"),
           meta: { notebookId },
         });
       }

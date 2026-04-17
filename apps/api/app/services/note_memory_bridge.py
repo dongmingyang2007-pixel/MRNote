@@ -95,7 +95,17 @@ async def extract_memory_candidates(
         .filter(MemoryWriteItem.run_id == result.write_run_id)
         .all()
     )
-    return ExtractionResult(run=run, items=list(items), graph_changed=result.graph_changed)
+    extraction_result = ExtractionResult(run=run, items=list(items), graph_changed=result.graph_changed)
+
+    # S7: schedule embedding regeneration on page save
+    try:
+        from app.tasks.worker_tasks import regenerate_notebook_page_embedding_task
+        regenerate_notebook_page_embedding_task.delay(str(page_id))
+    except Exception:
+        logger.warning("failed to schedule embedding regeneration for %s",
+                       page_id, exc_info=False)
+
+    return extraction_result
 
 
 def extract_memory_candidates_sync(

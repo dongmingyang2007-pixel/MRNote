@@ -1,6 +1,7 @@
 "use client";
 
 import NoteEditor from "@/components/console/editor/NoteEditor";
+import RelatedPagesCard from "./search/RelatedPagesCard";
 
 interface NoteWindowProps {
   pageId: string;
@@ -8,8 +9,11 @@ interface NoteWindowProps {
 
 export default function NoteWindow({ pageId }: NoteWindowProps) {
   return (
-    <div style={{ maxWidth: "none", height: "100%", overflow: "auto" }}>
-      <NoteEditor pageId={pageId} />
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ maxWidth: "none", flex: 1, minHeight: 0, overflow: "auto" }}>
+        <NoteEditor pageId={pageId} />
+      </div>
+      {pageId && <RelatedPagesCard pageId={pageId} />}
     </div>
   );
 }
