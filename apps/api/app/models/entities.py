@@ -858,3 +858,27 @@ Index(
     ProactiveDigest.kind,
     ProactiveDigest.period_start.desc(),
 )
+
+
+# ---------------------------------------------------------------------------
+# S6 Billing
+# ---------------------------------------------------------------------------
+
+
+class CustomerAccount(
+    Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin,
+):
+    __tablename__ = "customer_accounts"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", name="uq_customer_accounts_workspace"),
+        UniqueConstraint("stripe_customer_id", name="uq_customer_accounts_stripe_customer_id"),
+    )
+
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    stripe_customer_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    default_payment_method_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+    )

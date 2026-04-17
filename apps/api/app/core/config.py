@@ -118,6 +118,45 @@ class Settings(BaseSettings):
     memory_write_rate_limit_window_seconds: int = 60
     memory_write_rate_limit_max: int = 40
 
+    # ---------------------------------------------------------------
+    # S6 Billing — Stripe (livemode IDs are defaults; env can override)
+    # NOTE: production deployments MUST set
+    # stripe_billing_portal_return_url to the public domain.
+    # ---------------------------------------------------------------
+    stripe_api_key: str = Field(default="", env="STRIPE_API_KEY")
+    stripe_webhook_secret: str = Field(default="", env="STRIPE_WEBHOOK_SECRET")
+    stripe_publishable_key: str = Field(default="", env="STRIPE_PUBLISHABLE_KEY")
+    stripe_billing_portal_return_url: str = Field(
+        default="http://localhost:3000/workspace/settings/billing",
+        env="STRIPE_BILLING_PORTAL_RETURN_URL",
+    )
+    stripe_checkout_success_url: str = Field(
+        default="http://localhost:3000/workspace/settings/billing?status=success",
+        env="STRIPE_CHECKOUT_SUCCESS_URL",
+    )
+    stripe_checkout_cancel_url: str = Field(
+        default="http://localhost:3000/workspace/settings/billing?status=cancel",
+        env="STRIPE_CHECKOUT_CANCEL_URL",
+    )
+    stripe_price_pro_monthly: str = Field(
+        default="price_1TNFnSRzO5cz1hgYP5J3Ez3h", env="STRIPE_PRICE_PRO_MONTHLY",
+    )
+    stripe_price_pro_yearly: str = Field(
+        default="price_1TNFnWRzO5cz1hgYqPbchdne", env="STRIPE_PRICE_PRO_YEARLY",
+    )
+    stripe_price_power_monthly: str = Field(
+        default="price_1TNFncRzO5cz1hgYvZ4UkVlP", env="STRIPE_PRICE_POWER_MONTHLY",
+    )
+    stripe_price_power_yearly: str = Field(
+        default="price_1TNFnhRzO5cz1hgYxQUJh6aL", env="STRIPE_PRICE_POWER_YEARLY",
+    )
+    stripe_price_team_monthly: str = Field(
+        default="price_1TNFnmRzO5cz1hgYpqQBCs8s", env="STRIPE_PRICE_TEAM_MONTHLY",
+    )
+    stripe_price_team_yearly: str = Field(
+        default="price_1TNFnrRzO5cz1hgYPFabWMpM", env="STRIPE_PRICE_TEAM_YEARLY",
+    )
+
     @field_validator("cors_origins", "allowed_hosts", "image_allowed_media_types", mode="before")
     @classmethod
     def _parse_list_settings(cls, value):
