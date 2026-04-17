@@ -86,5 +86,7 @@
   "common.untitled": "无标题",
   "common.noProject": "笔记本还没有关联 AI 项目。",
   "settings.projectId": "项目 ID",
-  "digest.windowTitle": "主动摘要"
+  "digest.windowTitle": "主动摘要",
+  "search.windowTitle": "搜索",
+  "search.placeholder": "搜索页面、块、记忆、学习资料…"
 }
