@@ -10,6 +10,7 @@ import FileWindow from "./contents/FileWindow";
 import MemoryWindow from "./contents/MemoryWindow";
 import StudyWindow from "./contents/StudyWindow";
 import DigestWindow from "./contents/DigestWindow";
+import SearchWindow from "./contents/SearchWindow";
 import type { WindowState } from "./WindowManager";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,14 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
     case "digest":
       return (
         <DigestWindow notebookId={windowState.meta.notebookId || ""} />
+      );
+
+    case "search":
+      return (
+        <SearchWindow
+          notebookId={windowState.meta.notebookId}
+          projectId={windowState.meta.projectId}
+        />
       );
 
     default:

@@ -13,6 +13,7 @@ import {
   Brain,
   BookOpen,
   Bell,
+  Search,
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowState, WindowType } from "./WindowManager";
@@ -28,6 +29,7 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   memory: Brain,
   study: BookOpen,
   digest: Bell,
+  search: Search,
 };
 
 // ---------------------------------------------------------------------------
