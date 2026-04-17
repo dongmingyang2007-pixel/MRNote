@@ -40,8 +40,8 @@ async def search_pages_semantic(
                 JOIN embeddings e ON e.id = p.embedding_id
                 JOIN notebooks n ON n.id = p.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR p.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR p.notebook_id = :notebook_id)
                   AND p.is_archived = FALSE
                 ORDER BY e.vector <=> CAST(:q_vec AS vector)
                 LIMIT :limit
@@ -55,6 +55,8 @@ async def search_pages_semantic(
             },
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         logger.warning("search_pages_semantic: SQL failed (expected on SQLite)", exc_info=False)
         return []
     return [
@@ -105,6 +107,8 @@ async def search_memories_semantic(
             },
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         logger.warning("search_memories_semantic: SQL failed", exc_info=False)
         return []
     return [
@@ -145,8 +149,8 @@ async def search_study_chunks_semantic(
                 JOIN study_assets sa ON sa.id = sc.asset_id
                 JOIN notebooks n ON n.id = sa.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR sa.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR sa.notebook_id = :notebook_id)
                 ORDER BY e.vector <=> CAST(:q_vec AS vector)
                 LIMIT :limit
             """),
@@ -159,6 +163,8 @@ async def search_study_chunks_semantic(
             },
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         logger.warning("search_study_chunks_semantic: SQL failed", exc_info=False)
         return []
     return [

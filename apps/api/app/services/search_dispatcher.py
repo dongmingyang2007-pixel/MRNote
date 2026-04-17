@@ -108,8 +108,8 @@ def _lexical_pages_sql(db: Session, *, workspace_id: str,
                 FROM notebook_pages p
                 JOIN notebooks n ON n.id = p.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR p.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR p.notebook_id = :notebook_id)
                   AND p.is_archived = FALSE
                   AND (p.title % :q OR p.plain_text % :q
                        OR p.title ILIKE :like OR p.plain_text ILIKE :like)
@@ -121,6 +121,8 @@ def _lexical_pages_sql(db: Session, *, workspace_id: str,
              "limit": limit},
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         # Fallback for SQLite / missing pg_trgm: plain LIKE + static score.
         rows = db.execute(
             sql_text("""
@@ -128,9 +130,9 @@ def _lexical_pages_sql(db: Session, *, workspace_id: str,
                 FROM notebook_pages p
                 JOIN notebooks n ON n.id = p.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR p.notebook_id = :notebook_id)
-                  AND p.is_archived = 0
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR p.notebook_id = :notebook_id)
+                  AND p.is_archived = FALSE
                   AND (p.title LIKE :like OR p.plain_text LIKE :like)
                 ORDER BY p.updated_at DESC
                 LIMIT :limit
@@ -189,8 +191,8 @@ async def _search_blocks(
                 JOIN notebook_pages p ON p.id = b.page_id
                 JOIN notebooks n ON n.id = p.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR p.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR p.notebook_id = :notebook_id)
                   AND (b.plain_text % :q OR b.plain_text ILIKE :like)
                 ORDER BY score DESC, b.updated_at DESC
                 LIMIT :limit
@@ -200,6 +202,8 @@ async def _search_blocks(
              "limit": limit},
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         rows = db.execute(
             sql_text("""
                 SELECT b.id, b.page_id, p.notebook_id, b.plain_text, 0.5 AS score
@@ -207,8 +211,8 @@ async def _search_blocks(
                 JOIN notebook_pages p ON p.id = b.page_id
                 JOIN notebooks n ON n.id = p.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR p.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR p.notebook_id = :notebook_id)
                   AND b.plain_text LIKE :like
                 LIMIT :limit
             """),
@@ -242,8 +246,8 @@ async def _search_study_assets(
                 FROM study_assets sa
                 JOIN notebooks n ON n.id = sa.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR sa.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR sa.notebook_id = :notebook_id)
                   AND (sa.title % :q OR sa.title ILIKE :like)
                 ORDER BY score DESC, sa.updated_at DESC
                 LIMIT :limit
@@ -253,14 +257,16 @@ async def _search_study_assets(
              "limit": limit * 2},
         ).fetchall()
     except Exception:
+        try: db.rollback()
+        except Exception: pass
         title_rows = db.execute(
             sql_text("""
                 SELECT sa.id, sa.notebook_id, sa.title, 0.5 AS score
                 FROM study_assets sa
                 JOIN notebooks n ON n.id = sa.notebook_id
                 WHERE n.workspace_id = :workspace_id
-                  AND (:project_id IS NULL OR n.project_id = :project_id)
-                  AND (:notebook_id IS NULL OR sa.notebook_id = :notebook_id)
+                  AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
+                  AND (CAST(:notebook_id AS TEXT) IS NULL OR sa.notebook_id = :notebook_id)
                   AND sa.title LIKE :like
                 LIMIT :limit
             """),

@@ -133,6 +133,8 @@ def get_related(
                 for r in sem_rows
             ]
         except Exception:
+            try: db.rollback()
+            except Exception: pass
             logger.warning("related_pages semantic failed", exc_info=False)
 
     # Merge: semantic wins the "reason" tag when a page appears in both.
