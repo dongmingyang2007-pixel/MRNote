@@ -85,5 +85,6 @@
   "common.description": "Description",
   "common.untitled": "Untitled",
   "common.noProject": "No AI project linked to this notebook yet.",
-  "settings.projectId": "Project ID"
+  "settings.projectId": "Project ID",
+  "digest.windowTitle": "Proactive digest"
 }
