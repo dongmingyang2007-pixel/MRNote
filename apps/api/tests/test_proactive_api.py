@@ -174,6 +174,47 @@ def test_unread_count_is_workspace_scoped() -> None:
     assert resp.json()["unread_count"] == 0
 
 
+def test_digest_visible_to_other_workspace_member() -> None:
+    _client_a, auth_a = _register_client("vwa@x.co")
+    d_id = _seed_digest(auth_a["ws_id"], auth_a["user_id"])
+    client_b, auth_b = _register_client("vwb@x.co")
+
+    from app.models import Membership
+    with SessionLocal() as db:
+        db.add(Membership(
+            workspace_id=auth_a["ws_id"],
+            user_id=auth_b["user_id"],
+            role="editor",
+        ))
+        db.commit()
+
+    client_b.headers.update({"x-workspace-id": auth_a["ws_id"]})
+    resp = client_b.get(f"/api/v1/digests/{d_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == d_id
+
+
+def test_unread_count_visible_to_other_workspace_member() -> None:
+    _client_a, auth_a = _register_client("uwa@x.co")
+    _seed_digest(auth_a["ws_id"], auth_a["user_id"], status="unread")
+    _seed_digest(auth_a["ws_id"], auth_a["user_id"], status="unread")
+    client_b, auth_b = _register_client("uwb@x.co")
+
+    from app.models import Membership
+    with SessionLocal() as db:
+        db.add(Membership(
+            workspace_id=auth_a["ws_id"],
+            user_id=auth_b["user_id"],
+            role="editor",
+        ))
+        db.commit()
+
+    client_b.headers.update({"x-workspace-id": auth_a["ws_id"]})
+    resp = client_b.get("/api/v1/digests/unread-count")
+    assert resp.status_code == 200
+    assert resp.json()["unread_count"] == 2
+
+
 def test_generate_now_enqueues_task() -> None:
     client, auth = _register_client("u7@x.co")
     from app.models import Project

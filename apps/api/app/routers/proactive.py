@@ -50,7 +50,6 @@ def unread_count(
 ) -> dict[str, int]:
     n = (
         db.query(ProactiveDigest)
-        .filter(ProactiveDigest.user_id == str(current_user.id))
         .filter(ProactiveDigest.workspace_id == workspace_id)
         .filter(ProactiveDigest.status == "unread")
         .count()
@@ -71,7 +70,6 @@ def list_digests(
     limit = max(1, min(limit, 100))
     q = (
         db.query(ProactiveDigest)
-        .filter(ProactiveDigest.user_id == str(current_user.id))
         .filter(ProactiveDigest.workspace_id == workspace_id)
     )
     if kind:
@@ -88,7 +86,6 @@ def list_digests(
 
     unread_total = (
         db.query(ProactiveDigest)
-        .filter(ProactiveDigest.user_id == str(current_user.id))
         .filter(ProactiveDigest.workspace_id == workspace_id)
         .filter(ProactiveDigest.status == "unread")
         .count()
@@ -112,8 +109,6 @@ def get_digest(
     if d is None:
         raise ApiError("not_found", "Digest not found", status_code=404)
     _verify_workspace(d, workspace_id)
-    if str(d.user_id) != str(current_user.id):
-        raise ApiError("not_found", "Digest not found", status_code=404)
     return DigestDetail.model_validate(d, from_attributes=True)
 
 
@@ -127,7 +122,7 @@ def mark_read(
     __: None = Depends(require_csrf_protection),
 ) -> AckResponse:
     d = db.query(ProactiveDigest).filter_by(id=digest_id).first()
-    if d is None or d.workspace_id != workspace_id or str(d.user_id) != str(current_user.id):
+    if d is None or d.workspace_id != workspace_id:
         raise ApiError("not_found", "Digest not found", status_code=404)
     if d.status != "read":
         d.status = "read"
@@ -146,7 +141,7 @@ def mark_dismissed(
     __: None = Depends(require_csrf_protection),
 ) -> AckResponse:
     d = db.query(ProactiveDigest).filter_by(id=digest_id).first()
-    if d is None or d.workspace_id != workspace_id or str(d.user_id) != str(current_user.id):
+    if d is None or d.workspace_id != workspace_id:
         raise ApiError("not_found", "Digest not found", status_code=404)
     if d.status != "dismissed":
         d.status = "dismissed"

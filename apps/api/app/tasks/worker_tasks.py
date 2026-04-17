@@ -1579,16 +1579,15 @@ def generate_proactive_digest_task(
                 extra={"project_id": project_id, "workspace_id": project.workspace_id, "kind": kind},
             )
             return None
-        # Creator defaults to workspace owner — first workspace membership.
-        owner = (
+        member = (
             db.query(Membership)
-            .filter(Membership.workspace_id == workspace.id, Membership.role == "owner")
+            .filter(Membership.workspace_id == workspace.id)
             .first()
         )
-        user_id = owner.user_id if owner else None
+        user_id = member.user_id if member else None
         if not user_id:
             logger.warning(
-                "proactive_digest: workspace has no owner membership",
+                "proactive_digest: workspace has no membership",
                 extra={"project_id": project_id, "workspace_id": workspace.id, "kind": kind},
             )
             return None
