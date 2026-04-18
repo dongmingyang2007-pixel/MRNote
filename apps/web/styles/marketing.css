@@ -1017,3 +1017,53 @@
   }
 }
 
+/* ─── Mobile override: stack mocks, kill absolute positioning ─── */
+/* Hero canvas + LiveCanvasDemo both use absolute positioning for   *
+ * overlapping / draggable windows. That design doesn't survive     *
+ * <768px viewports where windows are too narrow to hold their      *
+ * content. Below 768px we flatten the stages into a plain vertical *
+ * stack and rely on the mocks rendering at their natural width.    */
+
+@media (max-width: 767px) {
+  /* Hero canvas: collapse to a simple column. */
+  .marketing-canvas-stage {
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .marketing-canvas-stage::before {
+    display: none;
+  }
+  .marketing-canvas-stage__slot,
+  .marketing-canvas-stage__slot--a,
+  .marketing-canvas-stage__slot--b,
+  .marketing-canvas-stage__slot--c {
+    position: static;
+    width: 100%;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    animation: none;
+  }
+
+  /* Live canvas: hide the interactive container, expose the stacked
+   * fallback rendered by .marketing-live-canvas__mobile-fallback. */
+  .marketing-live-canvas {
+    display: none;
+  }
+  .marketing-live-canvas__mobile-fallback {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 32px;
+  }
+}
+
+@media (min-width: 768px) {
+  .marketing-live-canvas__mobile-fallback {
+    display: none;
+  }
+}
+

@@ -73,36 +73,44 @@ export default function LiveCanvasDemo() {
   }
 
   return (
-    <div className="marketing-live-canvas" ref={containerRef}>
-      <div className="marketing-live-canvas__hint">
-        <MousePointer2 size={14} strokeWidth={2} />
-        {t("screenshot.canvas.hint")}
+    <>
+      <div className="marketing-live-canvas" ref={containerRef}>
+        <div className="marketing-live-canvas__hint">
+          <MousePointer2 size={14} strokeWidth={2} />
+          {t("screenshot.canvas.hint")}
+        </div>
+        {INITIAL_LAYOUT.map((w) => {
+          const Mock = w.component;
+          const pos = positions[w.id];
+          const z = order.indexOf(w.id) + 1;
+          return (
+            <Rnd
+              key={w.id}
+              size={{ width: WINDOW_WIDTH * scale, height: "auto" }}
+              position={{ x: pos.x * scale, y: pos.y * scale }}
+              onDragStart={() => bringForward(w.id)}
+              onDragStop={(_, d) => {
+                setPositions((p) => ({
+                  ...p,
+                  [w.id]: { x: d.x / scale, y: d.y / scale },
+                }));
+              }}
+              bounds="parent"
+              enableResizing={false}
+              dragHandleClassName="marketing-mock__titlebar"
+              style={{ zIndex: z, cursor: "grab" }}
+            >
+              <Mock decorative={false} />
+            </Rnd>
+          );
+        })}
       </div>
-      {INITIAL_LAYOUT.map((w) => {
-        const Mock = w.component;
-        const pos = positions[w.id];
-        const z = order.indexOf(w.id) + 1;
-        return (
-          <Rnd
-            key={w.id}
-            size={{ width: WINDOW_WIDTH * scale, height: "auto" }}
-            position={{ x: pos.x * scale, y: pos.y * scale }}
-            onDragStart={() => bringForward(w.id)}
-            onDragStop={(_, d) => {
-              setPositions((p) => ({
-                ...p,
-                [w.id]: { x: d.x / scale, y: d.y / scale },
-              }));
-            }}
-            bounds="parent"
-            enableResizing={false}
-            dragHandleClassName="marketing-mock__titlebar"
-            style={{ zIndex: z, cursor: "grab" }}
-          >
-            <Mock decorative={false} />
-          </Rnd>
-        );
-      })}
-    </div>
+      <div className="marketing-live-canvas__mobile-fallback">
+        {INITIAL_LAYOUT.map((w) => {
+          const Mock = w.component;
+          return <Mock key={w.id} />;
+        })}
+      </div>
+    </>
   );
 }

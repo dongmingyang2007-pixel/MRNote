@@ -25,8 +25,17 @@ test.describe("Marketing homepage", () => {
     await expect(stage).toBeVisible();
     await expect(stage.locator(".marketing-mock")).toHaveCount(3);
 
-    // Total mocks on the page: 3 hero + 3 features + 3 live-canvas = 9.
-    await expect(page.locator(".marketing-mock")).toHaveCount(9);
+    // Per-container scoped counts. We intentionally assert per container
+    // rather than a single total — the mobile fallback inside
+    // LiveCanvasDemo renders 3 additional mocks that are hidden via CSS
+    // on desktop, so a page-wide total would double-count them. Scoping
+    // also makes the assertions robust to future DOM shuffles.
+    await expect(
+      page.locator(".marketing-feature__media-wrap .marketing-mock"),
+    ).toHaveCount(3);
+    await expect(
+      page.locator(".marketing-live-canvas .marketing-mock"),
+    ).toHaveCount(3);
 
     // Live canvas hint pill.
     await expect(
