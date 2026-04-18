@@ -164,25 +164,6 @@
   margin-top: 32px;
 }
 
-.marketing-hero__demo {
-  position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: linear-gradient(
-    135deg,
-    var(--bg-surface) 0%,
-    rgba(15, 118, 255, 0.04) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 32px;
-  color: var(--text-secondary);
-}
-
 .marketing-hero__demo-wrap {
   position: relative;
   width: 100%;
@@ -276,35 +257,6 @@
   border-radius: 999px;
   background: var(--brand-v2);
   margin-top: 9px;
-}
-
-.marketing-feature__media {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: var(--bg-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-/* ─── Big product screenshot ─── */
-
-.marketing-screenshot {
-  aspect-ratio: 16 / 10;
-  max-width: 1100px;
-  margin: 56px auto 0;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: var(--bg-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
 }
 
 /* ─── Pricing cards ─── */
