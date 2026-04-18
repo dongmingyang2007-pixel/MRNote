@@ -9,7 +9,7 @@ export default async function PublicHeader() {
       <div className="marketing-header__inner">
         <Link href="/" className="marketing-header__logo" aria-label={t("brand.name")}>
           <span className="marketing-header__logo-mark" aria-hidden="true" />
-          <span>{t("brand.name")}</span>
+          <span className="font-display tracking-tight">{t("brand.name")}</span>
         </Link>
 
         <nav className="marketing-header__nav" aria-label="Primary">

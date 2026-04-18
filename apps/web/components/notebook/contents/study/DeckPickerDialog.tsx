@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPost } from "@/lib/api";
 
 interface Deck {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function DeckPickerDialog({ notebookId, onPick, onCancel }: Props) {
+  const t = useTranslations("console-notebooks");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -43,7 +45,7 @@ export default function DeckPickerDialog({ notebookId, onPick, onCancel }: Props
   return (
     <div className="deck-picker" role="dialog" data-testid="deck-picker">
       <div className="deck-picker__header">
-        <strong>Pick a deck</strong>
+        <strong>{t("study.deckPicker.title")}</strong>
         <button type="button" onClick={onCancel} className="deck-picker__close">×</button>
       </div>
       <ul className="deck-picker__list">
@@ -59,12 +61,12 @@ export default function DeckPickerDialog({ notebookId, onPick, onCancel }: Props
             </button>
           </li>
         ))}
-        {decks.length === 0 && <li className="deck-picker__empty">No decks yet</li>}
+        {decks.length === 0 && <li className="deck-picker__empty">{t("study.deckPicker.empty")}</li>}
       </ul>
       <div className="deck-picker__create">
         <input
           type="text"
-          placeholder="New deck name"
+          placeholder={t("study.deckPicker.newDeckPlaceholder")}
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
@@ -74,7 +76,7 @@ export default function DeckPickerDialog({ notebookId, onPick, onCancel }: Props
           disabled={creating || !newName.trim()}
           data-testid="deck-picker-create"
         >
-          + Create
+          {t("study.deckPicker.create")}
         </button>
       </div>
     </div>

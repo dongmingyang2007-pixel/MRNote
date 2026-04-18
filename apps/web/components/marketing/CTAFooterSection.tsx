@@ -7,13 +7,13 @@ export default async function CTAFooterSection() {
   return (
     <section className="marketing-cta-strip">
       <div className="marketing-inner marketing-inner--narrow" style={{ margin: "0 auto" }}>
-        <h2 className="marketing-h2">
+        <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
           {t("cta.title")}
           <br />
           <span style={{ color: "var(--brand-v2)" }}>{t("cta.titleAccent")}</span>
         </h2>
         <p
-          className="marketing-lead"
+          className="marketing-lead text-lg md:text-xl leading-relaxed"
           style={{ marginTop: 20, marginBottom: 32, maxWidth: 560, marginInline: "auto" }}
         >
           {t("cta.sub")}

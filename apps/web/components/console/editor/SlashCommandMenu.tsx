@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Extension } from "@tiptap/core";
 import { ReactRenderer } from "@tiptap/react";
 import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
+import { useTranslations } from "next-intl";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
-import type { Editor } from "@tiptap/core";
+import type { Editor, Range } from "@tiptap/core";
 import {
   Heading1,
   Heading2,
@@ -29,93 +30,109 @@ import {
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Command items
+// Command item metadata (i18n keys on console-notebooks namespace)
 // ---------------------------------------------------------------------------
 
 interface SlashCommandItem {
-  title: string;
-  description: string;
+  id: string;
+  titleKey: string;
+  descKey: string;
   icon: React.ElementType;
-  command: (editor: Editor) => void;
+  /** When invoked, the TipTap range is already deleted. Use the editor
+   * chain to insert the desired block. The translator is passed so
+   * commands that need localized prompts (e.g. image URL) can use it. */
+  run: (editor: Editor, t: (key: string) => string) => void;
 }
 
 const COMMANDS: SlashCommandItem[] = [
   {
-    title: "Heading 1",
-    description: "Large section heading",
+    id: "h1",
+    titleKey: "slash.h1.title",
+    descKey: "slash.h1.desc",
     icon: Heading1,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+    run: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
   },
   {
-    title: "Heading 2",
-    description: "Medium section heading",
+    id: "h2",
+    titleKey: "slash.h2.title",
+    descKey: "slash.h2.desc",
     icon: Heading2,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
   },
   {
-    title: "Heading 3",
-    description: "Small section heading",
+    id: "h3",
+    titleKey: "slash.h3.title",
+    descKey: "slash.h3.desc",
     icon: Heading3,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+    run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
   },
   {
-    title: "Paragraph",
-    description: "Plain text block",
+    id: "p",
+    titleKey: "slash.p.title",
+    descKey: "slash.p.desc",
     icon: Type,
-    command: (editor) => editor.chain().focus().setParagraph().run(),
+    run: (editor) => editor.chain().focus().setParagraph().run(),
   },
   {
-    title: "Bullet List",
-    description: "Unordered list",
+    id: "bullet",
+    titleKey: "slash.bullet.title",
+    descKey: "slash.bullet.desc",
     icon: List,
-    command: (editor) => editor.chain().focus().toggleBulletList().run(),
+    run: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
-    title: "Numbered List",
-    description: "Ordered list",
+    id: "ordered",
+    titleKey: "slash.ordered.title",
+    descKey: "slash.ordered.desc",
     icon: ListOrdered,
-    command: (editor) => editor.chain().focus().toggleOrderedList().run(),
+    run: (editor) => editor.chain().focus().toggleOrderedList().run(),
   },
   {
-    title: "Task List",
-    description: "Checklist with checkboxes",
+    id: "task",
+    titleKey: "slash.task.title",
+    descKey: "slash.task.desc",
     icon: CheckSquare,
-    command: (editor) => editor.chain().focus().toggleTaskList().run(),
+    run: (editor) => editor.chain().focus().toggleTaskList().run(),
   },
   {
-    title: "Code Block",
-    description: "Code with syntax highlighting",
+    id: "code",
+    titleKey: "slash.code.title",
+    descKey: "slash.code.desc",
     icon: Code,
-    command: (editor) => editor.chain().focus().toggleCodeBlock().run(),
+    run: (editor) => editor.chain().focus().toggleCodeBlock().run(),
   },
   {
-    title: "Quote",
-    description: "Block quotation",
+    id: "quote",
+    titleKey: "slash.quote.title",
+    descKey: "slash.quote.desc",
     icon: Quote,
-    command: (editor) => editor.chain().focus().toggleBlockquote().run(),
+    run: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
   {
-    title: "Divider",
-    description: "Horizontal divider",
+    id: "divider",
+    titleKey: "slash.divider.title",
+    descKey: "slash.divider.desc",
     icon: Minus,
-    command: (editor) => editor.chain().focus().setHorizontalRule().run(),
+    run: (editor) => editor.chain().focus().setHorizontalRule().run(),
   },
   {
-    title: "Image",
-    description: "Embed an image",
+    id: "image",
+    titleKey: "slash.image.title",
+    descKey: "slash.image.desc",
     icon: ImageIcon,
-    command: (editor) => {
-      const url = window.prompt("Image URL:");
+    run: (editor, t) => {
+      const url = window.prompt(t("slash.image.prompt"));
       if (url) {
         editor.chain().focus().setImage({ src: url }).run();
       }
     },
   },
   {
-    title: "Math Block",
-    description: "LaTeX formula block",
+    id: "math",
+    titleKey: "slash.math.title",
+    descKey: "slash.math.desc",
     icon: Sigma,
-    command: (editor) => {
+    run: (editor) => {
       editor
         .chain()
         .focus()
@@ -124,10 +141,11 @@ const COMMANDS: SlashCommandItem[] = [
     },
   },
   {
-    title: "Inline Math",
-    description: "Inline LaTeX formula",
+    id: "inlineMath",
+    titleKey: "slash.inlineMath.title",
+    descKey: "slash.inlineMath.desc",
     icon: Sigma,
-    command: (editor) => {
+    run: (editor) => {
       editor
         .chain()
         .focus()
@@ -136,10 +154,11 @@ const COMMANDS: SlashCommandItem[] = [
     },
   },
   {
-    title: "Callout",
-    description: "Highlighted info block",
+    id: "callout",
+    titleKey: "slash.callout.title",
+    descKey: "slash.callout.desc",
     icon: AlertCircle,
-    command: (editor) => {
+    run: (editor) => {
       editor
         .chain()
         .focus()
@@ -152,10 +171,11 @@ const COMMANDS: SlashCommandItem[] = [
     },
   },
   {
-    title: "Whiteboard",
-    description: "Interactive drawing canvas",
+    id: "whiteboard",
+    titleKey: "slash.whiteboard.title",
+    descKey: "slash.whiteboard.desc",
     icon: PenTool,
-    command: (editor) => {
+    run: (editor) => {
       editor
         .chain()
         .focus()
@@ -167,17 +187,19 @@ const COMMANDS: SlashCommandItem[] = [
     },
   },
   {
-    title: "File",
-    description: "Upload and embed a file",
+    id: "file",
+    titleKey: "slash.file.title",
+    descKey: "slash.file.desc",
     icon: FileUp,
-    command: (editor) =>
+    run: (editor) =>
       editor.chain().focus().insertContent({ type: "file" }).run(),
   },
   {
-    title: "AI Output",
-    description: "Placeholder AI block (use AI Panel to fill)",
+    id: "aiOutput",
+    titleKey: "slash.aiOutput.title",
+    descKey: "slash.aiOutput.desc",
     icon: Sparkles,
-    command: (editor) =>
+    run: (editor) =>
       editor
         .chain()
         .focus()
@@ -188,17 +210,19 @@ const COMMANDS: SlashCommandItem[] = [
         .run(),
   },
   {
-    title: "Reference",
-    description: "Link to a page, memory, or chapter",
+    id: "reference",
+    titleKey: "slash.reference.title",
+    descKey: "slash.reference.desc",
     icon: Link2,
-    command: (editor) =>
+    run: (editor) =>
       editor.chain().focus().insertContent({ type: "reference" }).run(),
   },
   {
-    title: "Task",
-    description: "Standalone task with completion tracking",
+    id: "standaloneTask",
+    titleKey: "slash.standaloneTask.title",
+    descKey: "slash.standaloneTask.desc",
     icon: CheckCircle2,
-    command: (editor) =>
+    run: (editor) =>
       editor
         .chain()
         .focus()
@@ -216,10 +240,11 @@ const COMMANDS: SlashCommandItem[] = [
         .run(),
   },
   {
-    title: "Flashcard",
-    description: "Q/A card that flips on click",
+    id: "flashcard",
+    titleKey: "slash.flashcard.title",
+    descKey: "slash.flashcard.desc",
     icon: Layers,
-    command: (editor) =>
+    run: (editor) =>
       editor
         .chain()
         .focus()
@@ -236,7 +261,14 @@ const COMMANDS: SlashCommandItem[] = [
 // ---------------------------------------------------------------------------
 
 interface CommandListProps {
+  /** All commands (unfiltered). Filtering runs inside the component so
+   * the translated title drives the match, not the raw key. */
   items: SlashCommandItem[];
+  /** The current text after the "/" slash character. */
+  query: string;
+  /** TipTap's hook to actually run the command. Passing a SlashCommandItem
+   * here forwards to the top-level `command` handler in the suggestion
+   * config, which deletes the slash range and then calls `item.run`. */
   command: (item: SlashCommandItem) => void;
 }
 
@@ -246,12 +278,30 @@ interface CommandListRef {
 
 const CommandListComponent = ({
   items,
+  query,
   command,
   ref,
 }: CommandListProps & { ref: React.Ref<CommandListRef> }) => {
+  const t = useTranslations("console-notebooks");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const activeIndex = items.length === 0 ? 0 : Math.min(selectedIndex, items.length - 1);
+
+  const filteredItems = useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) => {
+      const title = t(item.titleKey).toLowerCase();
+      return title.includes(q);
+    });
+  }, [items, query, t]);
+
+  const activeIndex =
+    filteredItems.length === 0 ? 0 : Math.min(selectedIndex, filteredItems.length - 1);
+
+  // Reset selection when the filtered list changes (e.g. user types more).
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -265,10 +315,10 @@ const CommandListComponent = ({
 
   const selectItem = useCallback(
     (index: number) => {
-      const item = items[index];
+      const item = filteredItems[index];
       if (item) command(item);
     },
-    [items, command],
+    [filteredItems, command],
   );
 
   // Expose keyboard handler to tippy
@@ -277,17 +327,17 @@ const CommandListComponent = ({
       ref({
         onKeyDown: ({ event }: { event: KeyboardEvent }) => {
           if (event.key === "ArrowUp") {
-            if (items.length === 0) {
+            if (filteredItems.length === 0) {
               return true;
             }
-            setSelectedIndex((i) => (i + items.length - 1) % items.length);
+            setSelectedIndex((i) => (i + filteredItems.length - 1) % filteredItems.length);
             return true;
           }
           if (event.key === "ArrowDown") {
-            if (items.length === 0) {
+            if (filteredItems.length === 0) {
               return true;
             }
-            setSelectedIndex((i) => (i + 1) % items.length);
+            setSelectedIndex((i) => (i + 1) % filteredItems.length);
             return true;
           }
           if (event.key === "Enter") {
@@ -298,19 +348,23 @@ const CommandListComponent = ({
         },
       });
     }
-  }, [ref, items, activeIndex, selectItem]);
+  }, [ref, filteredItems, activeIndex, selectItem]);
 
-  if (items.length === 0) return null;
+  if (filteredItems.length === 0) return null;
 
   return (
     <div className="slash-menu" ref={containerRef}>
-      {items.map((item, index) => {
+      {filteredItems.map((item, index) => {
         const Icon = item.icon;
         return (
           <button
-            key={item.title}
+            key={item.id}
             className={`slash-menu-item${index === activeIndex ? " is-selected" : ""}`}
-            onClick={() => selectItem(index)}
+            onMouseDown={(e) => {
+              // Prevent the editor from losing focus before we run the command.
+              e.preventDefault();
+              selectItem(index);
+            }}
             onMouseEnter={() => setSelectedIndex(index)}
             type="button"
           >
@@ -318,8 +372,8 @@ const CommandListComponent = ({
               <Icon size={18} />
             </span>
             <span className="slash-menu-text">
-              <span className="slash-menu-title">{item.title}</span>
-              <span className="slash-menu-desc">{item.description}</span>
+              <span className="slash-menu-title">{t(item.titleKey)}</span>
+              <span className="slash-menu-desc">{t(item.descKey)}</span>
             </span>
           </button>
         );
@@ -336,10 +390,43 @@ const CommandListComponent = ({
 function createSuggestionConfig(): Omit<SuggestionOptions, "editor"> {
   return {
     char: "/",
-    items: ({ query }: { query: string }) => {
-      return COMMANDS.filter((item) =>
-        item.title.toLowerCase().includes(query.toLowerCase()),
-      );
+    // Return the full list; the React component filters by translated title.
+    items: () => COMMANDS,
+    // THE FIX: top-level command is what actually executes when the user
+    // clicks or presses Enter. TipTap Suggestion calls this with the
+    // selected item as `props`. Without this, clicks were no-ops.
+    command: ({
+      editor,
+      range,
+      props,
+    }: {
+      editor: Editor;
+      range: Range;
+      props: SlashCommandItem;
+    }) => {
+      // Delete the "/query" text the user typed.
+      editor.chain().focus().deleteRange(range).run();
+      // Execute the selected block's insertion. We don't have access to
+      // the translator here, so the tiny set of commands that need i18n
+      // (image URL prompt) look it up from document.documentElement.lang
+      // or fall back to English. Since we pass a minimal translator, we
+      // inline a simple passthrough that tries next-intl's bundle via
+      // window globals if available, else returns the key unchanged.
+      const translate = (key: string): string => {
+        // Best-effort: next-intl sets messages on the __NEXT_INTL__ hook,
+        // but we can't import the hook at module scope. The only key
+        // used here is "slash.image.prompt" — fall back to a hardcoded
+        // bilingual value.
+        if (key === "slash.image.prompt") {
+          const lang =
+            typeof document !== "undefined"
+              ? (document.documentElement.lang || "").toLowerCase()
+              : "";
+          return lang.startsWith("zh") ? "图片链接:" : "Image URL:";
+        }
+        return key;
+      };
+      props.run(editor, translate);
     },
     render: () => {
       let component: ReactRenderer<CommandListRef> | null = null;

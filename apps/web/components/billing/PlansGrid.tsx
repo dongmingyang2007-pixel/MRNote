@@ -1,27 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet } from "@/lib/api";
 import PlanCard, { type PlanDescriptor } from "./PlanCard";
-
-const PLAN_FEATURES: Record<PlanDescriptor["id"], string[]> = {
-  free: [
-    "1 notebook", "50 pages", "1 study asset",
-    "50 AI actions / month",
-  ],
-  pro: [
-    "Unlimited notebooks", "500 pages", "20 study assets",
-    "1,000 AI actions / month", "Daily digest", "Voice", "Book upload",
-  ],
-  power: [
-    "Everything in Pro", "Unlimited pages & study assets",
-    "10,000 AI actions / month", "Advanced memory insights",
-  ],
-  team: [
-    "Everything in Power", "Per-seat pricing",
-    "Shared workspace", "Team memory views", "Admin billing",
-  ],
-};
 
 const PLAN_PRICES = {
   free: { monthly: null, yearly: null },
@@ -31,6 +13,7 @@ const PLAN_PRICES = {
 } as const;
 
 export default function PlansGrid() {
+  const t = useTranslations("billing");
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
   const [currentPlan, setCurrentPlan] = useState<string>("free");
 
@@ -40,11 +23,42 @@ export default function PlansGrid() {
       .catch(() => {});
   }, []);
 
+  const PLAN_FEATURES: Record<PlanDescriptor["id"], string[]> = {
+    free: [
+      t("plan.features.free.0"),
+      t("plan.features.free.1"),
+      t("plan.features.free.2"),
+      t("plan.features.free.3"),
+    ],
+    pro: [
+      t("plan.features.pro.0"),
+      t("plan.features.pro.1"),
+      t("plan.features.pro.2"),
+      t("plan.features.pro.3"),
+      t("plan.features.pro.4"),
+      t("plan.features.pro.5"),
+      t("plan.features.pro.6"),
+    ],
+    power: [
+      t("plan.features.power.0"),
+      t("plan.features.power.1"),
+      t("plan.features.power.2"),
+      t("plan.features.power.3"),
+    ],
+    team: [
+      t("plan.features.team.0"),
+      t("plan.features.team.1"),
+      t("plan.features.team.2"),
+      t("plan.features.team.3"),
+      t("plan.features.team.4"),
+    ],
+  };
+
   const plans: PlanDescriptor[] = (
     ["free", "pro", "power", "team"] as const
   ).map((id) => ({
     id,
-    name: id.charAt(0).toUpperCase() + id.slice(1),
+    name: t(`plan.${id}.name`),
     monthlyPrice: PLAN_PRICES[id].monthly,
     yearlyPrice: PLAN_PRICES[id].yearly,
     features: PLAN_FEATURES[id],
@@ -59,7 +73,7 @@ export default function PlansGrid() {
           onClick={() => setCycle("monthly")}
           data-testid="cycle-monthly"
         >
-          Monthly
+          {t("plans.cycle.monthly")}
         </button>
         <button
           type="button"
@@ -67,7 +81,7 @@ export default function PlansGrid() {
           onClick={() => setCycle("yearly")}
           data-testid="cycle-yearly"
         >
-          Yearly (15% off)
+          {t("plans.cycle.yearly")}
         </button>
       </div>
       <div className="plans-grid__cards">

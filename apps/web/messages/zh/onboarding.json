@@ -2,11 +2,13 @@
   "welcome.title": "欢迎使用 MRNote",
   "welcome.body": "MRNote 是为独立顾问、自由职业者和单人创业者打造的私密笔记本。每位客户一个笔记本,每条笔记都会沉淀成 AI 可以随时调用的记忆。让我们花一分钟,建好你的第一个客户。",
   "welcome.cta": "开始使用",
+  "welcome.timePill": "约 60 秒",
 
   "createNotebook.title": "创建第一个客户笔记本",
   "createNotebook.body": "一位客户或一个项目,对应一个笔记本。不用纠结,之后都能改。",
   "createNotebook.clientName.label": "客户或项目名称",
   "createNotebook.clientName.placeholder": "陈莎拉",
+  "createNotebook.clientName.hint": "例如 陈莎拉",
   "createNotebook.whatTheyDo.label": "他们的业务(可选)",
   "createNotebook.whatTheyDo.placeholder": "B2B SaaS 的增长顾问",
   "createNotebook.cta": "创建笔记本",
@@ -16,6 +18,7 @@
   "pasteNote.body": "粘贴点随手写的东西——会议记录、Slack 聊天片段、语音转写都行。MRNote 会把它整理成日后能被精准检索的结构化记忆。",
   "pasteNote.label": "笔记内容",
   "pasteNote.placeholder": "莎拉希望 10 月 30 日前拿到增长审计。她提到他们的流失率是 8%,重点关注企业级客户。她更喜欢每周一次的 Loom 异步同步,而不是开会。",
+  "pasteNote.hint": "粘贴一次真实的客户对话、邮件或 Slack 内容，越真实越好。",
   "pasteNote.cta": "保存笔记",
   "pasteNote.saving": "保存中……",
 
@@ -24,16 +27,23 @@
   "memoryPreview.example1": "莎拉更喜欢每周一次的 Loom 异步同步,而不是开会。",
   "memoryPreview.example2": "增长审计的截止日期是 10 月 30 日。",
   "memoryPreview.example3": "当前流失率 8%;优先关注企业级客户。",
+  "memoryPreview.caption": "MRNote 记住了：",
+  "memoryPreview.subcaption": "以后所有 session 都可查询、追溯、引用。",
   "memoryPreview.note": "完整的记忆抽取在后台运行,这里只是一个预览。",
   "memoryPreview.cta": "看着不错",
 
   "nextSteps.title": "你准备好了",
-  "nextSteps.body": "每周一你都会收到一份摘要,告诉你有哪些变化、有哪些待办、每位客户在等什么。日常工作中随时加笔记,MRNote 会边用边学。",
+  "nextSteps.body": "一切已就绪，接下来会发生这些：",
+  "nextSteps.item1": "每周一摘要 — 动态、待办、每位客户在等什么",
+  "nextSteps.item2": "关系提醒 — MRNote 在跟进事项滑落之前自动浮出",
+  "nextSteps.item3": "即时搜索 — 随时对任意客户发问",
+  "nextSteps.item4": "升级 Pro，解锁无限笔记本与高级 AI 记忆",
   "nextSteps.cta": "进入 MRNote",
   "nextSteps.completing": "正在完成……",
 
   "common.back": "上一步",
   "common.next": "下一步",
   "common.step": "第 {current} 步,共 {total} 步",
-  "common.skip": "暂时跳过"
+  "common.skip": "暂时跳过",
+  "pasteNote.defaultPageTitle": "第一条笔记"
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   FileText,
   Sparkles,
@@ -31,8 +32,18 @@ const TRAY_ICONS: Record<WindowType, typeof FileText> = {
 // ---------------------------------------------------------------------------
 
 export default function MinimizedTray() {
+  // Hydration gate: WindowManager hydrates from localStorage on mount, so
+  // server-rendered windows[] is always empty while client may have
+  // persisted minimized entries. Rendering nothing on both sides until
+  // mount avoids the "<div> inside <a>"-style mismatch that surfaces
+  // when the surrounding Sidebar re-orders sibling nodes.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const windows = useWindows();
   const { restoreWindow } = useWindowManager();
+
+  if (!mounted) return null;
 
   const minimized = windows.filter((w) => w.minimized);
 

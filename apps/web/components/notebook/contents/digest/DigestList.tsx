@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell, Calendar, Flag, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiGet } from "@/lib/api";
 
 interface Digest {
@@ -27,18 +28,19 @@ const KIND_ICON: Record<string, React.ElementType> = {
   relationship_reminder: Users,
 };
 
-function relTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return `${Math.floor(days / 7)}w ago`;
-}
-
 export default function DigestList({ kind, status, onPick }: Props) {
+  const t = useTranslations("console-notebooks");
   const [items, setItems] = useState<Digest[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const relTime = (iso: string): string => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return t("digest.relTime.today");
+    if (days === 1) return t("digest.relTime.yesterday");
+    if (days < 7) return t("digest.relTime.daysAgo", { days });
+    return t("digest.relTime.weeksAgo", { weeks: Math.floor(days / 7) });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,13 +62,13 @@ export default function DigestList({ kind, status, onPick }: Props) {
   useEffect(() => { void load(); }, [load]);
 
   if (loading) {
-    return <p style={{ padding: 12, fontSize: 12, color: "#888" }}>Loading…</p>;
+    return <p style={{ padding: 12, fontSize: 12, color: "#888" }}>{t("digest.loading")}</p>;
   }
 
   if (items.length === 0) {
     return (
       <p style={{ padding: 12, fontSize: 12, color: "#888" }}>
-        Nothing here yet.
+        {t("digest.empty")}
       </p>
     );
   }

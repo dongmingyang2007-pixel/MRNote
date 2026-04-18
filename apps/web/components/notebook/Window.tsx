@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Rnd } from "react-rnd";
 import {
   Minus,
@@ -51,6 +52,7 @@ export default function Window({
   children,
   titlebarExtras,
 }: WindowProps) {
+  const t = useTranslations("console-notebooks");
   const {
     closeWindow,
     minimizeWindow,
@@ -138,11 +140,12 @@ export default function Window({
         className={`wm-window${isFocused ? " wm-window--focused" : ""}`}
         style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
         onMouseDown={handleFocus}
+        data-focused={isFocused ? "true" : "false"}
       >
         {/* Title bar */}
         <div className="wm-titlebar">
           <div className="wm-titlebar-title">
-            <Icon size={16} className="wm-titlebar-icon" />
+            <Icon size={14} className="wm-titlebar-icon" />
             <span>{displayTitle}</span>
           </div>
           <div className="wm-titlebar-controls">
@@ -151,25 +154,28 @@ export default function Window({
               type="button"
               className="wm-titlebar-btn"
               onClick={handleMinimize}
-              title="Minimize"
+              title={t("window.minimize")}
+              aria-label={t("window.minimize")}
             >
-              <Minus size={14} />
+              <Minus size={12} />
             </button>
             <button
               type="button"
               className="wm-titlebar-btn"
               onClick={handleMaximizeToggle}
-              title={maximized ? "Restore" : "Maximize"}
+              title={maximized ? t("window.restore") : t("window.maximize")}
+              aria-label={maximized ? t("window.restore") : t("window.maximize")}
             >
-              {maximized ? <Maximize2 size={14} /> : <Square size={14} />}
+              {maximized ? <Maximize2 size={12} /> : <Square size={12} />}
             </button>
             <button
               type="button"
               className="wm-titlebar-btn wm-titlebar-btn--close"
               onClick={handleClose}
-              title="Close"
+              title={t("window.close")}
+              aria-label={t("window.close")}
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           </div>
         </div>

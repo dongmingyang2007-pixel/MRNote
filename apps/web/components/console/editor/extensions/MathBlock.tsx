@@ -12,7 +12,9 @@ function MathBlockView(props: any) {
   const { node, updateAttributes, selected } = props;
   const latex: string = node.attrs.latex || "";
 
-  const [editing, setEditing] = useState(false);
+  // Enter edit mode immediately if the node was just inserted with empty
+  // latex (e.g. via slash menu). Otherwise show the rendered formula.
+  const [editing, setEditing] = useState(latex.trim() === "");
   const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -20,13 +22,19 @@ function MathBlockView(props: any) {
 
   useEffect(() => {
     if (previewRef.current && !editing) {
-      try {
-        katex.render(value || "\\text{Empty}", previewRef.current, {
-          displayMode: true,
-          throwOnError: false,
-        });
-      } catch {
-        previewRef.current.textContent = value || "Empty formula";
+      if (value.trim() === "") {
+        previewRef.current.textContent = "";
+        previewRef.current.setAttribute("data-empty", "true");
+      } else {
+        previewRef.current.removeAttribute("data-empty");
+        try {
+          katex.render(value, previewRef.current, {
+            displayMode: true,
+            throwOnError: false,
+          });
+        } catch {
+          previewRef.current.textContent = value;
+        }
       }
     }
   }, [value, editing]);

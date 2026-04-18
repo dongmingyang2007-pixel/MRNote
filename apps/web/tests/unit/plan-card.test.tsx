@@ -29,6 +29,7 @@ describe("PlanCard", () => {
   it("highlights current plan and hides upgrade", () => {
     render(<PlanCard plan={PLAN_PRO} cycle="monthly" isCurrent={true} />);
     expect(screen.queryByTestId("plan-card-pro-upgrade")).toBeNull();
-    expect(screen.getByText("Current plan")).toBeTruthy();
+    // The mocked next-intl translator echoes the i18n key directly.
+    expect(screen.getByText("plan.currentLabel")).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Check } from "lucide-react";
 
 type PlanKey = "free" | "pro" | "power" | "team";
 type Cell = "text" | "included" | "dash" | "unlimited";
@@ -99,14 +100,32 @@ const ROWS: Row[] = [
 export default async function FeatureComparisonTable() {
   const t = await getTranslations("marketing");
 
-  const cellLabel = (cell: { kind: Cell; value?: string }) => {
+  const cellContent = (cell: { kind: Cell; value?: string }) => {
     switch (cell.kind) {
       case "unlimited":
-        return t("pricingPage.compare.value.unlimited");
+        return (
+          <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+            {t("pricingPage.compare.value.unlimited")}
+          </span>
+        );
       case "included":
-        return t("pricingPage.compare.value.included");
+        return (
+          <Check
+            size={16}
+            strokeWidth={2.4}
+            className="marketing-compare-table__icon-check"
+            aria-label={t("pricingPage.compare.value.included")}
+          />
+        );
       case "dash":
-        return t("pricingPage.compare.value.dash");
+        return (
+          <span
+            className="marketing-compare-table__icon-dash"
+            aria-label={t("pricingPage.compare.value.dash")}
+          >
+            −
+          </span>
+        );
       case "text":
       default:
         return cell.value ?? "";
@@ -120,7 +139,9 @@ export default async function FeatureComparisonTable() {
           className="marketing-inner--narrow"
           style={{ textAlign: "center", margin: "0 auto" }}
         >
-          <h2 className="marketing-h2">{t("pricingPage.compare.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("pricingPage.compare.title")}
+          </h2>
         </div>
 
         <div className="marketing-compare-scroll">
@@ -151,7 +172,7 @@ export default async function FeatureComparisonTable() {
                       className={plan === "pro" ? "marketing-compare-table__highlight" : undefined}
                       style={{ textAlign: "center" }}
                     >
-                      {cellLabel(row.cells[plan])}
+                      {cellContent(row.cells[plan])}
                     </td>
                   ))}
                 </tr>

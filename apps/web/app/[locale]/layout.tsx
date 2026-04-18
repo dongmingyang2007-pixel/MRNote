@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -10,6 +11,13 @@ import "@/styles/chat-workbench.css";
 
 // Noto Sans SC is loaded via system fonts (PingFang SC / Noto Sans SC)
 // in the CSS font-stack rather than next/font to avoid 7MB+ download at build time.
+// Plus Jakarta Sans is loaded via next/font for zero FOUT on display/heading text.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -81,8 +89,8 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={localeKey} suppressHydrationWarning>
-      <body>
+    <html lang={localeKey} className={jakarta.variable} suppressHydrationWarning>
+      <body className="font-sans">
         <NextIntlClientProvider messages={messages}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>

@@ -15,7 +15,9 @@ export default function FAQSection() {
     <section className="marketing-section" id="faq" style={{ paddingTop: 64 }}>
       <div className="marketing-inner" style={{ textAlign: "center" }}>
         <span className="marketing-eyebrow">{t("pricingPage.faq.kicker")}</span>
-        <h2 className="marketing-h2">{t("pricingPage.faq.title")}</h2>
+        <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+          {t("pricingPage.faq.title")}
+        </h2>
 
         <div
           className="marketing-faq-list"

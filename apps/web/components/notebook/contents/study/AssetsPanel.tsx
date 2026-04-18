@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Loader2, CheckCircle, AlertCircle, FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface StudyAsset {
   id: string;
@@ -33,19 +34,25 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   chunked: <Loader2 size={14} className="animate-spin" style={{ color: "var(--console-accent)" }} />,
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "等待处理",
-  parsing: "正在解析",
-  chunked: "正在索引",
-  indexed: "已完成",
-  failed: "处理失败",
-};
-
 export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
+  const t = useTranslations("console-notebooks");
   const [assets, setAssets] = useState<StudyAsset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<StudyAsset | null>(null);
   const [chunks, setChunks] = useState<StudyChunk[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Status labels use i18n via a lookup inside the component (avoids top-level hook in object literal)
+  const statusLabel = (status: string): string => {
+    const map: Record<string, string> = {
+      pending: t("study.assets.statusPending"),
+      parsing: t("study.assets.statusParsing"),
+      chunked: t("study.assets.statusChunked"),
+      indexed: t("study.assets.statusIndexed"),
+      failed: t("study.assets.statusFailed"),
+    };
+    return map[status] ?? status;
+  };
+
   const fetchAssets = useCallback(async () => {
     try {
       const res = await fetch(`/api/v1/notebooks/${notebookId}/study`);
@@ -110,7 +117,7 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
               padding: 0,
             }}
           >
-            &larr; 返回
+            {t("study.assets.back")}
           </button>
           <span style={{
             fontSize: "0.875rem",
@@ -120,7 +127,7 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
             {selectedAsset.title}
           </span>
           <span style={{ fontSize: "0.75rem", color: "var(--console-text-muted)" }}>
-            {selectedAsset.total_chunks} chunks
+            {t("study.assets.chunks", { count: selectedAsset.total_chunks })}
           </span>
         </div>
 
@@ -136,11 +143,11 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
               gap: 8,
             }}>
               {STATUS_ICONS[selectedAsset.status]}
-              <span style={{ fontSize: "0.8125rem" }}>{STATUS_LABELS[selectedAsset.status]}</span>
+              <span style={{ fontSize: "0.8125rem" }}>{statusLabel(selectedAsset.status)}</span>
             </div>
           ) : chunks.length === 0 ? (
             <div style={{ color: "var(--console-text-muted)", fontSize: "0.8125rem", textAlign: "center", marginTop: 32 }}>
-              没有内容片段
+              {t("study.assets.noChunks")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -203,7 +210,7 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
           fontWeight: 600,
           color: "var(--console-text-primary)",
         }}>
-          学习资料
+          {t("study.assets.title")}
         </span>
       </div>
 
@@ -223,8 +230,8 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
             color: "var(--console-text-muted)",
           }}>
             <BookOpen size={32} strokeWidth={1.2} />
-            <span style={{ fontSize: "0.8125rem" }}>还没有学习资料</span>
-            <span style={{ fontSize: "0.75rem" }}>上传书籍、PDF、文档开始学习</span>
+            <span style={{ fontSize: "0.8125rem" }}>{t("study.assets.empty")}</span>
+            <span style={{ fontSize: "0.75rem" }}>{t("study.assets.emptyHint")}</span>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -255,10 +262,10 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}>
-                    {asset.title || "Untitled"}
+                    {asset.title || t("study.assets.untitled")}
                   </div>
                   <div style={{ fontSize: "0.6875rem", color: "var(--console-text-muted)", marginTop: 2 }}>
-                    {asset.asset_type} &middot; {asset.total_chunks} chunks
+                    {asset.asset_type} &middot; {t("study.assets.chunks", { count: asset.total_chunks })}
                   </div>
                 </div>
                 {STATUS_ICONS[asset.status] || null}

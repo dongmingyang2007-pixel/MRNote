@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPost } from "@/lib/api";
 
 interface Props {
@@ -22,6 +23,7 @@ interface QuizQuestion {
 }
 
 export default function QuizModal({ notebookId, onClose }: Props) {
+  const t = useTranslations("console-notebooks");
   const [sourceType, setSourceType] = useState<SourceType>("page");
   const [pages, setPages] = useState<Page[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -31,7 +33,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
   const [selectedChunk, setSelectedChunk] = useState("");
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   const [index, setIndex] = useState(0);
-  const [answered, setAnswered] = useState<number[]>([]); // picked option per question
+  const [answered, setAnswered] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
 
   const handleGenerate = useCallback(async () => {
     const sourceId = sourceType === "page" ? selectedPage : selectedChunk;
-    if (!sourceId) { setError("Pick a source"); return; }
+    if (!sourceId) { setError(t("study.quiz.pickSource")); return; }
     setGenerating(true); setError(null);
     try {
       const r = await apiPost<{ questions: QuizQuestion[] }>(
@@ -64,11 +66,11 @@ export default function QuizModal({ notebookId, onClose }: Props) {
       setQuestions(r.questions || []);
       setIndex(0); setAnswered([]); setSubmitted(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      setError(e instanceof Error ? e.message : t("study.quiz.generationFailed"));
     } finally {
       setGenerating(false);
     }
-  }, [sourceType, selectedPage, selectedChunk]);
+  }, [sourceType, selectedPage, selectedChunk, t]);
 
   const handlePick = useCallback((optIdx: number) => {
     setAnswered((prev) => {
@@ -95,7 +97,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
       <div role="dialog" data-testid="quiz-modal" style={modalOverlay} onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()} style={modalBody}>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-            Score: {correct} / {questions.length}
+            {t("study.quiz.score", { correct, total: questions.length })}
           </div>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 300, overflow: "auto" }}>
             {questions.map((q, i) => {
@@ -114,7 +116,8 @@ export default function QuizModal({ notebookId, onClose }: Props) {
                 >
                   <div style={{ fontWeight: 600 }}>{q.question}</div>
                   <div style={{ color: "#555" }}>
-                    Your answer: {q.options[pick] ?? "(none)"} {correctPick ? "✓" : `✗ (correct: ${q.options[q.correct_index]})`}
+                    {t("study.quiz.yourAnswer", { answer: q.options[pick] ?? t("study.quiz.none") })}{" "}
+                    {correctPick ? "✓" : t("study.quiz.correct", { answer: q.options[q.correct_index] })}
                   </div>
                   <div style={{ color: "#6b7280", marginTop: 2 }}>{q.explanation}</div>
                 </li>
@@ -126,7 +129,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
             onClick={onClose}
             style={{ marginTop: 10, padding: "6px 16px", border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
           >
-            Close
+            {t("study.quiz.close")}
           </button>
         </div>
       </div>
@@ -138,7 +141,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
       <div role="dialog" data-testid="quiz-modal" style={modalOverlay} onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()} style={modalBody}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <strong>Quiz</strong>
+            <strong>{t("study.quiz.title")}</strong>
             <button type="button" onClick={onClose} style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer" }}>×</button>
           </div>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -148,7 +151,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
               data-testid="quiz-source-page"
               style={sourceBtn(sourceType === "page")}
             >
-              From page
+              {t("study.quiz.fromPage")}
             </button>
             <button
               type="button"
@@ -156,7 +159,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
               data-testid="quiz-source-chunk"
               style={sourceBtn(sourceType === "chunk")}
             >
-              From chapter
+              {t("study.quiz.fromChapter")}
             </button>
           </div>
           {sourceType === "page" ? (
@@ -166,9 +169,9 @@ export default function QuizModal({ notebookId, onClose }: Props) {
               data-testid="quiz-select-page"
               style={{ width: "100%", padding: 6, marginBottom: 10 }}
             >
-              <option value="">Pick a page</option>
+              <option value="">{t("study.quiz.pickPage")}</option>
               {pages.map((p) => (
-                <option key={p.id} value={p.id}>{p.title || "(untitled)"}</option>
+                <option key={p.id} value={p.id}>{p.title || t("study.quiz.untitled")}</option>
               ))}
             </select>
           ) : (
@@ -179,7 +182,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
                 data-testid="quiz-select-asset"
                 style={{ width: "100%", padding: 6, marginBottom: 6 }}
               >
-                <option value="">Pick a study asset</option>
+                <option value="">{t("study.quiz.pickAsset")}</option>
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>{a.title}</option>
                 ))}
@@ -191,9 +194,9 @@ export default function QuizModal({ notebookId, onClose }: Props) {
                 style={{ width: "100%", padding: 6, marginBottom: 10 }}
                 disabled={!selectedAsset}
               >
-                <option value="">Pick a chapter / chunk</option>
+                <option value="">{t("study.quiz.pickChunk")}</option>
                 {chunks.map((c) => (
-                  <option key={c.id} value={c.id}>{c.heading || "(chunk)"}</option>
+                  <option key={c.id} value={c.id}>{c.heading || t("study.quiz.chunk")}</option>
                 ))}
               </select>
             </>
@@ -206,7 +209,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
             data-testid="quiz-start"
             style={{ padding: "8px 14px", border: "1px solid #e5e7eb", borderRadius: 6, background: "#2563eb", color: "#fff", cursor: "pointer" }}
           >
-            {generating ? "Generating…" : "Start"}
+            {generating ? t("study.quiz.generating") : t("study.quiz.start")}
           </button>
         </div>
       </div>
@@ -219,7 +222,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
     <div role="dialog" data-testid="quiz-modal" style={modalOverlay} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={modalBody}>
         <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
-          Question {index + 1} / {questions.length}
+          {t("study.quiz.question", { current: index + 1, total: questions.length })}
         </div>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>{q.question}</div>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -267,7 +270,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
               data-testid="quiz-next"
               style={{ marginTop: 8, padding: "6px 14px", border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
             >
-              {index === questions.length - 1 ? "See results" : "Next →"}
+              {index === questions.length - 1 ? t("study.quiz.seeResults") : t("study.quiz.next")}
             </button>
           </>
         )}

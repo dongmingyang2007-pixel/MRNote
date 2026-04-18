@@ -10,9 +10,11 @@ export default async function ScreenshotSection() {
           style={{ textAlign: "center", margin: "0 auto" }}
         >
           <span className="marketing-eyebrow">{t("screenshot.kicker")}</span>
-          <h2 className="marketing-h2">{t("screenshot.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("screenshot.title")}
+          </h2>
           <p
-            className="marketing-lead"
+            className="marketing-lead text-lg md:text-xl leading-relaxed"
             style={{ marginTop: 16, maxWidth: 620, marginInline: "auto" }}
           >
             {t("screenshot.sub")}

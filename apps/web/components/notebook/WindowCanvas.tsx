@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useRef } from "react";
-import { Layers, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { FileText, Layers, Search as SearchIcon, Sparkles } from "lucide-react";
+import { apiGet } from "@/lib/api";
 import { useWindowManager, useWindows } from "./WindowManager";
 import Window from "./Window";
 import NoteWindow from "./contents/NoteWindow";
@@ -75,10 +78,104 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
 // ---------------------------------------------------------------------------
 
 function EmptyState() {
+  const t = useTranslations("console-notebooks");
+  const params = useParams<{ notebookId?: string }>();
+  const notebookId = params?.notebookId || "";
+  const { openWindow } = useWindowManager();
+  const [firstPage, setFirstPage] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!notebookId) return;
+    let cancelled = false;
+    void apiGet<{
+      items: Array<{ id: string; title: string; page_type: string }>;
+    }>(`/api/v1/notebooks/${notebookId}/pages`)
+      .then((data) => {
+        if (cancelled) return;
+        const first = data.items?.[0];
+        if (first) setFirstPage({ id: first.id, title: first.title });
+      })
+      .catch(() => {
+        /* silent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [notebookId]);
+
+  const handleOpenFirstPage = useCallback(() => {
+    if (!firstPage || !notebookId) return;
+    openWindow({
+      type: "note",
+      title: firstPage.title || t("common.untitled"),
+      meta: { notebookId, pageId: firstPage.id },
+    });
+  }, [firstPage, notebookId, openWindow, t]);
+
+  const handleAskAi = useCallback(() => {
+    if (!firstPage || !notebookId) return;
+    // Open the first page + AI panel together so the panel has a page context.
+    openWindow({
+      type: "note",
+      title: firstPage.title || t("common.untitled"),
+      meta: { notebookId, pageId: firstPage.id },
+    });
+    openWindow({
+      type: "ai_panel",
+      title: `AI · ${firstPage.title || t("common.untitled")}`,
+      meta: { notebookId, pageId: firstPage.id },
+    });
+  }, [firstPage, notebookId, openWindow, t]);
+
+  const handleSearch = useCallback(() => {
+    openWindow({
+      type: "search",
+      title: t("search.windowTitle"),
+      meta: { notebookId },
+    });
+  }, [notebookId, openWindow, t]);
+
   return (
     <div className="wm-empty-state">
       <Layers size={48} strokeWidth={1.2} className="wm-empty-state-icon" />
-      <span className="wm-empty-state-text">打开侧栏中的页面开始工作</span>
+      <div className="wm-empty-state-title">{t("canvas.emptyTitle")}</div>
+      <div className="wm-empty-state-hint">{t("canvas.emptyHint")}</div>
+      <div className="wm-empty-state-actions">
+        {firstPage && (
+          <button
+            type="button"
+            className="wm-empty-state-action"
+            onClick={handleOpenFirstPage}
+            data-testid="empty-canvas-open-first-page"
+          >
+            <FileText size={12} />
+            {t("canvas.openFirstPage")}
+          </button>
+        )}
+        {firstPage && (
+          <button
+            type="button"
+            className="wm-empty-state-action"
+            onClick={handleAskAi}
+            data-testid="empty-canvas-ask-ai"
+          >
+            <Sparkles size={12} />
+            {t("canvas.askAi")}
+          </button>
+        )}
+        <button
+          type="button"
+          className="wm-empty-state-action"
+          onClick={handleSearch}
+          data-testid="empty-canvas-search"
+        >
+          <SearchIcon size={12} />
+          {t("canvas.search")}
+        </button>
+      </div>
     </div>
   );
 }

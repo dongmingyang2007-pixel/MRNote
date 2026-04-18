@@ -44,9 +44,11 @@ export default async function PricingSnapshotSection() {
           style={{ textAlign: "center", margin: "0 auto" }}
         >
           <span className="marketing-eyebrow">{t("pricing.kicker")}</span>
-          <h2 className="marketing-h2">{t("pricing.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("pricing.title")}
+          </h2>
           <p
-            className="marketing-lead"
+            className="marketing-lead text-lg md:text-xl leading-relaxed"
             style={{ marginTop: 16, maxWidth: 560, marginInline: "auto" }}
           >
             {t("pricing.sub")}
@@ -66,6 +68,7 @@ export default async function PricingSnapshotSection() {
               )}
               <div>
                 <div
+                  className="font-display tracking-tight"
                   style={{
                     fontSize: "1rem",
                     fontWeight: 600,

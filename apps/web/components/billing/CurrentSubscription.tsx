@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPost } from "@/lib/api";
 
 interface Me {
@@ -13,6 +14,7 @@ interface Me {
 }
 
 export default function CurrentSubscription() {
+  const t = useTranslations("billing");
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
@@ -36,13 +38,16 @@ export default function CurrentSubscription() {
   return (
     <section className="current-sub" data-testid="current-subscription">
       <div>
-        <strong>Current plan:</strong> {me.plan.toUpperCase()}{" "}
-        ({me.billing_cycle}) — {me.status}
+        {t("current.planLabel", {
+          plan: me.plan.toUpperCase(),
+          cycle: me.billing_cycle,
+          status: me.status,
+        })}
       </div>
       {me.current_period_end && (
         <div className="current-sub__renewal">
-          Renews: {me.current_period_end.slice(0, 10)}
-          {me.cancel_at_period_end && " (cancels at period end)"}
+          {t("current.renewalLabel", { date: me.current_period_end.slice(0, 10) })}
+          {me.cancel_at_period_end && ` ${t("current.cancelsLabel")}`}
         </div>
       )}
       {me.provider !== "free" && (
@@ -52,7 +57,7 @@ export default function CurrentSubscription() {
           className="current-sub__manage"
           data-testid="current-sub-manage"
         >
-          Manage billing
+          {t("current.manage")}
         </button>
       )}
     </section>

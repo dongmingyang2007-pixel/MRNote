@@ -7,7 +7,32 @@
 // installs a fresh instance at window.localStorage before each test, which
 // restores the semantics that unit tests expect.
 
-import { beforeEach } from "vitest";
+import { beforeEach, vi } from "vitest";
+
+// Components use next-intl's useTranslations everywhere after the UI
+// polish i18n sweep. Vitest runs outside NextIntlClientProvider, so we
+// mock next-intl to return an identity translator that just echoes the
+// key. Tests assert on behavior, not on copy, so key-as-fallback is
+// fine and keeps them provider-free.
+vi.mock("next-intl", () => ({
+  useTranslations:
+    (_namespace?: string) =>
+    (key: string, values?: Record<string, string | number>) => {
+      if (!values) return key;
+      // Resolve simple ICU-style placeholders ({count}, {name}) against values.
+      return Object.keys(values).reduce(
+        (acc, name) => acc.replaceAll(`{${name}}`, String(values[name])),
+        key,
+      );
+    },
+  useLocale: () => "en",
+  useFormatter: () => ({
+    dateTime: (d: Date | string) => String(d),
+    number: (n: number) => String(n),
+    relativeTime: (d: Date | string) => String(d),
+    list: (items: string[]) => items.join(", "),
+  }),
+}));
 
 const storeMap = new WeakMap<Storage, Map<string, string>>();
 

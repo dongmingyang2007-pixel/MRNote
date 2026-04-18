@@ -15,6 +15,7 @@ const NAMESPACES = [
   "marketing",
   "legal",
   "onboarding",
+  "billing",
 ] as const;
 
 const MESSAGE_LOADERS = {
@@ -31,6 +32,7 @@ const MESSAGE_LOADERS = {
     marketing: () => import("../messages/zh/marketing.json"),
     legal: () => import("../messages/zh/legal.json"),
     onboarding: () => import("../messages/zh/onboarding.json"),
+    billing: () => import("../messages/zh/billing.json"),
   },
   en: {
     common: () => import("../messages/en/common.json"),
@@ -45,6 +47,7 @@ const MESSAGE_LOADERS = {
     marketing: () => import("../messages/en/marketing.json"),
     legal: () => import("../messages/en/legal.json"),
     onboarding: () => import("../messages/en/onboarding.json"),
+    billing: () => import("../messages/en/billing.json"),
   },
 } as const;
 

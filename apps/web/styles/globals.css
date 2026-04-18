@@ -2657,6 +2657,10 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
 
   /* Radii (v2) */
   --radius-sm: 4px;
@@ -2687,6 +2691,29 @@
   --ease-spring-v2: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-linear: linear;
 
+  /* Motion tokens */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Elevation / shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+  --shadow-glow-brand: 0 0 0 1px rgba(37, 99, 235, 0.2), 0 8px 24px rgba(37, 99, 235, 0.16);
+
+  /* Z-index scale */
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal-backdrop: 30;
+  --z-modal: 40;
+  --z-popover: 50;
+  --z-tooltip: 60;
+  --z-toast: 70;
+
   /* ── shadcn/ui token bridge ──────────────────── */
   --background: var(--bg-base);
   --foreground: var(--text-primary);
@@ -2707,6 +2734,10 @@
   --ring: var(--brand-v2);
   --input: var(--border);
   --radius: var(--radius-md);
+
+  /* Font stacks */
+  --font-family-sans: "Noto Sans SC", "PingFang SC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-display: var(--font-jakarta), "Noto Sans SC", "PingFang SC", ui-sans-serif, system-ui, sans-serif;
 
   /* ── Voice Panel Tokens ── */
   --voice-bg: #1a1a2e;
@@ -2887,6 +2918,17 @@ body::before {
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent 68%);
   opacity: 0.4;
   contain: strict;
+}
+
+/* Display / heading font — Plus Jakarta Sans via CSS var injected by next/font */
+.font-display,
+h1, h2, h3 {
+  font-family: var(--font-family-display);
+  letter-spacing: -0.01em;
+}
+
+h1, h2 {
+  letter-spacing: -0.02em;
 }
 
 ::selection {
@@ -3080,6 +3122,33 @@ button {
   to {
     transform: translate3d(0, -14px, 0);
   }
+}
+
+/* ── Global accessibility & motion tokens ──────────────────────────────── */
+
+/* Prefers-reduced-motion global kill-switch — respect OS setting */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Global focus ring for keyboard users — supplements existing component-level rules */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand-v2);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* Ensure cursor-pointer for all interactive elements */
+[role="button"]:not([disabled]),
+a[href] {
+  cursor: pointer;
 }
 
 @keyframes orbit-drift {

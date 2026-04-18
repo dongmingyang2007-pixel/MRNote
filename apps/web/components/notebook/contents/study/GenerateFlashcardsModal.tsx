@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPost } from "@/lib/api";
 
 interface Props {
@@ -18,6 +19,7 @@ interface Chunk { id: string; heading: string; }
 interface GeneratedCard { front: string; back: string; }
 
 export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }: Props) {
+  const t = useTranslations("console-notebooks");
   const [sourceType, setSourceType] = useState<SourceType>("page");
   const [pages, setPages] = useState<Page[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -56,7 +58,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
     try {
       const sourceId = sourceType === "page" ? selectedPage : selectedChunk;
       if (!sourceId) {
-        setError("Pick a source");
+        setError(t("study.gen.pickSource"));
         return;
       }
       const r = await apiPost<{ cards: GeneratedCard[] }>(
@@ -65,11 +67,11 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
       );
       setGenerated(r.cards || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      setError(e instanceof Error ? e.message : t("study.gen.generationFailed"));
     } finally {
       setGenerating(false);
     }
-  }, [sourceType, selectedPage, selectedChunk, count]);
+  }, [sourceType, selectedPage, selectedChunk, count, t]);
 
   const handleSave = useCallback(async () => {
     if (!generated) return;
@@ -119,7 +121,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <strong>Generate flashcards</strong>
+          <strong>{t("study.gen.title")}</strong>
           <button type="button" onClick={onClose} style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
 
@@ -130,7 +132,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             data-testid="gen-source-page"
             style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "page" ? "#2563eb" : "#e5e7eb", background: sourceType === "page" ? "rgba(37,99,235,0.06)" : "#fff", cursor: "pointer", fontSize: 12 }}
           >
-            From page
+            {t("study.gen.fromPage")}
           </button>
           <button
             type="button"
@@ -138,7 +140,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             data-testid="gen-source-chunk"
             style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "chunk" ? "#2563eb" : "#e5e7eb", background: sourceType === "chunk" ? "rgba(37,99,235,0.06)" : "#fff", cursor: "pointer", fontSize: 12 }}
           >
-            From chapter
+            {t("study.gen.fromChapter")}
           </button>
         </div>
 
@@ -149,9 +151,9 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             data-testid="gen-select-page"
             style={{ width: "100%", padding: 6, marginBottom: 10 }}
           >
-            <option value="">Pick a page</option>
+            <option value="">{t("study.gen.pickPage")}</option>
             {pages.map((p) => (
-              <option key={p.id} value={p.id}>{p.title || "(untitled)"}</option>
+              <option key={p.id} value={p.id}>{p.title || t("study.gen.untitled")}</option>
             ))}
           </select>
         ) : (
@@ -162,7 +164,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
               data-testid="gen-select-asset"
               style={{ width: "100%", padding: 6, marginBottom: 6 }}
             >
-              <option value="">Pick a study asset</option>
+              <option value="">{t("study.gen.pickAsset")}</option>
               {assets.map((a) => (
                 <option key={a.id} value={a.id}>{a.title}</option>
               ))}
@@ -174,16 +176,16 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
               style={{ width: "100%", padding: 6, marginBottom: 10 }}
               disabled={!selectedAsset}
             >
-              <option value="">Pick a chapter / chunk</option>
+              <option value="">{t("study.gen.pickChunk")}</option>
               {chunks.map((c) => (
-                <option key={c.id} value={c.id}>{c.heading || "(chunk)"}</option>
+                <option key={c.id} value={c.id}>{c.heading || t("study.gen.chunk")}</option>
               ))}
             </select>
           </>
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: 12 }}>Count:</span>
+          <span style={{ fontSize: 12 }}>{t("study.gen.count")}</span>
           <input
             type="number"
             min={1}
@@ -199,7 +201,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             data-testid="gen-submit"
             style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" }}
           >
-            {generating ? "Generating…" : "Generate"}
+            {generating ? t("study.gen.generating") : t("study.gen.generate")}
           </button>
         </div>
 
@@ -234,7 +236,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
                 cursor: "pointer",
               }}
             >
-              {saving ? "Saving…" : `Save ${generated.length} to deck`}
+              {saving ? t("study.gen.saving") : t("study.gen.saveToDeck", { count: generated.length })}
             </button>
           </>
         )}

@@ -3,13 +3,16 @@
 /* Layout helpers only; color / radius tokens come from globals.css    */
 /* ------------------------------------------------------------------ */
 
+/* Section rhythm — py-16 mobile, py-24 md (baseline). Tailwind classes
+ * on individual components may override with a denser (py-12) or
+ * taller (py-32) scale when that section warrants it. */
 .marketing-section {
-  padding: 96px 24px;
+  padding: var(--space-24) var(--space-6);
 }
 
 @media (max-width: 768px) {
   .marketing-section {
-    padding: 64px 20px;
+    padding: var(--space-16) var(--space-5);
   }
 }
 
@@ -37,8 +40,11 @@
   margin-bottom: 16px;
 }
 
+/* .marketing-h{1,2,3} own line-height / letter-spacing / color / weight.
+ * Font-size is driven by Tailwind responsive text-* utilities on the
+ * component so the Hero → Section → Feature scale is explicit at the
+ * call site and not hidden in a clamp(). */
 .marketing-h1 {
-  font-size: clamp(2.5rem, 5vw + 1rem, 4rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
   font-weight: 700;
@@ -46,7 +52,6 @@
 }
 
 .marketing-h2 {
-  font-size: clamp(2rem, 3vw + 1rem, 3rem);
   line-height: 1.1;
   letter-spacing: -0.02em;
   font-weight: 700;
@@ -54,22 +59,20 @@
 }
 
 .marketing-h3 {
-  font-size: clamp(1.5rem, 2vw + 0.5rem, 2rem);
-  line-height: 1.2;
+  line-height: 1.25;
   letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .marketing-lead {
-  font-size: clamp(1.05rem, 0.5vw + 0.9rem, 1.25rem);
   line-height: 1.55;
   color: var(--text-secondary);
 }
 
 .marketing-body {
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.625;
   color: var(--text-secondary);
 }
 
@@ -84,8 +87,12 @@
   border-radius: var(--radius-full);
   font-size: 0.95rem;
   font-weight: 600;
-  transition: transform 120ms ease, background-color 120ms ease,
-    border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  /* No transform in the transition list — hover must not shift layout. */
+  transition:
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease);
   white-space: nowrap;
   cursor: pointer;
   border: 1px solid transparent;
@@ -100,9 +107,11 @@
 }
 
 .marketing-btn--primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(15, 118, 255, 0.28),
-    0 12px 32px rgba(15, 118, 255, 0.22);
+  /* Darken by swapping to a slightly deeper blue; the glow grows but
+   * the button stays pinned so surrounding content does not reflow. */
+  background: #0a5fd6;
+  box-shadow: 0 2px 6px rgba(15, 118, 255, 0.32),
+    0 14px 36px rgba(15, 118, 255, 0.24);
 }
 
 .marketing-btn--secondary {
@@ -113,6 +122,7 @@
 
 .marketing-btn--secondary:hover {
   background: var(--bg-surface);
+  border-color: var(--text-secondary);
 }
 
 .marketing-btn--lg {
@@ -325,39 +335,49 @@
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  transition: border-color 150ms ease, box-shadow 150ms ease,
-    transform 150ms ease;
+  /* No transform here — hover polish is colour + shadow only. */
+  transition:
+    border-color var(--motion-base) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease);
+  height: 100%;
 }
 
 .marketing-plan-card:hover {
-  border-color: rgba(15, 118, 255, 0.4);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 118, 255, 0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .marketing-plan-card--highlight {
-  border-color: var(--brand-v2);
-  box-shadow: 0 8px 28px rgba(15, 118, 255, 0.15);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 2px var(--brand-v2),
+    0 12px 32px rgba(15, 118, 255, 0.18);
 }
 
 .marketing-plan-card--highlight:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(15, 118, 255, 0.2);
+  box-shadow:
+    0 0 0 2px var(--brand-v2),
+    0 18px 44px rgba(15, 118, 255, 0.24);
 }
 
 .marketing-plan-card__badge {
+  /* Floating pill that sits above the ring outline. The ring comes from
+   * `--highlight`'s 0-offset shadow, so the badge hovers 14px above the
+   * card and centers over it without disturbing the inner layout. */
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 12px;
+  padding: 5px 14px;
   background: var(--brand-v2);
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: var(--radius-full);
   white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 118, 255, 0.3);
 }
 
 .marketing-plan-card__price {
@@ -378,12 +398,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  /* flex: 1 auto — fills vertical space so the CTA sits anchored to the
+   * card bottom across all four cards regardless of feature count. */
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-secondary);
   font-size: 0.92rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .marketing-plan-card__feature {
@@ -458,15 +481,21 @@
 }
 
 .marketing-header__link {
+  position: relative;
   color: var(--text-secondary);
   font-size: 0.95rem;
   font-weight: 500;
   text-decoration: none;
-  transition: color 120ms ease;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-header__link:hover {
   color: var(--text-primary);
+  border-bottom-color: var(--brand-v2);
 }
 
 .marketing-header__cta {
@@ -492,6 +521,15 @@
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
+  transition:
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-header__mobile-toggle:hover {
+  background: var(--bg-surface);
+  border-color: var(--text-secondary);
 }
 
 @media (min-width: 768px) {
@@ -503,9 +541,13 @@
 .marketing-mobile-panel {
   position: fixed;
   inset: 56px 0 0 0;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(12px);
-  z-index: 39;
+  /* Dimmed scrim over the page content — sits above body copy,
+   * below the sticky header. backdrop-blur lets the nav feel
+   * layered over real content rather than a solid takeover. */
+  background: rgba(12, 18, 33, 0.42);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  z-index: var(--z-dropdown);
   padding: 32px 24px;
   display: flex;
   flex-direction: column;
@@ -519,6 +561,11 @@
   font-weight: 500;
   border-bottom: 1px solid var(--border);
   text-decoration: none;
+  transition: color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-mobile-panel__link:hover {
+  color: var(--brand-v2);
 }
 
 .marketing-footer {
@@ -560,7 +607,7 @@
   color: var(--text-secondary);
   font-size: 0.92rem;
   text-decoration: none;
-  transition: color 120ms ease;
+  transition: color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-footer__link:hover {
@@ -601,17 +648,26 @@
 
 .marketing-compare-table thead th {
   text-align: left;
-  padding: 14px 16px;
+  padding: 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
   color: var(--text-primary);
   font-size: 0.92rem;
+  letter-spacing: -0.005em;
 }
 
 .marketing-compare-table tbody td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
+  transition: background-color var(--motion-base) var(--motion-ease);
+}
+
+/* Zebra striping at a whisper. The even rows tint 50% of the surface
+ * colour so dense feature grids feel scannable without competing with
+ * the Pro column highlight. */
+.marketing-compare-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--bg-surface) 50%, transparent);
 }
 
 .marketing-compare-table tbody tr:hover td {
@@ -619,7 +675,26 @@
 }
 
 .marketing-compare-table__highlight {
-  background: rgba(15, 118, 255, 0.03);
+  background: rgba(15, 118, 255, 0.05);
+}
+
+/* Pro column beats zebra on even rows so the vertical stripe reads
+ * continuous top to bottom. */
+.marketing-compare-table tbody tr:nth-child(even) td.marketing-compare-table__highlight {
+  background: rgba(15, 118, 255, 0.07);
+}
+
+.marketing-compare-table__icon-check {
+  display: inline-flex;
+  color: var(--brand-v2);
+  vertical-align: middle;
+}
+
+.marketing-compare-table__icon-dash {
+  display: inline-block;
+  color: var(--text-secondary);
+  opacity: 0.45;
+  font-weight: 500;
 }
 
 .marketing-compare-scroll {
@@ -659,11 +734,23 @@
   width: 20px;
   height: 20px;
   color: var(--text-secondary);
-  transition: transform 180ms ease;
+  transition:
+    transform var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-faq-item--open .marketing-faq-item__icon {
-  transform: rotate(45deg);
+  /* Plus → X rotation reads as a clean "close" affordance for the
+   * open state. Slightly past 45° settles crisp against baseline. */
+  transform: rotate(135deg);
+  color: var(--brand-v2);
+}
+
+.marketing-faq-item__button {
+  transition: color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-faq-item__button:hover {
   color: var(--brand-v2);
 }
 
