@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Archive, Play } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import CardsPanel from "./CardsPanel";
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function DecksPanel({ notebookId, onStartReview }: Props) {
+  const t = useTranslations("console-notebooks");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -77,7 +79,7 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         <input
           type="text"
-          placeholder="New deck name"
+          placeholder={t("study.decks.createPlaceholder")}
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           style={{ flex: 1, padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6 }}
@@ -89,12 +91,12 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
           data-testid="decks-panel-create"
           style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" }}
         >
-          <Plus size={14} /> Create
+          <Plus size={14} /> {t("study.decks.createBtn")}
         </button>
       </div>
 
       {decks.length === 0 ? (
-        <p style={{ color: "#888", fontSize: 12 }}>No decks yet. Create one above.</p>
+        <p style={{ color: "#888", fontSize: 12 }}>{t("study.decks.empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {decks.map((d) => (
@@ -115,12 +117,12 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
                 style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", fontSize: 13 }}
               >
                 <div style={{ fontWeight: 600 }}>{d.name}</div>
-                <div style={{ color: "#666", fontSize: 11 }}>{d.card_count} cards</div>
+                <div style={{ color: "#666", fontSize: 11 }}>{t("study.decks.cards", { count: d.card_count })}</div>
               </button>
               <button
                 type="button"
                 onClick={() => onStartReview(d.id)}
-                title="Start Review"
+                title={t("study.decks.startReview")}
                 data-testid="deck-start-review"
                 style={{ padding: 4, border: "none", background: "transparent", cursor: "pointer", color: "#2563eb" }}
               >
@@ -129,7 +131,7 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
               <button
                 type="button"
                 onClick={() => void handleArchive(d.id)}
-                title="Archive"
+                title={t("study.decks.archive")}
                 style={{ padding: 4, border: "none", background: "transparent", cursor: "pointer", color: "#9ca3af" }}
               >
                 <Archive size={16} />

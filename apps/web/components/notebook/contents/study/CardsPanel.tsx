@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Play, Trash2, Sparkles, ClipboardList } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import GenerateFlashcardsModal from "./GenerateFlashcardsModal";
 import QuizModal from "./QuizModal";
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }: Props) {
+  const t = useTranslations("console-notebooks");
   const [cards, setCards] = useState<Card[]>([]);
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
@@ -67,47 +69,47 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
         >
           <ArrowLeft size={16} />
         </button>
-        <strong style={{ flex: 1 }}>Cards ({cards.length})</strong>
+        <strong style={{ flex: 1 }}>{t("study.cards.title", { count: cards.length })}</strong>
         <button
           type="button"
           onClick={() => onStartReview(deckId)}
-          title="Start Review"
+          title={t("study.cards.review")}
           data-testid="cards-panel-review"
           style={{ padding: 6, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
         >
-          <Play size={14} /> Review
+          <Play size={14} /> {t("study.cards.review")}
         </button>
         <button
           type="button"
           onClick={() => setShowGen(true)}
-          title="Generate Flashcards"
+          title={t("study.cards.generate")}
           data-testid="cards-panel-generate"
           style={{ padding: 6, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
         >
-          <Sparkles size={14} /> Generate
+          <Sparkles size={14} /> {t("study.cards.generate")}
         </button>
         <button
           type="button"
           onClick={() => setShowQuiz(true)}
-          title="Quiz"
+          title={t("study.cards.quiz")}
           data-testid="cards-panel-quiz"
           style={{ padding: 6, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
         >
-          <ClipboardList size={14} /> Quiz
+          <ClipboardList size={14} /> {t("study.cards.quiz")}
         </button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, marginBottom: 12 }}>
         <input
           type="text"
-          placeholder="Front"
+          placeholder={t("study.cards.frontPlaceholder")}
           value={newFront}
           onChange={(e) => setNewFront(e.target.value)}
           style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6 }}
         />
         <input
           type="text"
-          placeholder="Back"
+          placeholder={t("study.cards.backPlaceholder")}
           value={newBack}
           onChange={(e) => setNewBack(e.target.value)}
           style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6 }}
@@ -124,7 +126,7 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
       </div>
 
       {cards.length === 0 ? (
-        <p style={{ color: "#888", fontSize: 12 }}>No cards yet.</p>
+        <p style={{ color: "#888", fontSize: 12 }}>{t("study.cards.empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {cards.map((c) => (
@@ -143,7 +145,7 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
                 <div style={{ fontWeight: 600, fontSize: 12 }}>{c.front}</div>
                 <div style={{ color: "#666", fontSize: 12 }}>{c.back}</div>
                 <div style={{ color: "#9ca3af", fontSize: 10, marginTop: 2 }}>
-                  {c.source_type} · {c.review_count} reviews
+                  {c.source_type} · {t("study.cards.reviewCount", { count: c.review_count })}
                 </div>
               </div>
               <button

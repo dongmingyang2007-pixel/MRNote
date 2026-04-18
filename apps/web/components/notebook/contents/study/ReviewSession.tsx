@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Eye, Flag } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiPost } from "@/lib/api";
 
 interface Card {
@@ -17,18 +18,19 @@ interface Props {
   onExit: () => void;
 }
 
-const RATINGS: { label: string; value: 1 | 2 | 3 | 4 }[] = [
-  { label: "Again", value: 1 },
-  { label: "Hard", value: 2 },
-  { label: "Good", value: 3 },
-  { label: "Easy", value: 4 },
-];
-
 export default function ReviewSession({ deckId, onExit }: Props) {
+  const t = useTranslations("console-notebooks");
   const [card, setCard] = useState<Card | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [reviewed, setReviewed] = useState(0);
+
+  const RATINGS: { label: string; value: 1 | 2 | 3 | 4 }[] = [
+    { label: t("study.review.again"), value: 1 },
+    { label: t("study.review.hard"), value: 2 },
+    { label: t("study.review.good"), value: 3 },
+    { label: t("study.review.easy"), value: 4 },
+  ];
 
   const fetchNext = useCallback(async () => {
     setRevealed(false);
@@ -76,24 +78,24 @@ export default function ReviewSession({ deckId, onExit }: Props) {
     return (
       <div data-testid="review-empty" style={{ padding: 32, textAlign: "center" }}>
         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-          Queue empty
+          {t("study.review.queueEmpty")}
         </div>
         <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>
-          Reviewed {reviewed} card(s).
+          {t("study.review.reviewed", { count: reviewed })}
         </div>
         <button
           type="button"
           onClick={onExit}
           style={{ padding: "6px 16px", border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "pointer" }}
         >
-          Back to decks
+          {t("study.review.backToDecks")}
         </button>
       </div>
     );
   }
 
   if (!card) {
-    return <div style={{ padding: 16, color: "#888" }}>Loading…</div>;
+    return <div style={{ padding: 16, color: "#888" }}>{t("study.review.loading")}</div>;
   }
 
   return (
@@ -109,7 +111,7 @@ export default function ReviewSession({ deckId, onExit }: Props) {
         }}
       >
         <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>
-          Question · reviewed {card.review_count} time(s)
+          {t("study.review.questionLabel", { count: card.review_count })}
         </div>
         <div data-testid="review-front" style={{ fontSize: 15, lineHeight: 1.55 }}>
           {card.front}
@@ -127,7 +129,7 @@ export default function ReviewSession({ deckId, onExit }: Props) {
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Answer</div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>{t("study.review.answerLabel")}</div>
           <div data-testid="review-back" style={{ fontSize: 15, lineHeight: 1.55 }}>
             {card.back}
           </div>
@@ -149,7 +151,7 @@ export default function ReviewSession({ deckId, onExit }: Props) {
             cursor: "pointer",
           }}
         >
-          <Eye size={14} /> Reveal answer
+          <Eye size={14} /> {t("study.review.revealAnswer")}
         </button>
       )}
 
@@ -190,7 +192,7 @@ export default function ReviewSession({ deckId, onExit }: Props) {
                 fontSize: 11,
               }}
             >
-              <Flag size={12} /> Mark as confused
+              <Flag size={12} /> {t("study.review.markConfused")}
             </button>
           </div>
         </>
