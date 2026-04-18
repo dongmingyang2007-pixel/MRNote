@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import AskTab from "./ai-panel-tabs/AskTab";
 import SummaryTab from "./ai-panel-tabs/SummaryTab";
 import MemoryTab from "./ai-panel-tabs/MemoryTab";
@@ -13,32 +14,28 @@ interface AIPanelWindowProps {
   pageId: string;
 }
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "ask", label: "Ask" },
-  { key: "summary", label: "Summary" },
-  { key: "memory", label: "Memory" },
-  { key: "trace", label: "Trace" },
-];
+const TAB_KEYS: TabKey[] = ["ask", "summary", "memory", "trace"];
 
 export default function AIPanelWindow({
   notebookId,
   pageId,
 }: AIPanelWindowProps) {
+  const t = useTranslations("console-notebooks");
   const [tab, setTab] = useState<TabKey>("ask");
 
   return (
     <div className="ai-panel-window">
       <div className="ai-panel-window__tabs" role="tablist">
-        {TABS.map((t) => (
+        {TAB_KEYS.map((tabKey) => (
           <button
-            key={t.key}
+            key={tabKey}
             type="button"
             role="tab"
-            aria-selected={tab === t.key}
-            data-testid={`ai-panel-tab-${t.key}`}
-            onClick={() => setTab(t.key)}
+            aria-selected={tab === tabKey}
+            data-testid={`ai-panel-tab-${tabKey}`}
+            onClick={() => setTab(tabKey)}
           >
-            {t.label}
+            {t(`aiPanel.tab.${tabKey}`)}
           </button>
         ))}
       </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiStream } from "@/lib/api-stream";
 
 interface SummaryTabProps {
@@ -9,6 +10,7 @@ interface SummaryTabProps {
 }
 
 export default function SummaryTab({ pageId }: SummaryTabProps) {
+  const t = useTranslations("console-notebooks");
   const [summary, setSummary] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,20 +40,20 @@ export default function SummaryTab({ pageId }: SummaryTabProps) {
           setSummary(acc);
         } else if (event.event === "error") {
           setError(
-            (event.data as { message?: string }).message || "Summary failed",
+            (event.data as { message?: string }).message || t("summary.error.failed"),
           );
         }
       }
     } catch (err) {
       // Aborted streams are not errors from the user's perspective.
       if (err instanceof Error && err.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Summary failed");
+      setError(err instanceof Error ? err.message : t("summary.error.failed"));
     } finally {
       if (abortRef.current === controller) {
         setStreaming(false);
       }
     }
-  }, [pageId, streaming]);
+  }, [pageId, streaming, t]);
 
   return (
     <div data-testid="ai-panel-summary" style={{ padding: 12 }}>
@@ -74,7 +76,7 @@ export default function SummaryTab({ pageId }: SummaryTabProps) {
         }}
       >
         {streaming ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-        {streaming ? "Generating…" : "Generate summary"}
+        {streaming ? t("summary.generating") : t("summary.generate")}
       </button>
       {error && (
         <p style={{ marginTop: 12, fontSize: 12, color: "#b91c1c" }}>{error}</p>
