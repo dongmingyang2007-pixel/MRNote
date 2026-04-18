@@ -45,6 +45,7 @@ export default function LanguageSwitcher({ label, enLabel, zhLabel }: LanguageSw
           cursor: "pointer",
           color: locale === "en" ? "var(--text-primary)" : "var(--text-secondary)",
           fontWeight: locale === "en" ? 600 : 400,
+          transition: "color var(--motion-base) var(--motion-ease)",
         }}
         disabled={pending}
       >
@@ -62,6 +63,7 @@ export default function LanguageSwitcher({ label, enLabel, zhLabel }: LanguageSw
           cursor: "pointer",
           color: locale === "zh" ? "var(--text-primary)" : "var(--text-secondary)",
           fontWeight: locale === "zh" ? 600 : 400,
+          transition: "color var(--motion-base) var(--motion-ease)",
         }}
         disabled={pending}
       >

@@ -87,8 +87,12 @@
   border-radius: var(--radius-full);
   font-size: 0.95rem;
   font-weight: 600;
-  transition: transform 120ms ease, background-color 120ms ease,
-    border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  /* No transform in the transition list — hover must not shift layout. */
+  transition:
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease);
   white-space: nowrap;
   cursor: pointer;
   border: 1px solid transparent;
@@ -103,9 +107,11 @@
 }
 
 .marketing-btn--primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(15, 118, 255, 0.28),
-    0 12px 32px rgba(15, 118, 255, 0.22);
+  /* Darken by swapping to a slightly deeper blue; the glow grows but
+   * the button stays pinned so surrounding content does not reflow. */
+  background: #0a5fd6;
+  box-shadow: 0 2px 6px rgba(15, 118, 255, 0.32),
+    0 14px 36px rgba(15, 118, 255, 0.24);
 }
 
 .marketing-btn--secondary {
@@ -116,6 +122,7 @@
 
 .marketing-btn--secondary:hover {
   background: var(--bg-surface);
+  border-color: var(--text-secondary);
 }
 
 .marketing-btn--lg {
@@ -328,23 +335,29 @@
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  transition: border-color 150ms ease, box-shadow 150ms ease,
-    transform 150ms ease;
+  /* No transform here — hover polish is colour + shadow only. */
+  transition:
+    border-color var(--motion-base) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease);
+  height: 100%;
 }
 
 .marketing-plan-card:hover {
-  border-color: rgba(15, 118, 255, 0.4);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 118, 255, 0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .marketing-plan-card--highlight {
-  border-color: var(--brand-v2);
-  box-shadow: 0 8px 28px rgba(15, 118, 255, 0.15);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 2px var(--brand-v2),
+    0 12px 32px rgba(15, 118, 255, 0.18);
 }
 
 .marketing-plan-card--highlight:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(15, 118, 255, 0.2);
+  box-shadow:
+    0 0 0 2px var(--brand-v2),
+    0 18px 44px rgba(15, 118, 255, 0.24);
 }
 
 .marketing-plan-card__badge {
@@ -461,15 +474,21 @@
 }
 
 .marketing-header__link {
+  position: relative;
   color: var(--text-secondary);
   font-size: 0.95rem;
   font-weight: 500;
   text-decoration: none;
-  transition: color 120ms ease;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-header__link:hover {
   color: var(--text-primary);
+  border-bottom-color: var(--brand-v2);
 }
 
 .marketing-header__cta {
@@ -495,6 +514,15 @@
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
+  transition:
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-header__mobile-toggle:hover {
+  background: var(--bg-surface);
+  border-color: var(--text-secondary);
 }
 
 @media (min-width: 768px) {
@@ -506,9 +534,13 @@
 .marketing-mobile-panel {
   position: fixed;
   inset: 56px 0 0 0;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(12px);
-  z-index: 39;
+  /* Dimmed scrim over the page content — sits above body copy,
+   * below the sticky header. backdrop-blur lets the nav feel
+   * layered over real content rather than a solid takeover. */
+  background: rgba(12, 18, 33, 0.42);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  z-index: var(--z-dropdown);
   padding: 32px 24px;
   display: flex;
   flex-direction: column;
@@ -522,6 +554,11 @@
   font-weight: 500;
   border-bottom: 1px solid var(--border);
   text-decoration: none;
+  transition: color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-mobile-panel__link:hover {
+  color: var(--brand-v2);
 }
 
 .marketing-footer {
@@ -563,7 +600,7 @@
   color: var(--text-secondary);
   font-size: 0.92rem;
   text-decoration: none;
-  transition: color 120ms ease;
+  transition: color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-footer__link:hover {
@@ -662,11 +699,23 @@
   width: 20px;
   height: 20px;
   color: var(--text-secondary);
-  transition: transform 180ms ease;
+  transition:
+    transform var(--motion-base) var(--motion-ease),
+    color var(--motion-base) var(--motion-ease);
 }
 
 .marketing-faq-item--open .marketing-faq-item__icon {
-  transform: rotate(45deg);
+  /* Plus → X rotation reads as a clean "close" affordance for the
+   * open state. Slightly past 45° settles crisp against baseline. */
+  transform: rotate(135deg);
+  color: var(--brand-v2);
+}
+
+.marketing-faq-item__button {
+  transition: color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-faq-item__button:hover {
   color: var(--brand-v2);
 }
 
