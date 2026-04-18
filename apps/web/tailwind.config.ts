@@ -43,6 +43,7 @@ const config: Config = {
       borderRadius: {
         panel: "30px",
         card: "20px",
+        xs: "4px",
         sm: "var(--radius-sm)",
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
@@ -50,6 +51,24 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "-apple-system", "PingFang SC", "Microsoft YaHei", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        display: ["var(--font-family-display)"],
+      },
+      transitionDuration: {
+        DEFAULT: "200ms",
+        fast: "150ms",
+        slow: "300ms",
+      },
+      transitionTimingFunction: {
+        DEFAULT: "cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+      zIndex: {
+        dropdown: "10",
+        sticky: "20",
+        "modal-backdrop": "30",
+        modal: "40",
+        popover: "50",
+        tooltip: "60",
+        toast: "70",
       },
       screens: {
         tablet: "768px",
