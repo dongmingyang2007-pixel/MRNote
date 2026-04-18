@@ -183,6 +183,11 @@
   color: var(--text-secondary);
 }
 
+.marketing-hero__demo-wrap {
+  position: relative;
+  width: 100%;
+}
+
 /* ─── Problem (3-col) ─── */
 
 .marketing-grid-3 {

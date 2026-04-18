@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, PlayCircle } from "lucide-react";
 import HeroAnimatedClient from "./HeroAnimatedClient";
+import HeroCanvasStage from "./HeroCanvasStage";
 
 export default async function HeroSection() {
   const t = await getTranslations("marketing");
@@ -40,20 +41,8 @@ export default async function HeroSection() {
             </div>
           </div>
 
-          <div className="marketing-hero__demo marketing-fade-in marketing-fade-in--delay-2">
-            <div
-              style={{
-                fontSize: "0.95rem",
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                marginBottom: 8,
-              }}
-            >
-              {t("hero.demo.placeholder.title")}
-            </div>
-            <div style={{ fontSize: "0.85rem" }}>
-              {t("hero.demo.placeholder.hint")}
-            </div>
+          <div className="marketing-hero__demo-wrap marketing-fade-in marketing-fade-in--delay-2">
+            <HeroCanvasStage />
           </div>
         </div>
       </HeroAnimatedClient>
