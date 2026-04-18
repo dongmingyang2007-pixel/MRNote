@@ -1,5 +1,6 @@
 "use client";
 
+import { Brain } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export interface CreateNotebookStepProps {
@@ -18,6 +19,11 @@ export default function CreateNotebookStep({
   const t = useTranslations("onboarding");
   return (
     <>
+      {/* Small brand icon decoration */}
+      <div className="onboarding-step-icon" aria-hidden="true">
+        <Brain size={18} strokeWidth={1.75} />
+      </div>
+
       <h2 className="onboarding-card__title">
         {t("createNotebook.title")}
       </h2>
@@ -39,6 +45,9 @@ export default function CreateNotebookStep({
           placeholder={t("createNotebook.clientName.placeholder")}
           autoComplete="off"
         />
+        <span className="onboarding-field__hint">
+          {t("createNotebook.clientName.hint")}
+        </span>
       </div>
 
       <div className="onboarding-field">

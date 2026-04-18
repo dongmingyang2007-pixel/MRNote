@@ -29,6 +29,7 @@ export default function PasteNoteStep({
           onChange={(e) => onNoteTextChange(e.target.value)}
           placeholder={t("pasteNote.placeholder")}
         />
+        <span className="onboarding-field__hint">{t("pasteNote.hint")}</span>
       </div>
     </>
   );
