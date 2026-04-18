@@ -29,7 +29,7 @@ export default function DigestMock({ style, decorative }: DigestMockProps) {
       <div className="marketing-mock__row">
         <span className="marketing-mock__row-label">Drift</span>
         <span className="marketing-mock__row-value">
-          Sarah's scope +32% vs. original SOW
+          Sarah&apos;s scope +32% vs. original SOW
         </span>
       </div>
     </MockWindow>
