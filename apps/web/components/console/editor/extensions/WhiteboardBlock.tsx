@@ -139,7 +139,10 @@ function WhiteboardBlockView(props: WhiteboardNodeViewProps) {
   // ---- Debounced onChange handler -------------------------------------------
 
   const handleChange = useCallback(
-    (newElements: readonly ExcalidrawElement[], newAppState: ExcalidrawAppState) => {
+    // Excalidraw's onChange sends (OrderedExcalidrawElement[], AppState, BinaryFiles).
+    // We don't depend on its concrete types — accept broadly and narrow inside.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (newElements: readonly any[], newAppState: any) => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
