@@ -6,9 +6,14 @@ import MockWindow from "./MockWindow";
  * this one is intentionally calm to contrast with the pulsing
  * FollowupMock.
  */
-export default function DigestMock({ style }: { style?: React.CSSProperties }) {
+interface DigestMockProps {
+  style?: React.CSSProperties;
+  decorative?: boolean;
+}
+
+export default function DigestMock({ style, decorative }: DigestMockProps) {
   return (
-    <MockWindow title="Monday Digest · Wk 16" style={style}>
+    <MockWindow title="Monday Digest · Wk 16" style={style} decorative={decorative}>
       <div className="marketing-mock__row">
         <span className="marketing-mock__row-label">Done</span>
         <span className="marketing-mock__row-value">

@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import LiveCanvasDemo from "./LiveCanvasDemo";
+
 export default async function ScreenshotSection() {
   const t = await getTranslations("marketing");
   return (
@@ -21,20 +23,7 @@ export default async function ScreenshotSection() {
           </p>
         </div>
 
-        <div className="marketing-screenshot">
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                marginBottom: 6,
-              }}
-            >
-              {t("screenshot.placeholder.label")}
-            </div>
-            <div>{t("screenshot.placeholder.hint")}</div>
-          </div>
-        </div>
+        <LiveCanvasDemo />
       </div>
     </section>
   );

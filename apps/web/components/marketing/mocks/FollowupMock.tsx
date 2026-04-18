@@ -5,9 +5,14 @@ import MockWindow from "./MockWindow";
  * dots + one 45-day dormant client warning in amber. The pulse is the
  * "nudge" motion; no timer or wall-clock logic — it's purely visual.
  */
-export default function FollowupMock({ style }: { style?: React.CSSProperties }) {
+interface FollowupMockProps {
+  style?: React.CSSProperties;
+  decorative?: boolean;
+}
+
+export default function FollowupMock({ style, decorative }: FollowupMockProps) {
   return (
-    <MockWindow title="Follow-ups · Due today" style={style}>
+    <MockWindow title="Follow-ups · Due today" style={style} decorative={decorative}>
       <div className="marketing-mock__row">
         <span className="marketing-mock__dot marketing-mock__dot--pulse" />
         <span className="marketing-mock__row-value">

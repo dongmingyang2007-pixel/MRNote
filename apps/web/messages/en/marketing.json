@@ -64,6 +64,7 @@
   "screenshot.sub": "Drag any document, memory, or digest onto the whiteboard. Keep three clients open side-by-side without losing your place.",
   "screenshot.placeholder.label": "Product screenshot",
   "screenshot.placeholder.hint": "Screenshot placeholder — full workspace",
+  "screenshot.canvas.hint": "Drag any window — try it",
 
   "pricing.kicker": "Pricing",
   "pricing.title": "Simple pricing. Start free.",

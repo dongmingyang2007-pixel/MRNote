@@ -6,9 +6,14 @@ import MockWindow from "./MockWindow";
  * suggest it's being written in real-time, reinforcing the
  * "auto-extracted" promise of the feature.
  */
-export default function MemoryMock({ style }: { style?: React.CSSProperties }) {
+interface MemoryMockProps {
+  style?: React.CSSProperties;
+  decorative?: boolean;
+}
+
+export default function MemoryMock({ style, decorative }: MemoryMockProps) {
   return (
-    <MockWindow title="Memory · Sarah Chen" style={style}>
+    <MockWindow title="Memory · Sarah Chen" style={style} decorative={decorative}>
       <div className="marketing-mock__row">
         <span className="marketing-mock__row-label">Quote</span>
         <span className="marketing-mock__row-value">$18K, delivery in 6 weeks</span>
