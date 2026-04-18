@@ -34,17 +34,29 @@ def create_checkout_session_subscription(
     success_url: str,
     cancel_url: str,
     metadata: dict[str, str] | None = None,
+    trial_period_days: int | None = None,
 ) -> str:
-    """Returns the Checkout session URL for redirect."""
+    """Returns the Checkout session URL for redirect.
+
+    If ``trial_period_days`` is a positive integer, Stripe will start the
+    subscription in trialing state for that many days (via
+    ``subscription_data.trial_period_days``) — no charge until the trial
+    ends. Pass ``None`` to create a subscription without a trial.
+    """
     _init()
-    session = stripe.checkout.Session.create(
-        mode="subscription",
-        customer=stripe_customer_id,
-        line_items=[{"price": price_id, "quantity": quantity}],
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata=metadata or {},
-    )
+    session_kwargs: dict[str, Any] = {
+        "mode": "subscription",
+        "customer": stripe_customer_id,
+        "line_items": [{"price": price_id, "quantity": quantity}],
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": metadata or {},
+    }
+    if trial_period_days is not None and trial_period_days > 0:
+        session_kwargs["subscription_data"] = {
+            "trial_period_days": trial_period_days,
+        }
+    session = stripe.checkout.Session.create(**session_kwargs)
     return session["url"]
 
 
