@@ -18,7 +18,7 @@ export default async function ProblemSection() {
       <div className="marketing-inner">
         <div className="marketing-inner--narrow" style={{ textAlign: "center", margin: "0 auto" }}>
           <span className="marketing-eyebrow">{t("problem.kicker")}</span>
-          <h2 className="marketing-h2">{t("problem.title")}</h2>
+          <h2 className="marketing-h2 font-display">{t("problem.title")}</h2>
         </div>
 
         <div className="marketing-grid-3">

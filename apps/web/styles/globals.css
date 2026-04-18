@@ -2735,6 +2735,10 @@
   --input: var(--border);
   --radius: var(--radius-md);
 
+  /* Font stacks */
+  --font-family-sans: "Noto Sans SC", "PingFang SC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-display: var(--font-jakarta), "Noto Sans SC", "PingFang SC", ui-sans-serif, system-ui, sans-serif;
+
   /* ── Voice Panel Tokens ── */
   --voice-bg: #1a1a2e;
   --voice-border: rgba(37, 99, 235, 0.3);
@@ -2914,6 +2918,17 @@ body::before {
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent 68%);
   opacity: 0.4;
   contain: strict;
+}
+
+/* Display / heading font — Plus Jakarta Sans via CSS var injected by next/font */
+.font-display,
+h1, h2, h3 {
+  font-family: var(--font-family-display);
+  letter-spacing: -0.01em;
+}
+
+h1, h2 {
+  letter-spacing: -0.02em;
 }
 
 ::selection {

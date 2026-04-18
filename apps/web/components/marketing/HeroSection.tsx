@@ -11,7 +11,7 @@ export default async function HeroSection() {
         <div className="marketing-hero__grid">
           <div className="marketing-fade-in">
             <span className="marketing-eyebrow">{t("hero.kicker")}</span>
-            <h1 className="marketing-h1" style={{ marginBottom: 24 }}>
+            <h1 className="marketing-h1 font-display" style={{ marginBottom: 24 }}>
               {t("hero.title")}
             </h1>
             <p className="marketing-lead" style={{ maxWidth: 580 }}>

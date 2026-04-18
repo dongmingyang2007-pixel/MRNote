@@ -49,7 +49,7 @@ const config: Config = {
         lg: "var(--radius-lg)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "-apple-system", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+        sans: ["var(--font-family-sans)", "var(--font-sans)", "system-ui", "-apple-system", "PingFang SC", "Microsoft YaHei", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
         display: ["var(--font-family-display)"],
       },
