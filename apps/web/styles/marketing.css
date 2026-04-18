@@ -361,19 +361,23 @@
 }
 
 .marketing-plan-card__badge {
+  /* Floating pill that sits above the ring outline. The ring comes from
+   * `--highlight`'s 0-offset shadow, so the badge hovers 14px above the
+   * card and centers over it without disturbing the inner layout. */
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 12px;
+  padding: 5px 14px;
   background: var(--brand-v2);
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: var(--radius-full);
   white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 118, 255, 0.3);
 }
 
 .marketing-plan-card__price {
@@ -394,12 +398,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  /* flex: 1 auto — fills vertical space so the CTA sits anchored to the
+   * card bottom across all four cards regardless of feature count. */
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-secondary);
   font-size: 0.92rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .marketing-plan-card__feature {
@@ -641,17 +648,26 @@
 
 .marketing-compare-table thead th {
   text-align: left;
-  padding: 14px 16px;
+  padding: 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
   color: var(--text-primary);
   font-size: 0.92rem;
+  letter-spacing: -0.005em;
 }
 
 .marketing-compare-table tbody td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
+  transition: background-color var(--motion-base) var(--motion-ease);
+}
+
+/* Zebra striping at a whisper. The even rows tint 50% of the surface
+ * colour so dense feature grids feel scannable without competing with
+ * the Pro column highlight. */
+.marketing-compare-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--bg-surface) 50%, transparent);
 }
 
 .marketing-compare-table tbody tr:hover td {
@@ -659,7 +675,26 @@
 }
 
 .marketing-compare-table__highlight {
-  background: rgba(15, 118, 255, 0.03);
+  background: rgba(15, 118, 255, 0.05);
+}
+
+/* Pro column beats zebra on even rows so the vertical stripe reads
+ * continuous top to bottom. */
+.marketing-compare-table tbody tr:nth-child(even) td.marketing-compare-table__highlight {
+  background: rgba(15, 118, 255, 0.07);
+}
+
+.marketing-compare-table__icon-check {
+  display: inline-flex;
+  color: var(--brand-v2);
+  vertical-align: middle;
+}
+
+.marketing-compare-table__icon-dash {
+  display: inline-block;
+  color: var(--text-secondary);
+  opacity: 0.45;
+  font-weight: 500;
 }
 
 .marketing-compare-scroll {

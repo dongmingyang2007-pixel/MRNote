@@ -50,7 +50,35 @@ export default function PricingTable() {
 
   return (
     <section className="marketing-section" style={{ paddingTop: 24 }}>
-      <div className="marketing-inner marketing-inner--wide" style={{ margin: "0 auto" }}>
+      <div
+        className="marketing-inner marketing-inner--wide"
+        style={{ margin: "0 auto", textAlign: "center" }}
+      >
+        <div
+          aria-hidden={cycle !== "yearly"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 12px",
+            borderRadius: "var(--radius-full)",
+            background: "rgba(15, 118, 255, 0.1)",
+            color: "var(--brand-v2)",
+            fontSize: "0.72rem",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            marginBottom: 14,
+            opacity: cycle === "yearly" ? 1 : 0,
+            transform:
+              cycle === "yearly" ? "translateY(0)" : "translateY(4px)",
+            transition:
+              "opacity var(--motion-base) var(--motion-ease), transform var(--motion-base) var(--motion-ease)",
+            pointerEvents: cycle === "yearly" ? "auto" : "none",
+          }}
+        >
+          {t("pricing.cycle.save")}
+        </div>
         <div
           role="group"
           aria-label={t("pricing.kicker")}
