@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import "@/styles/onboarding.css";
@@ -35,6 +35,9 @@ export default function OnboardingWizard() {
   const [busy, setBusy] = useState(false);
   const [notebookId, setNotebookId] = useState<string | null>(null);
 
+  // Track direction so children can optionally animate correctly.
+  const directionRef = useRef<"forward" | "back">("forward");
+
   if (completed !== false) {
     // null → still loading; true → already onboarded → render nothing.
     return null;
@@ -42,6 +45,7 @@ export default function OnboardingWizard() {
 
   const goNext = async () => {
     if (busy) return;
+    directionRef.current = "forward";
 
     // Step-specific side effects before advancing.
     if (currentStep === 1) {
@@ -109,6 +113,7 @@ export default function OnboardingWizard() {
 
   const goBack = () => {
     if (busy) return;
+    directionRef.current = "back";
     setCurrentStep((s) => Math.max(0, s - 1));
   };
 
@@ -135,6 +140,12 @@ export default function OnboardingWizard() {
     }
   })();
 
+  // Determine animation class based on direction.
+  const stepAnimClass =
+    directionRef.current === "back"
+      ? "onboarding-step-enter-back"
+      : "onboarding-step-enter";
+
   return (
     <div
       className="onboarding-overlay"
@@ -144,8 +155,10 @@ export default function OnboardingWizard() {
       data-testid="onboarding-wizard"
     >
       <div className="onboarding-card">
+        {/* Header: brand wordmark (left) + step dots (right) */}
         <div className="onboarding-card__header">
-          <div className="onboarding-card__dots">
+          <span className="onboarding-card__wordmark">MRNote</span>
+          <div className="onboarding-card__dots" aria-hidden="true">
             {Array.from({ length: TOTAL_STEPS }).map((_, idx) => (
               <span
                 key={idx}
@@ -168,26 +181,30 @@ export default function OnboardingWizard() {
           </span>
         </div>
 
+        {/* Body — key remount drives enter animation */}
         <div className="onboarding-card__body" id="onboarding-title">
-          {currentStep === 0 && <WelcomeStep />}
-          {currentStep === 1 && (
-            <CreateNotebookStep
-              clientName={clientName}
-              onClientNameChange={setClientName}
-              whatTheyDo={whatTheyDo}
-              onWhatTheyDoChange={setWhatTheyDo}
-            />
-          )}
-          {currentStep === 2 && (
-            <PasteNoteStep
-              noteText={noteText}
-              onNoteTextChange={setNoteText}
-            />
-          )}
-          {currentStep === 3 && <MemoryPreviewStep />}
-          {currentStep === 4 && <NextStepsStep />}
+          <div key={currentStep} className={stepAnimClass}>
+            {currentStep === 0 && <WelcomeStep />}
+            {currentStep === 1 && (
+              <CreateNotebookStep
+                clientName={clientName}
+                onClientNameChange={setClientName}
+                whatTheyDo={whatTheyDo}
+                onWhatTheyDoChange={setWhatTheyDo}
+              />
+            )}
+            {currentStep === 2 && (
+              <PasteNoteStep
+                noteText={noteText}
+                onNoteTextChange={setNoteText}
+              />
+            )}
+            {currentStep === 3 && <MemoryPreviewStep />}
+            {currentStep === 4 && <NextStepsStep />}
+          </div>
         </div>
 
+        {/* Footer */}
         <div className="onboarding-card__footer">
           <button
             type="button"
