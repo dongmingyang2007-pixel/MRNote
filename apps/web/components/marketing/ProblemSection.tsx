@@ -18,7 +18,9 @@ export default async function ProblemSection() {
       <div className="marketing-inner">
         <div className="marketing-inner--narrow" style={{ textAlign: "center", margin: "0 auto" }}>
           <span className="marketing-eyebrow">{t("problem.kicker")}</span>
-          <h2 className="marketing-h2 font-display">{t("problem.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("problem.title")}
+          </h2>
         </div>
 
         <div className="marketing-grid-3">
@@ -31,15 +33,17 @@ export default async function ProblemSection() {
                   <Icon size={20} strokeWidth={2} />
                 </div>
                 <h3
+                  className="font-display tracking-tight text-xl md:text-2xl"
                   style={{
-                    fontSize: "1.125rem",
                     fontWeight: 600,
                     color: "var(--text-primary)",
                   }}
                 >
                   {t(`problem.item${i}.title`)}
                 </h3>
-                <p className="marketing-body">{t(`problem.item${i}.body`)}</p>
+                <p className="marketing-body leading-relaxed">
+                  {t(`problem.item${i}.body`)}
+                </p>
               </div>
             );
           })}

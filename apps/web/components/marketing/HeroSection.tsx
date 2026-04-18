@@ -10,11 +10,16 @@ export default async function HeroSection() {
       <HeroAnimatedClient>
         <div className="marketing-hero__grid">
           <div className="marketing-fade-in">
-            <span className="marketing-eyebrow">{t("hero.kicker")}</span>
-            <h1 className="marketing-h1 font-display" style={{ marginBottom: 24 }}>
+            <span className="marketing-eyebrow mb-4">{t("hero.kicker")}</span>
+            <h1
+              className="marketing-h1 font-display tracking-tight text-4xl md:text-6xl lg:text-7xl mb-6 md:mb-8"
+            >
               {t("hero.title")}
             </h1>
-            <p className="marketing-lead" style={{ maxWidth: 580 }}>
+            <p
+              className="marketing-lead text-lg md:text-xl leading-relaxed mb-8 md:mb-10"
+              style={{ maxWidth: 580 }}
+            >
               {t("hero.sub")}
             </p>
             <div className="marketing-hero__cta-row">

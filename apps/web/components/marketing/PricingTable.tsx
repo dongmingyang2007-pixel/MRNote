@@ -139,8 +139,9 @@ export default function PricingTable() {
                 )}
                 <div>
                   <div
+                    className="font-display tracking-tight"
                     style={{
-                      fontSize: "1rem",
+                      fontSize: "1.125rem",
                       fontWeight: 600,
                       color: "var(--text-primary)",
                     }}

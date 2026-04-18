@@ -120,7 +120,9 @@ export default async function FeatureComparisonTable() {
           className="marketing-inner--narrow"
           style={{ textAlign: "center", margin: "0 auto" }}
         >
-          <h2 className="marketing-h2">{t("pricingPage.compare.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("pricingPage.compare.title")}
+          </h2>
         </div>
 
         <div className="marketing-compare-scroll">

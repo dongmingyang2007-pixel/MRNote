@@ -15,7 +15,7 @@ export default async function PublicFooter() {
             style={{ marginBottom: 8, fontSize: "1rem" }}
           >
             <span className="marketing-header__logo-mark" aria-hidden="true" />
-            <span>{t("brand.name")}</span>
+            <span className="font-display tracking-tight">{t("brand.name")}</span>
           </div>
           <p className="marketing-body" style={{ fontSize: "0.88rem", maxWidth: 280 }}>
             {t("footer.tagline")}

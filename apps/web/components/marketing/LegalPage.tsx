@@ -19,12 +19,12 @@ export default function LegalPage({ title, updated, children }: LegalPageProps) 
         }}
       >
         <h1
+          className="font-display tracking-tight text-4xl md:text-5xl"
           style={{
-            fontSize: "2rem",
             fontWeight: 700,
             color: "var(--text-primary, #f1f5f9)",
             marginBottom: 8,
-            lineHeight: 1.2,
+            lineHeight: 1.1,
           }}
         >
           {title}

@@ -17,11 +17,13 @@ export default async function FeaturesSection() {
     <section className="marketing-section" id="features">
       <div className="marketing-inner">
         <div
-          className="marketing-inner--narrow"
-          style={{ textAlign: "center", margin: "0 auto 24px" }}
+          className="marketing-inner--narrow mb-10 md:mb-16"
+          style={{ textAlign: "center", margin: "0 auto" }}
         >
           <span className="marketing-eyebrow">{t("features.kicker")}</span>
-          <h2 className="marketing-h2">{t("features.title")}</h2>
+          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
+            {t("features.title")}
+          </h2>
         </div>
 
         {features.map((i) => {
@@ -39,8 +41,12 @@ export default async function FeaturesSection() {
                 <span className="marketing-eyebrow" style={{ marginBottom: 0 }}>
                   {t(`feature${i}.eyebrow`)}
                 </span>
-                <h3 className="marketing-h3">{t(`feature${i}.title`)}</h3>
-                <p className="marketing-body">{t(`feature${i}.body`)}</p>
+                <h3 className="marketing-h3 font-display tracking-tight text-xl md:text-2xl">
+                  {t(`feature${i}.title`)}
+                </h3>
+                <p className="marketing-body text-base md:text-lg leading-relaxed">
+                  {t(`feature${i}.body`)}
+                </p>
                 <ul className="marketing-feature__bullets">
                   <li className="marketing-feature__bullet">
                     {t(`feature${i}.bullets.0`)}
