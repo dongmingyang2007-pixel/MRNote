@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet } from "@/lib/api";
 
 interface AIActionItem {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function AIActionsList({ pageId }: Props) {
+  const t = useTranslations("console-notebooks");
   const [items, setItems] = useState<AIActionItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,12 +44,12 @@ export default function AIActionsList({ pageId }: Props) {
   return (
     <div data-testid="ai-actions-list" style={{ padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>AI Actions</h3>
-        <button onClick={() => void load()} style={{ fontSize: 12 }}>Refresh</button>
+        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t("aiActions.title")}</h3>
+        <button onClick={() => void load()} style={{ fontSize: 12 }}>{t("aiActions.refresh")}</button>
       </div>
-      {loading && <p style={{ fontSize: 12, color: "#888" }}>Loading…</p>}
+      {loading && <p style={{ fontSize: 12, color: "#888" }}>{t("aiActions.loading")}</p>}
       {!loading && items.length === 0 && (
-        <p style={{ fontSize: 12, color: "#888" }}>No AI actions yet.</p>
+        <p style={{ fontSize: 12, color: "#888" }}>{t("aiActions.empty")}</p>
       )}
       {!loading && items.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -62,7 +64,7 @@ export default function AIActionsList({ pageId }: Props) {
                 {it.status} · {it.model_id ?? "—"} · {it.duration_ms ?? 0}ms · {it.usage.total_tokens} tok
               </div>
               <div style={{ color: "#444", marginTop: 2 }}>
-                {it.output_summary || "(no output)"}
+                {it.output_summary || "—"}
               </div>
             </li>
           ))}

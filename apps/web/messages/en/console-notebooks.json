@@ -251,5 +251,15 @@
   "search.window.openPage": "Page",
   "search.window.openStudy": "Study",
   "search.window.openMemory": "Memory",
-  "search.window.openPlaybook": "Playbook"
+  "search.window.openPlaybook": "Playbook",
+
+  "window.minimize": "Minimize",
+  "window.maximize": "Maximize",
+  "window.restore": "Restore",
+  "window.close": "Close",
+
+  "aiActions.title": "AI Actions",
+  "aiActions.refresh": "Refresh",
+  "aiActions.loading": "Loading…",
+  "aiActions.empty": "No AI actions yet."
 }

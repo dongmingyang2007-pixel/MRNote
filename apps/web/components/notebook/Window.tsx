@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Rnd } from "react-rnd";
 import {
   Minus,
@@ -51,6 +52,7 @@ export default function Window({
   children,
   titlebarExtras,
 }: WindowProps) {
+  const t = useTranslations("console-notebooks");
   const {
     closeWindow,
     minimizeWindow,
@@ -151,7 +153,7 @@ export default function Window({
               type="button"
               className="wm-titlebar-btn"
               onClick={handleMinimize}
-              title="Minimize"
+              title={t("window.minimize")}
             >
               <Minus size={14} />
             </button>
@@ -159,7 +161,7 @@ export default function Window({
               type="button"
               className="wm-titlebar-btn"
               onClick={handleMaximizeToggle}
-              title={maximized ? "Restore" : "Maximize"}
+              title={maximized ? t("window.restore") : t("window.maximize")}
             >
               {maximized ? <Maximize2 size={14} /> : <Square size={14} />}
             </button>
@@ -167,7 +169,7 @@ export default function Window({
               type="button"
               className="wm-titlebar-btn wm-titlebar-btn--close"
               onClick={handleClose}
-              title="Close"
+              title={t("window.close")}
             >
               <X size={14} />
             </button>

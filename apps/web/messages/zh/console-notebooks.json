@@ -251,5 +251,15 @@
   "search.window.openPage": "页面",
   "search.window.openStudy": "学习",
   "search.window.openMemory": "记忆",
-  "search.window.openPlaybook": "行动手册"
+  "search.window.openPlaybook": "行动手册",
+
+  "window.minimize": "最小化",
+  "window.maximize": "最大化",
+  "window.restore": "还原",
+  "window.close": "关闭",
+
+  "aiActions.title": "AI 操作记录",
+  "aiActions.refresh": "刷新",
+  "aiActions.loading": "加载中…",
+  "aiActions.empty": "暂无 AI 操作记录。"
 }
