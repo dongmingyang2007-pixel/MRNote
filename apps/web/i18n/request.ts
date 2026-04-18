@@ -12,6 +12,7 @@ const NAMESPACES = [
   "console-chat",
   "console-models-v2",
   "console-notebooks",
+  "marketing",
 ] as const;
 
 const MESSAGE_LOADERS = {
@@ -25,6 +26,7 @@ const MESSAGE_LOADERS = {
     "console-chat": () => import("../messages/zh/console-chat.json"),
     "console-models-v2": () => import("../messages/zh/console-models-v2.json"),
     "console-notebooks": () => import("../messages/zh/console-notebooks.json"),
+    marketing: () => import("../messages/zh/marketing.json"),
   },
   en: {
     common: () => import("../messages/en/common.json"),
@@ -36,6 +38,7 @@ const MESSAGE_LOADERS = {
     "console-chat": () => import("../messages/en/console-chat.json"),
     "console-models-v2": () => import("../messages/en/console-models-v2.json"),
     "console-notebooks": () => import("../messages/en/console-notebooks.json"),
+    marketing: () => import("../messages/en/marketing.json"),
   },
 } as const;
 
