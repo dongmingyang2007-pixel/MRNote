@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPost } from "@/lib/api";
 import { useWindowManager } from "@/components/notebook/WindowManager";
 
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
+  const t = useTranslations("console-notebooks");
   const [detail, setDetail] = useState<Detail | null>(null);
   const { openWindow } = useWindowManager();
 
@@ -49,15 +51,15 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
     (pageId: string) => {
       openWindow({
         type: "note",
-        title: "Page",
+        title: t("pages.untitled"),
         meta: { notebookId, pageId },
       });
     },
-    [notebookId, openWindow],
+    [notebookId, openWindow, t],
   );
 
   if (!detail) {
-    return <p style={{ padding: 16, fontSize: 12, color: "#888" }}>Loading…</p>;
+    return <p style={{ padding: 16, fontSize: 12, color: "#888" }}>{t("digest.detail.loading")}</p>;
   }
 
   const nextActions =
@@ -78,7 +80,7 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
           className="digest-detail__back"
           data-testid="digest-detail-back"
         >
-          <ArrowLeft size={14} /> Back
+          <ArrowLeft size={14} /> {t("digest.detail.back")}
         </button>
         <button
           type="button"
@@ -86,7 +88,7 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
           className="digest-detail__back"
           data-testid="digest-detail-dismiss"
         >
-          <X size={14} /> Dismiss
+          <X size={14} /> {t("digest.detail.dismiss")}
         </button>
       </div>
       <h2 className="digest-detail__title">{detail.title}</h2>
@@ -94,12 +96,12 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
         {detail.kind} · {detail.created_at.slice(0, 10)}
       </p>
       <div className="digest-detail__body">
-        <ReactMarkdown>{detail.content_markdown || "(empty)"}</ReactMarkdown>
+        <ReactMarkdown>{detail.content_markdown || t("digest.detail.empty")}</ReactMarkdown>
       </div>
 
       {nextActions.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, marginTop: 16 }}>Next actions</h3>
+          <h3 style={{ fontSize: 13, marginTop: 16 }}>{t("digest.detail.nextActions")}</h3>
           <ul style={{ listStyle: "none", padding: 0 }}>
             {nextActions.map((a, i) => (
               <li key={i} style={{ padding: 6, borderBottom: "1px solid #eee" }}>
@@ -124,7 +126,7 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
 
       {reconfirmItems.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, marginTop: 16 }}>Memories to reconfirm</h3>
+          <h3 style={{ fontSize: 13, marginTop: 16 }}>{t("digest.detail.memoriesToReconfirm")}</h3>
           <ul style={{ listStyle: "none", padding: 0 }}>
             {reconfirmItems.map((m, i) => (
               <li key={i} style={{ padding: 6, borderBottom: "1px solid #eee", fontSize: 12 }}>

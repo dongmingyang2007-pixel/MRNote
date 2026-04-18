@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRelatedPages } from "@/hooks/useRelatedPages";
 import { useWindowManager } from "@/components/notebook/WindowManager";
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function RelatedPagesCard({ pageId }: Props) {
+  const t = useTranslations("console-notebooks");
   const { openWindow } = useWindowManager();
   const data = useRelatedPages(pageId);
   const [open, setOpen] = useState(false);
@@ -38,7 +40,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <Sparkles size={13} />
-        Related ({data.pages.length + data.memory.length})
+        {t("search.related", { count: data.pages.length + data.memory.length })}
       </button>
 
       {open && (
@@ -46,7 +48,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
           {data.pages.length > 0 && (
             <div>
               <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
-                Pages
+                {t("search.relatedPages")}
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {data.pages.map((p) => (
@@ -56,7 +58,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
                       data-testid="related-pages-link"
                       onClick={() =>
                         openWindow({
-                          type: "note", title: p.title || "Page",
+                          type: "note", title: p.title || t("search.untitled"),
                           meta: { pageId: p.id, notebookId: p.notebook_id },
                         })
                       }
@@ -66,7 +68,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
                         fontSize: 12, padding: 0, textAlign: "left",
                       }}
                     >
-                      {p.title || "(untitled)"}
+                      {p.title || t("search.untitled")}
                     </button>
                     <span style={{ color: "#9ca3af", fontSize: 10, marginLeft: 6 }}>
                       · {p.reason}
@@ -80,7 +82,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
           {data.memory.length > 0 && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>
-                Memory
+                {t("search.relatedMemory")}
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {data.memory.map((m) => (

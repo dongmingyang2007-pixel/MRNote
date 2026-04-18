@@ -222,5 +222,34 @@
   "study.assets.statusParsing": "正在解析",
   "study.assets.statusChunked": "正在索引",
   "study.assets.statusIndexed": "已完成",
-  "study.assets.statusFailed": "处理失败"
+  "study.assets.statusFailed": "处理失败",
+
+  "digest.loading": "加载中…",
+  "digest.empty": "这里还没有内容。",
+  "digest.relTime.today": "今天",
+  "digest.relTime.yesterday": "昨天",
+  "digest.relTime.daysAgo": "{days} 天前",
+  "digest.relTime.weeksAgo": "{weeks} 周前",
+  "digest.detail.loading": "加载中…",
+  "digest.detail.back": "返回",
+  "digest.detail.dismiss": "忽略",
+  "digest.detail.empty": "（空）",
+  "digest.detail.nextActions": "下一步行动",
+  "digest.detail.memoriesToReconfirm": "待确认记忆",
+
+  "search.untitled": "（无标题）",
+  "search.related": "相关（{count}）",
+  "search.relatedPages": "页面",
+  "search.relatedMemory": "记忆",
+
+  "search.window.placeholder": "搜索页面、块、记忆、学习资料…",
+  "search.window.groupPages": "页面",
+  "search.window.groupBlocks": "内容块",
+  "search.window.groupStudy": "学习资料",
+  "search.window.groupMemory": "记忆",
+  "search.window.groupPlaybooks": "行动手册",
+  "search.window.openPage": "页面",
+  "search.window.openStudy": "学习",
+  "search.window.openMemory": "记忆",
+  "search.window.openPlaybook": "行动手册"
 }
