@@ -35,5 +35,6 @@
   "common.back": "Back",
   "common.next": "Next",
   "common.step": "Step {current} of {total}",
-  "common.skip": "Skip for now"
+  "common.skip": "Skip for now",
+  "pasteNote.defaultPageTitle": "First note"
 }

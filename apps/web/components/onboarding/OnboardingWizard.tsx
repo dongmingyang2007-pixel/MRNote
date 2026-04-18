@@ -83,7 +83,7 @@ export default function OnboardingWizard() {
           await apiPost<PageCreateResponse>(
             `/api/v1/notebooks/${notebookId}/pages`,
             {
-              title: text.slice(0, 60) || "First note",
+              title: text.slice(0, 60) || t("pasteNote.defaultPageTitle"),
               plain_text: text,
             },
           );

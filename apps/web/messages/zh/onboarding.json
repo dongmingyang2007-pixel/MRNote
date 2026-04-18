@@ -35,5 +35,6 @@
   "common.back": "上一步",
   "common.next": "下一步",
   "common.step": "第 {current} 步,共 {total} 步",
-  "common.skip": "暂时跳过"
+  "common.skip": "暂时跳过",
+  "pasteNote.defaultPageTitle": "第一条笔记"
 }
