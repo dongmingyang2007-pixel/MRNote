@@ -163,44 +163,46 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           <ArrowLeft size={20} strokeWidth={1.8} />
         </Link>
 
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            data-testid={`sidebar-tab-${tab.id}`}
-            className={`glass-sidebar-nav-item${
-              isRouteActive(tab.id) || activeTab === tab.id ? " is-active" : ""
-            }`}
-            title={t(tab.key)}
-            aria-label={t(tab.key)}
-            onClick={() => handleTabClick(tab.id)}
-            style={{ position: "relative" }}
-          >
-            <tab.Icon size={20} strokeWidth={1.8} />
-            {tab.id === "digest" && unreadCount > 0 && (
-              <span
-                data-testid="sidebar-digest-badge"
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  minWidth: 14,
-                  height: 14,
-                  borderRadius: 999,
-                  background: "#ef4444",
-                  color: "#fff",
-                  fontSize: 9,
-                  lineHeight: "14px",
-                  textAlign: "center",
-                  padding: "0 3px",
-                  fontWeight: 700,
-                }}
-              >
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          const active = isRouteActive(tab.id) || activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              data-testid={`sidebar-tab-${tab.id}`}
+              className={`glass-sidebar-nav-item${active ? " is-active" : ""}`}
+              title={t(tab.key)}
+              aria-label={t(tab.key)}
+              aria-current={active ? "page" : undefined}
+              onClick={() => handleTabClick(tab.id)}
+              style={{ position: "relative" }}
+            >
+              <tab.Icon size={20} strokeWidth={active ? 2 : 1.8} />
+              {tab.id === "digest" && unreadCount > 0 && (
+                <span
+                  data-testid="sidebar-digest-badge"
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    minWidth: 14,
+                    height: 14,
+                    borderRadius: 999,
+                    background: "#ef4444",
+                    color: "#fff",
+                    fontSize: 9,
+                    lineHeight: "14px",
+                    textAlign: "center",
+                    padding: "0 3px",
+                    fontWeight: 700,
+                  }}
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
         <div style={{ flex: 1 }} />
 
@@ -216,7 +218,10 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           aria-label={t("nav.notebookSettings")}
           style={{ position: "relative" }}
         >
-          <Settings size={20} strokeWidth={1.8} />
+          <Settings
+            size={20}
+            strokeWidth={pathname.includes("/settings") ? 2 : 1.8}
+          />
           {billingMe && billingMe.plan !== "free" && (
             <span
               data-testid="sidebar-plan-badge"
