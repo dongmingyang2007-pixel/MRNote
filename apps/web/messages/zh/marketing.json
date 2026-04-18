@@ -143,6 +143,11 @@
   "footer.lang.en": "English",
   "footer.lang.zh": "中文",
 
+  "meta.title": "MRNote — 能记住所有客户的 AI 笔记本",
+  "meta.description": "跨越每一次对话的持久记忆，自动跟进提醒，每周复盘总结。专为同时服务多位客户的咨询师、自由职业者与独立创业者打造。",
+  "og.title": "MRNote — 能记住所有客户的 AI 笔记本",
+  "og.description": "不再丢失客户上下文。MRNote 为独立咨询师提供 AI 持久记忆、自动跟进提醒和每周复盘，一切尽在一本笔记本。",
+
   "pricingPage.meta.title": "定价",
   "pricingPage.hero.kicker": "定价",
   "pricingPage.hero.title": "为独立工作者量身定价。",
