@@ -12,7 +12,9 @@ function InlineMathView(props: any) {
   const { node, updateAttributes, selected } = props;
   const latex: string = node.attrs.latex || "";
 
-  const [editing, setEditing] = useState(false);
+  // Enter edit mode immediately if the node was just inserted with empty
+  // latex (e.g. via slash menu). Otherwise show the rendered formula.
+  const [editing, setEditing] = useState(latex.trim() === "");
   const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
@@ -20,13 +22,20 @@ function InlineMathView(props: any) {
 
   useEffect(() => {
     if (spanRef.current && !editing) {
-      try {
-        katex.render(value || "?", spanRef.current, {
-          displayMode: false,
-          throwOnError: false,
-        });
-      } catch {
-        spanRef.current.textContent = value || "?";
+      if (value.trim() === "") {
+        // Empty formula — show a subtle placeholder hint instead of "?".
+        spanRef.current.textContent = "\u2205"; // ∅ empty-set symbol
+        spanRef.current.setAttribute("data-empty", "true");
+      } else {
+        spanRef.current.removeAttribute("data-empty");
+        try {
+          katex.render(value, spanRef.current, {
+            displayMode: false,
+            throwOnError: false,
+          });
+        } catch {
+          spanRef.current.textContent = value;
+        }
       }
     }
   }, [value, editing]);
