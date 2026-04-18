@@ -113,23 +113,36 @@ export default function RegisterPage() {
   const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
 
   return (
-    <section
-      ref={sectionRef}
-      className="flex min-h-[70vh] flex-col items-center justify-center px-6 py-20 text-center"
-    >
+    <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
-        <p className="text-sm font-medium tracking-widest text-[var(--text-secondary)] uppercase">
+        <p className="text-xs font-medium tracking-widest text-[var(--text-secondary)] uppercase">
           {step === "form" ? t("register.kicker") : t("register.verifyKicker")}
         </p>
-        <h1 className="mt-3 text-3xl font-bold text-[var(--text-primary)]">
+        <h1 className="font-display mt-3 text-3xl font-bold tracking-tight text-[var(--text-primary)] md:text-4xl">
           {step === "form" ? t("register.title") : t("register.verifyTitle")}
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">
           {step === "form" ? t("register.helper") : t("register.verifyHelper", { email })}
         </p>
+        {step === "form" && (
+          <ul className="mt-4 space-y-1.5 text-xs text-[var(--text-secondary)] md:text-sm">
+            <li className="flex items-start gap-2">
+              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--brand-v2)]" />
+              <span>{t("register.whyBullets.free")}</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--brand-v2)]" />
+              <span>{t("register.whyBullets.trial")}</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--brand-v2)]" />
+              <span>{t("register.whyBullets.cancel")}</span>
+            </li>
+          </ul>
+        )}
       </div>
 
-      <div className="auth-form-card mt-8 w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-8 text-left">
+      <div className="auth-form-card mt-8 w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-md)] md:p-8">
         {step === "form" ? (
           <>
             <form className="space-y-4" onSubmit={handleFormSubmit}>

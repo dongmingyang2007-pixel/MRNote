@@ -36,23 +36,20 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      className="flex min-h-[70vh] flex-col items-center justify-center px-6 py-20 text-center"
-    >
+    <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
-        <p className="text-sm font-medium tracking-widest text-[var(--text-secondary)] uppercase">
+        <p className="text-xs font-medium tracking-widest text-[var(--text-secondary)] uppercase">
           {t("login.kicker")}
         </p>
-        <h1 className="mt-3 text-3xl font-bold text-[var(--text-primary)]">
+        <h1 className="font-display mt-3 text-3xl font-bold tracking-tight text-[var(--text-primary)] md:text-4xl">
           {t("login.title")}
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">
           {t("login.helper")}
         </p>
       </div>
 
-      <div className="auth-form-card mt-8 w-full max-w-md rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-8 text-left">
+      <div className="auth-form-card mt-8 w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-md)] md:p-8">
         <form
           className="space-y-4"
           onSubmit={async (e) => {
