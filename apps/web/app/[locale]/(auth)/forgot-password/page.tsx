@@ -86,13 +86,9 @@ export default function ForgotPasswordPage() {
   const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors duration-[var(--motion-base)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
 
   const getHeading = () => {
-    if (success) {
-      return { kicker: t("reset.successKicker"), title: t("reset.successHeading"), desc: t("reset.successHelper") };
-    }
-    if (step === "email") {
-      return { kicker: t("reset.kicker"), title: t("reset.title"), desc: t("reset.helper") };
-    }
-    return { kicker: t("reset.verifyKicker"), title: t("reset.verifyTitle"), desc: t("reset.verifyHelper", { email }) };
+    if (success) return { title: t("reset.successHeadingNew"), sub: t("reset.successHelper") };
+    if (step === "email") return { title: t("reset.heading"), sub: "" };
+    return { title: t("reset.verifyHeading"), sub: t("reset.verifyHelper", { email }) };
   };
 
   const heading = getHeading();
@@ -100,18 +96,17 @@ export default function ForgotPasswordPage() {
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-          {heading.kicker}
-        </p>
-        <h1 className="font-display mt-5 text-[26px] font-semibold leading-[1.25] tracking-[-0.01em] text-[var(--text-primary)] md:text-[30px]">
+        <h1 className="font-display text-[22px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
           {heading.title}
         </h1>
-        <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          {heading.desc}
-        </p>
+        {heading.sub && (
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            {heading.sub}
+          </p>
+        )}
       </div>
 
-      <div className="auth-form-card mt-8 w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-md)] md:p-8">
+      <div className="auth-form-card mt-6 w-full">
         {success ? (
           <MagneticButton
             href="/login"

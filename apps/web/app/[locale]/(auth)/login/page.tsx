@@ -40,18 +40,12 @@ export default function LoginPage() {
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-          {t("login.kicker")}
-        </p>
-        <h1 className="font-display mt-5 text-[26px] font-semibold leading-[1.25] tracking-[-0.01em] text-[var(--text-primary)] md:text-[30px]">
-          {t("login.title")}
+        <h1 className="font-display text-[22px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
+          {t("login.heading")}
         </h1>
-        <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          {t("login.helper")}
-        </p>
       </div>
 
-      <div className="auth-form-card mt-8 w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-md)] md:p-8">
+      <div className="auth-form-card mt-6 w-full">
         <form
           className="space-y-4"
           onSubmit={async (e) => {
