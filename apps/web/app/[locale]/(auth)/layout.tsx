@@ -1,41 +1,47 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { AuthBrandPanel } from "@/components/auth/AuthBrandPanel";
-
+/**
+ * Auth layout — single-column centered, the way Linear / Notion / Vercel /
+ * Stripe do it. Users reach /login because they already know the product;
+ * a marketing panel here is noise. Logo sits quietly at top-left, form
+ * carries all the weight, terms + privacy footer sits muted at bottom.
+ */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const tConsole = await getTranslations("console");
   const tMarketing = await getTranslations("marketing");
+  const tAuth = await getTranslations("auth");
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)]">
-      <header className="border-b border-[var(--border)] bg-[var(--bg-surface)]/60 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full items-center justify-between px-6 lg:px-10">
-          <Link
-            href="/app"
-            className="flex items-center gap-2 text-sm font-semibold"
-            aria-label={tConsole("brand")}
-          >
-            <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-v2)]" />
-            <span className="font-display tracking-tight">{tMarketing("brand.name")}</span>
-          </Link>
-          <span className="hidden text-xs uppercase tracking-widest text-[var(--text-secondary)] sm:inline">
-            {tConsole("brand")}
-          </span>
-        </div>
+      {/* Top bar — just the wordmark, nothing else. */}
+      <header className="px-6 pt-8 md:px-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold"
+          aria-label={tMarketing("brand.name")}
+        >
+          <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-v2)]" />
+          <span className="font-display tracking-tight">{tMarketing("brand.name")}</span>
+        </Link>
       </header>
 
-      <main className="flex-1">
-        <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-[6fr_5fr]">
-          {/* Left column — auth form (children) */}
-          <div className="flex w-full items-center justify-center px-6 py-16 md:px-10 lg:py-20">
-            <div className="w-full max-w-md">{children}</div>
-          </div>
-
-          {/* Right column — brand panel (hidden < lg) */}
-          <AuthBrandPanel />
-        </div>
+      {/* Form — single column, centered, max-w-sm. */}
+      <main className="flex flex-1 items-center justify-center px-6 py-16">
+        <div className="w-full max-w-[400px]">{children}</div>
       </main>
+
+      {/* Muted legal footer. */}
+      <footer className="px-6 pb-8 text-center text-xs text-[var(--text-secondary)] md:px-10">
+        <div className="inline-flex items-center gap-4">
+          <Link href="/terms" className="hover:text-[var(--text-primary)]">
+            {tAuth("footer.terms")}
+          </Link>
+          <span className="text-[var(--border)]">·</span>
+          <Link href="/privacy" className="hover:text-[var(--text-primary)]">
+            {tAuth("footer.privacy")}
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }
