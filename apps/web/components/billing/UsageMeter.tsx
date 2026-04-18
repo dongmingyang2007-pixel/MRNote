@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { apiGet } from "@/lib/api";
 
 interface Me {
@@ -9,6 +10,7 @@ interface Me {
 }
 
 export default function UsageMeter() {
+  const t = useTranslations("billing");
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
@@ -20,15 +22,15 @@ export default function UsageMeter() {
   if (!me) return null;
 
   const items: Array<{ label: string; current: number; limit: number | boolean | undefined }> = [
-    { label: "AI actions (this month)", current: me.usage_this_month["ai.actions"] || 0, limit: me.entitlements["ai.actions.monthly"] as number },
-    { label: "Notebooks", current: me.usage_this_month["notebooks"] || 0, limit: me.entitlements["notebooks.max"] as number },
-    { label: "Pages", current: me.usage_this_month["pages"] || 0, limit: me.entitlements["pages.max"] as number },
-    { label: "Study assets", current: me.usage_this_month["study_assets"] || 0, limit: me.entitlements["study_assets.max"] as number },
+    { label: t("usage.aiActions"), current: me.usage_this_month["ai.actions"] || 0, limit: me.entitlements["ai.actions.monthly"] as number },
+    { label: t("usage.notebooks"), current: me.usage_this_month["notebooks"] || 0, limit: me.entitlements["notebooks.max"] as number },
+    { label: t("usage.pages"), current: me.usage_this_month["pages"] || 0, limit: me.entitlements["pages.max"] as number },
+    { label: t("usage.studyAssets"), current: me.usage_this_month["study_assets"] || 0, limit: me.entitlements["study_assets.max"] as number },
   ];
 
   return (
     <section className="usage-meter" data-testid="usage-meter">
-      <h2 className="usage-meter__title">Usage</h2>
+      <h2 className="usage-meter__title">{t("usage.title")}</h2>
       <ul>
         {items.map((it, i) => {
           const limit = typeof it.limit === "number" ? it.limit : 0;
