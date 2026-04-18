@@ -253,6 +253,12 @@
   "search.window.openMemory": "记忆",
   "search.window.openPlaybook": "行动手册",
 
+  "canvas.emptyTitle": "从侧栏开始",
+  "canvas.emptyHint": "打开页面、AI 面板或搜索，开始你的工作。",
+  "canvas.openFirstPage": "打开首页",
+  "canvas.askAi": "问 AI",
+  "canvas.search": "搜索",
+
   "window.minimize": "最小化",
   "window.maximize": "最大化",
   "window.restore": "还原",

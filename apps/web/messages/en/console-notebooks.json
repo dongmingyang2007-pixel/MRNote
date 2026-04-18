@@ -253,6 +253,12 @@
   "search.window.openMemory": "Memory",
   "search.window.openPlaybook": "Playbook",
 
+  "canvas.emptyTitle": "Start from the sidebar",
+  "canvas.emptyHint": "Open a page, the AI panel, or search — whatever helps you begin.",
+  "canvas.openFirstPage": "Open first page",
+  "canvas.askAi": "Ask AI",
+  "canvas.search": "Search",
+
   "window.minimize": "Minimize",
   "window.maximize": "Maximize",
   "window.restore": "Restore",
