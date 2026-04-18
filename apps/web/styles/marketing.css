@@ -240,7 +240,7 @@
   .marketing-feature--reverse .marketing-feature__copy {
     order: 2;
   }
-  .marketing-feature--reverse .marketing-feature__media {
+  .marketing-feature--reverse .marketing-feature__media-wrap {
     order: 1;
   }
 }
@@ -1050,3 +1050,18 @@
     animation: none !important;
   }
 }
+
+.marketing-feature__media-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .marketing-feature__media-wrap {
+    max-width: 520px;
+    margin-inline: auto;
+  }
+}
+
