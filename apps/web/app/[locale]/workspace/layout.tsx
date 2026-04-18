@@ -12,6 +12,7 @@ import { ModalProvider } from "@/components/ui/modal-dialog";
 import { AuthSessionGuard } from "@/components/AuthSessionGuard";
 import { GlassTopBar, GlassStatusBar } from "@/components/console/glass";
 import UpgradeModal from "@/components/billing/UpgradeModal";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -31,6 +32,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
               <AuthSessionGuard />
               <Toaster />
               <UpgradeModal />
+              <OnboardingWizard />
             </div>
           </ModalProvider>
         </MobileMenuProvider>

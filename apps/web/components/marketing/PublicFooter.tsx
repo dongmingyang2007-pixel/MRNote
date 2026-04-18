@@ -58,20 +58,12 @@ export default async function PublicFooter() {
 
         <div className="marketing-footer__col">
           <div className="marketing-footer__heading">{t("footer.col.legal")}</div>
-          <a
-            href="https://mingrun-tech.com/privacy"
-            className="marketing-footer__link"
-            rel="noreferrer"
-          >
+          <Link href="/privacy" className="marketing-footer__link">
             {t("footer.link.privacy")}
-          </a>
-          <a
-            href="https://mingrun-tech.com/terms"
-            className="marketing-footer__link"
-            rel="noreferrer"
-          >
+          </Link>
+          <Link href="/terms" className="marketing-footer__link">
             {t("footer.link.terms")}
-          </a>
+          </Link>
         </div>
       </div>
 

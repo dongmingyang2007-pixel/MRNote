@@ -14,6 +14,7 @@ const NAMESPACES = [
   "console-notebooks",
   "marketing",
   "legal",
+  "onboarding",
 ] as const;
 
 const MESSAGE_LOADERS = {
@@ -29,6 +30,7 @@ const MESSAGE_LOADERS = {
     "console-notebooks": () => import("../messages/zh/console-notebooks.json"),
     marketing: () => import("../messages/zh/marketing.json"),
     legal: () => import("../messages/zh/legal.json"),
+    onboarding: () => import("../messages/zh/onboarding.json"),
   },
   en: {
     common: () => import("../messages/en/common.json"),
@@ -42,6 +44,7 @@ const MESSAGE_LOADERS = {
     "console-notebooks": () => import("../messages/en/console-notebooks.json"),
     marketing: () => import("../messages/en/marketing.json"),
     legal: () => import("../messages/en/legal.json"),
+    onboarding: () => import("../messages/en/onboarding.json"),
   },
 } as const;
 
