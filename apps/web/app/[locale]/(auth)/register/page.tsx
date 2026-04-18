@@ -110,7 +110,7 @@ export default function RegisterPage() {
     }
   };
 
-  const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
+  const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors duration-[var(--motion-base)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
 
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">
@@ -242,7 +242,7 @@ export default function RegisterPage() {
                 </div>
               </div>
               <button
-                className="w-full rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50 cursor-pointer"
+                className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={codeSending}
               >
                 {codeSending ? (
@@ -267,7 +267,7 @@ export default function RegisterPage() {
             </form>
             <div className="mt-6 text-center text-sm text-[var(--text-secondary)]">
               {t("register.hasAccount")}{" "}
-              <Link href="/login" className="font-medium text-[var(--brand-v2)] hover:underline cursor-pointer">
+              <Link href="/login" className="cursor-pointer font-medium text-[var(--brand-v2)] underline-offset-4 hover:underline">
                 {t("register.login")}
               </Link>
             </div>
@@ -291,7 +291,7 @@ export default function RegisterPage() {
                 />
               </div>
               <MagneticButton
-                className="w-full rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-medium text-white"
+                className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90"
                 strength={0.15}
               >
                 {t("register.submit")}
@@ -312,14 +312,14 @@ export default function RegisterPage() {
             <div className="mt-6 flex items-center justify-between text-sm">
               <button
                 type="button"
-                className="font-medium text-[var(--brand-v2)] hover:underline cursor-pointer"
+                className="cursor-pointer font-medium text-[var(--brand-v2)] underline-offset-4 hover:underline"
                 onClick={() => { setStep("form"); setCode(""); setError(""); }}
               >
                 {t("register.backToForm")}
               </button>
               <button
                 type="button"
-                className="font-medium text-[var(--brand-v2)] hover:underline disabled:opacity-50 cursor-pointer"
+                className="cursor-pointer font-medium text-[var(--brand-v2)] underline-offset-4 hover:underline disabled:opacity-50"
                 disabled={countdown > 0}
                 onClick={sendCode}
               >

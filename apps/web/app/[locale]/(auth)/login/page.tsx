@@ -35,6 +35,8 @@ export default function LoginPage() {
     return () => ctx.revert();
   }, []);
 
+  const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors duration-[var(--motion-base)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
+
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
@@ -81,7 +83,7 @@ export default function LoginPage() {
               id="login-email"
               type="email"
               required
-              className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1"
+              className={inputClass}
               placeholder={t("login.email.placeholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -96,7 +98,7 @@ export default function LoginPage() {
                 id="login-password"
                 type={showPassword ? "text" : "password"}
                 required
-                className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 pr-11 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1"
+                className={`${inputClass} pr-11`}
                 placeholder={t("login.password.placeholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -123,7 +125,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 cursor-pointer"
+            className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">
@@ -148,13 +150,13 @@ export default function LoginPage() {
 
         <div className="mt-6 space-y-2 text-center text-sm text-[var(--text-secondary)]">
           <div>
-            <Link href="/forgot-password" className="font-medium text-[var(--brand-v2)] hover:underline">
+            <Link href="/forgot-password" className="font-medium text-[var(--brand-v2)] underline-offset-4 hover:underline">
               {t("login.forgotPassword")}
             </Link>
           </div>
           <div>
             {t("login.noAccount")}{" "}
-            <Link href="/register" className="font-medium text-[var(--brand-v2)] hover:underline">
+            <Link href="/register" className="font-medium text-[var(--brand-v2)] underline-offset-4 hover:underline">
               {t("login.register")}
             </Link>
           </div>
