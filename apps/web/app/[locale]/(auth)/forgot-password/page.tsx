@@ -100,13 +100,13 @@ export default function ForgotPasswordPage() {
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">
       <div className="auth-heading">
-        <p className="text-xs font-medium tracking-widest text-[var(--text-secondary)] uppercase">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--text-secondary)]">
           {heading.kicker}
         </p>
-        <h1 className="font-display mt-3 text-3xl font-bold tracking-tight text-[var(--text-primary)] md:text-4xl">
+        <h1 className="font-display mt-5 text-[26px] font-semibold leading-[1.25] tracking-[-0.01em] text-[var(--text-primary)] md:text-[30px]">
           {heading.title}
         </h1>
-        <p className="mt-3 text-sm text-[var(--text-secondary)] md:text-base">
+        <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
           {heading.desc}
         </p>
       </div>

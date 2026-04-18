@@ -66,6 +66,7 @@ describe("DigestList", () => {
     mockFetch([]);
     const onPick = vi.fn();
     render(<DigestList onPick={onPick} />);
-    await screen.findByText(/Nothing here/i);
+    // The mocked next-intl translator echoes the i18n key directly.
+    await screen.findByText(/digest\.empty/i);
   });
 });
