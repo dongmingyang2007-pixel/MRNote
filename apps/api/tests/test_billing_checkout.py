@@ -164,3 +164,72 @@ def test_portal_returns_404_without_customer() -> None:
     client, _ = _register_client("u6@x.co")
     resp = client.post("/api/v1/billing/portal", json={})
     assert resp.status_code == 404
+
+
+def test_checkout_pro_triggers_14_day_trial() -> None:
+    client, _ = _register_client("trial@x.co")
+    captured: dict = {}
+
+    def fake_session(**kwargs):
+        captured.update(kwargs)
+        return "https://checkout.stripe.com/pay/sess_trial"
+
+    with patch(
+        "app.routers.billing.stripe_client.get_or_create_customer",
+        return_value="cus_trial",
+    ), patch(
+        "app.routers.billing.stripe_client.create_checkout_session_subscription",
+        side_effect=fake_session,
+    ):
+        resp = client.post(
+            "/api/v1/billing/checkout",
+            json={"plan": "pro", "cycle": "monthly"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert captured["trial_period_days"] == 14
+
+
+def test_checkout_power_triggers_14_day_trial() -> None:
+    client, _ = _register_client("trialpower@x.co")
+    captured: dict = {}
+
+    def fake_session(**kwargs):
+        captured.update(kwargs)
+        return "https://checkout.stripe.com/pay/sess_trial_power"
+
+    with patch(
+        "app.routers.billing.stripe_client.get_or_create_customer",
+        return_value="cus_trial_power",
+    ), patch(
+        "app.routers.billing.stripe_client.create_checkout_session_subscription",
+        side_effect=fake_session,
+    ):
+        resp = client.post(
+            "/api/v1/billing/checkout",
+            json={"plan": "power", "cycle": "yearly"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert captured["trial_period_days"] == 14
+
+
+def test_checkout_team_skips_trial() -> None:
+    client, _ = _register_client("notrial@x.co")
+    captured: dict = {}
+
+    def fake_session(**kwargs):
+        captured.update(kwargs)
+        return "https://checkout.stripe.com/pay/sess_notrial"
+
+    with patch(
+        "app.routers.billing.stripe_client.get_or_create_customer",
+        return_value="cus_notrial",
+    ), patch(
+        "app.routers.billing.stripe_client.create_checkout_session_subscription",
+        side_effect=fake_session,
+    ):
+        resp = client.post(
+            "/api/v1/billing/checkout",
+            json={"plan": "team", "cycle": "monthly", "seats": 3},
+        )
+    assert resp.status_code == 200, resp.text
+    assert captured["trial_period_days"] is None

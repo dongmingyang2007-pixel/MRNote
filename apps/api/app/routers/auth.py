@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from typing import Any
+
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
@@ -241,3 +244,24 @@ def refresh_csrf(
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)) -> UserOut:
     return UserOut.model_validate(current_user, from_attributes=True)
+
+
+@router.post("/onboarding/complete")
+def complete_onboarding(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    """Mark onboarding as completed for the current user.
+
+    Idempotent: if already completed, the existing timestamp is preserved.
+    """
+    if current_user.onboarding_completed_at is None:
+        current_user.onboarding_completed_at = datetime.now(timezone.utc)
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+    return {
+        "ok": True,
+        "onboarding_completed_at": current_user.onboarding_completed_at.isoformat(),
+    }

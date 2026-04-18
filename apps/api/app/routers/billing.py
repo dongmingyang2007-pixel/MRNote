@@ -52,6 +52,9 @@ def post_checkout(
                        "seats only valid for team plan", status_code=400)
     ca = _ensure_customer(db, workspace_id=workspace_id, user=current_user)
     price_id = stripe_client.stripe_price_id_for(payload.plan, payload.cycle)
+    # Pro / Power get a 14-day trial; Team is treated as enterprise-like
+    # and starts paid immediately.
+    trial_days = 14 if payload.plan in ("pro", "power") else None
     url = stripe_client.create_checkout_session_subscription(
         stripe_customer_id=ca.stripe_customer_id,
         price_id=price_id,
@@ -63,6 +66,7 @@ def post_checkout(
             "mrai_plan": payload.plan,
             "mrai_cycle": payload.cycle,
         },
+        trial_period_days=trial_days,
     )
     return CheckoutResponse(checkout_url=url)
 

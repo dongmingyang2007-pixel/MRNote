@@ -1,0 +1,114 @@
+{
+  "privacy.meta.title": "Privacy Policy",
+  "privacy.meta.description": "How Mingrun Tech collects, uses, and protects your data when you use MRNote.",
+  "privacy.title": "Privacy Policy",
+  "privacy.updated": "Last updated: April 17, 2026",
+
+  "privacy.intro": "This policy explains what data MRNote collects, why we collect it, and what we do with it. We've written it to be readable — not a wall of legal text. If something's unclear, email us at hello@mingrun-tech.com.",
+
+  "privacy.s1.title": "Who We Are",
+  "privacy.s1.body": "MRNote is a product made by Mingrun Tech (铭润科技), a software company based in China. Our product lets independent consultants, freelancers, and solopreneurs manage client relationships using AI-powered notes and persistent memory.\n\nYou can reach us at: hello@mingrun-tech.com",
+
+  "privacy.s2.title": "What We Collect",
+  "privacy.s2.body": "We collect only what we need to run the service. Here's what that includes:",
+  "privacy.s2.item1": "Account data — your email address and display name when you sign up.",
+  "privacy.s2.item2": "Content — notes, client records, AI conversation history, uploaded documents, and memory entries you create inside MRNote.",
+  "privacy.s2.item3": "Usage data — which features you use, page views, and interactions (via a privacy-respecting analytics system, currently planned via PostHog). This helps us understand what's working.",
+  "privacy.s2.item4": "Billing data — your subscription status and payment history. Card details are processed and stored by Stripe; we never see or store your raw card number.",
+
+  "privacy.s3.title": "How We Use It",
+  "privacy.s3.body": "We use your data to:",
+  "privacy.s3.item1": "Provide the service — sync your notes, run AI queries, deliver digests and reminders.",
+  "privacy.s3.item2": "Improve the product — understand what features get used and what breaks.",
+  "privacy.s3.item3": "Prevent abuse — detect fraud, spam, or ToS violations.",
+  "privacy.s3.item4": "Communicate with you — send billing receipts, product updates, and security notices.",
+  "privacy.s3.noml": "We do not use your notes, conversations, or memory entries to train machine learning models — ours or anyone else's. Your client data is yours.",
+
+  "privacy.s4.title": "Third Parties We Share Data With",
+  "privacy.s4.body": "We share data with third parties only to run the service. The short list:",
+  "privacy.s4.item1": "Stripe — handles billing and subscription management. Stripe is PCI-DSS compliant. See stripe.com/privacy.",
+  "privacy.s4.item2": "Cloud AI providers — your notes and queries are processed by AI model APIs (such as Anthropic or OpenAI) to generate responses. These providers are contractually prohibited from training on your data.",
+  "privacy.s4.item3": "Cloud infrastructure — object storage for file attachments and compute for backend services. All data is encrypted in transit and at rest.",
+  "privacy.s4.noads": "We do not sell your data. We do not share it with advertisers.",
+
+  "privacy.s5.title": "Data Retention",
+  "privacy.s5.body": "We keep your data as long as your account is active. When you delete your account:",
+  "privacy.s5.item1": "Your notes, memories, and content are soft-deleted immediately and permanently purged within 30 days.",
+  "privacy.s5.item2": "Billing records are retained as required by financial regulations (typically 7 years in most jurisdictions).",
+  "privacy.s5.item3": "Anonymized usage statistics may be retained after deletion, but these cannot be linked back to you.",
+
+  "privacy.s6.title": "Your Rights",
+  "privacy.s6.body": "You have full control over your data:",
+  "privacy.s6.item1": "Export — download all your notebooks and memory as Markdown or JSON any time from Settings.",
+  "privacy.s6.item2": "Delete — permanently delete your account and all associated data from Settings → Account → Delete account.",
+  "privacy.s6.item3": "Correct — update your email, display name, or profile data at any time.",
+  "privacy.s6.item4": "Portability — your export includes everything needed to move to another service.",
+  "privacy.s6.contact": "If you believe we hold incorrect data or want to exercise any of these rights, email hello@mingrun-tech.com and we'll respond within 30 days.",
+
+  "privacy.s7.title": "Cookies",
+  "privacy.s7.body": "We use a small number of essential cookies to run the service:",
+  "privacy.s7.item1": "auth_state — keeps you logged in across browser sessions.",
+  "privacy.s7.item2": "mingrun_workspace_id — remembers which workspace you last used.",
+  "privacy.s7.notrack": "We do not use third-party tracking cookies or advertising pixels. We don't install anything from Facebook, Google, or similar ad networks.",
+
+  "privacy.s8.title": "Contact and Updates",
+  "privacy.s8.body": "If we make material changes to this policy — like collecting a new type of data or sharing it with a new category of third party — we'll send you an email before the change takes effect.",
+  "privacy.s8.contact": "Questions or concerns? Email hello@mingrun-tech.com. We're a small team and we read everything.",
+
+  "terms.meta.title": "Terms of Service",
+  "terms.meta.description": "The rules for using MRNote, written in plain English. Read before you sign up.",
+  "terms.title": "Terms of Service",
+  "terms.updated": "Last updated: April 17, 2026",
+
+  "terms.intro": "These are the terms that govern your use of MRNote. We've kept them readable. If something's not clear, reach out at hello@mingrun-tech.com before using the service.",
+
+  "terms.s1.title": "Acceptance",
+  "terms.s1.body": "By creating an account or using MRNote, you agree to these Terms of Service. If you don't agree, don't use the product. These terms are a legal agreement between you and Mingrun Tech (铭润科技), the company that makes MRNote.",
+
+  "terms.s2.title": "Your Account",
+  "terms.s2.body": "When you sign up, you're responsible for keeping your login credentials secure. A few rules:",
+  "terms.s2.item1": "One free account per person. Multiple free accounts to bypass plan limits isn't allowed.",
+  "terms.s2.item2": "You must be at least 16 years old to use MRNote.",
+  "terms.s2.item3": "If you think your account has been compromised, change your password and contact us immediately.",
+  "terms.s2.item4": "Business or team use requires a Team plan. A single Pro account shared by multiple people is not permitted.",
+
+  "terms.s3.title": "Acceptable Use",
+  "terms.s3.body": "MRNote is for legitimate professional note-taking and client management. You may not:",
+  "terms.s3.item1": "Upload or create content that is illegal, defamatory, or facilitates harm.",
+  "terms.s3.item2": "Use MRNote to distribute malware, run phishing attacks, or interfere with other users.",
+  "terms.s3.item3": "Use the AI features to scrape or systematically extract data from third parties.",
+  "terms.s3.item4": "Attempt to reverse-engineer, probe, or circumvent our plan limits or rate limits.",
+  "terms.s3.item5": "Resell or white-label MRNote without a written agreement with Mingrun Tech.",
+
+  "terms.s4.title": "Your Content",
+  "terms.s4.body": "You own everything you create in MRNote. Your notes, client records, memory entries, and uploads belong to you.",
+  "terms.s4.license": "To provide the service, you grant Mingrun Tech a limited, non-exclusive license to store, process, and display your content as needed to operate MRNote on your behalf. This license ends when you delete your content or close your account.",
+  "terms.s4.noml": "We do not train machine learning models on your content. Full stop.",
+  "terms.s4.responsibility": "You're responsible for the content you create. Don't put other people's personal data into MRNote unless you have a lawful basis to process it.",
+
+  "terms.s5.title": "Subscriptions and Billing",
+  "terms.s5.body": "Paid plans are billed in advance, monthly or yearly, via Stripe.",
+  "terms.s5.item1": "Auto-renewal — subscriptions renew automatically at the end of each billing period. Cancel before renewal to avoid the next charge.",
+  "terms.s5.item2": "Pro trial — Pro includes a 14-day free trial for new subscribers. You won't be charged until the trial ends.",
+  "terms.s5.item3": "Cancellation — cancel any time from Settings → Billing. You keep access to paid features until the end of the period you've already paid for. After that, your account moves to Free — your data is not deleted.",
+  "terms.s5.item4": "Refunds — we don't offer prorated refunds for partial billing periods. If something goes wrong on our end, contact us and we'll make it right case by case.",
+  "terms.s5.item5": "Prices — listed in USD. Local currency and payment methods (Alipay, WeChat Pay) are supported where available.",
+
+  "terms.s6.title": "Service Changes",
+  "terms.s6.body": "We're building an active product. Things change.",
+  "terms.s6.item1": "Feature updates — we add, change, and occasionally remove features without notice. We'll communicate significant changes via in-app notifications or email.",
+  "terms.s6.item2": "Deprecations — if we discontinue a major feature, we'll give at least 30 days' notice.",
+  "terms.s6.item3": "Price changes — if we raise prices on an existing plan, we'll give at least 30 days' notice before your next renewal. You'll have the option to cancel.",
+
+  "terms.s7.title": "Termination",
+  "terms.s7.by_you": "You can close your account at any time from Settings. Your data is deleted as described in our Privacy Policy.",
+  "terms.s7.by_us": "We can suspend or terminate your account if you violate these Terms — for example, using MRNote for illegal activity, abuse, or repeated ToS breaches. We'll give you reasonable notice unless the violation is severe (fraud, illegal content, active security threats).",
+  "terms.s7.effect": "When your account is terminated, your access ends and your content is deleted per our data retention schedule.",
+
+  "terms.s8.title": "Liability and Warranty",
+  "terms.s8.asis": "MRNote is provided \"as is.\" We work hard to keep it reliable, but we can't promise it will be available 100% of the time or that it will never have bugs.",
+  "terms.s8.limit": "To the maximum extent permitted by law, Mingrun Tech's total liability to you for any claim arising from your use of MRNote is limited to the fees you paid us in the 12 months before the claim arose.",
+  "terms.s8.noconsequential": "We are not liable for lost profits, lost data (beyond what's covered by our backup systems), or indirect damages.",
+  "terms.s8.law": "These Terms are governed by the laws of the People's Republic of China. For any disputes, we'll first try to resolve them directly. If that fails, disputes will be handled in courts with jurisdiction over our registered address.",
+  "terms.s8.contact": "Something not right? Email hello@mingrun-tech.com before filing a claim — most issues can be resolved in a conversation."
+}

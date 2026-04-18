@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a0f"/>
+
+  <!-- Subtle grid pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.04"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Brand accent decoration — top-left block cluster -->
+  <rect x="48" y="48" width="8" height="8" rx="1" fill="#3b82f6" opacity="1"/>
+  <rect x="62" y="48" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.6"/>
+  <rect x="48" y="62" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.4"/>
+  <rect x="62" y="62" width="8" height="8" rx="1" fill="#3b82f6" opacity="0.2"/>
+
+  <!-- Right side decorative accent bar -->
+  <rect x="1120" y="200" width="4" height="80" rx="2" fill="#3b82f6" opacity="0.8"/>
+  <rect x="1128" y="220" width="4" height="60" rx="2" fill="#3b82f6" opacity="0.5"/>
+  <rect x="1136" y="240" width="4" height="40" rx="2" fill="#3b82f6" opacity="0.3"/>
+
+  <!-- Blue accent line under logo area -->
+  <rect x="48" y="96" width="32" height="2" rx="1" fill="#3b82f6" opacity="0.6"/>
+
+  <!-- Main brand wordmark -->
+  <text
+    x="600"
+    y="290"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="120"
+    font-weight="800"
+    fill="#f1f5f9"
+    text-anchor="middle"
+    letter-spacing="-4"
+  >MRNote</text>
+
+  <!-- Blue underline accent for brand -->
+  <rect x="380" y="308" width="440" height="4" rx="2" fill="#3b82f6" opacity="0.7"/>
+
+  <!-- Tagline -->
+  <text
+    x="600"
+    y="378"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="32"
+    font-weight="400"
+    fill="#94a3b8"
+    text-anchor="middle"
+    letter-spacing="0"
+  >The AI notebook that remembers your clients.</text>
+
+  <!-- Bottom-right domain watermark -->
+  <text
+    x="1152"
+    y="598"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="18"
+    font-weight="400"
+    fill="#475569"
+    text-anchor="end"
+  >mingrun-tech.com</text>
+
+  <!-- Bottom-left subtle label -->
+  <text
+    x="48"
+    y="598"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="14"
+    font-weight="400"
+    fill="#334155"
+    text-anchor="start"
+  >Mingrun Tech · 铭润科技</text>
+</svg>

@@ -93,6 +93,7 @@ class UserOut(BaseModel):
     email: EmailStr
     display_name: str | None
     created_at: datetime
+    onboarding_completed_at: datetime | None = None
 
 
 class WorkspaceOut(BaseModel):

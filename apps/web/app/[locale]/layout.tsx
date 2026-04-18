@@ -15,6 +15,8 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mingrun-tech.com";
+
 export async function generateMetadata({
   params,
 }: {
@@ -28,16 +30,29 @@ export async function generateMetadata({
   }
 
   setRequestLocale(localeKey);
-  const t = await getTranslations("common");
   const tc = await getTranslations("console");
+  const tm = await getTranslations("marketing");
   return {
+    metadataBase: new URL(BASE_URL),
     title: {
-      template: `%s - ${t("brand.company")}`,
+      template: `%s · ${tc("brand")}`,
       default: tc("brand"),
     },
-    description: tc("route.assistants.description"),
+    description: tm("meta.description"),
     openGraph: {
+      title: tm("og.title"),
+      description: tm("og.description"),
+      url: `${BASE_URL}/${localeKey}`,
+      siteName: tc("brand"),
+      images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: tc("brand") }],
       locale: localeKey === "zh" ? "zh_CN" : "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: tm("og.title"),
+      description: tm("og.description"),
+      images: ["/og-image.svg"],
     },
     alternates: {
       languages: {

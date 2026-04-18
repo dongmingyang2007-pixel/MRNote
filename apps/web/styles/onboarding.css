@@ -1,0 +1,189 @@
+/* Onboarding wizard — 5-step modal shown on first workspace visit. */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.onboarding-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.onboarding-card__header {
+  padding: 20px 28px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-card__dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.onboarding-card__dot {
+  height: 6px;
+  flex: 1;
+  border-radius: 999px;
+  background: #e5e7eb;
+  transition: background 0.2s ease;
+}
+
+.onboarding-card__dot--active {
+  background: #2563eb;
+}
+
+.onboarding-card__dot--done {
+  background: #93c5fd;
+}
+
+.onboarding-card__step-label {
+  font-size: 12px;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.onboarding-card__body {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.onboarding-card__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.onboarding-card__paragraph {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0;
+}
+
+.onboarding-card__footer {
+  padding: 16px 28px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.onboarding-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.onboarding-btn--primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.onboarding-btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.onboarding-btn--secondary {
+  background: transparent;
+  color: #475569;
+}
+
+.onboarding-btn--secondary:hover:not(:disabled) {
+  color: #0f172a;
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onboarding-field__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.onboarding-input,
+.onboarding-textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.onboarding-input:focus,
+.onboarding-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.onboarding-textarea {
+  min-height: 180px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.onboarding-memory-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding-memory-item {
+  background: #f1f5f9;
+  border-left: 3px solid #2563eb;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #0f172a;
+  line-height: 1.5;
+}
+
+.onboarding-note {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
