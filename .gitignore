@@ -40,3 +40,6 @@ tmp/
 .superpowers/
 .agents/
 .claude/
+
+# Git worktrees
+.worktrees/
