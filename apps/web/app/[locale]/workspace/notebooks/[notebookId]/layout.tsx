@@ -23,8 +23,9 @@ export default function NotebookWorkspaceLayout({
   // windows on the next reducer tick.
   return (
     <WindowManagerProvider key={params.notebookId} notebookId={params.notebookId}>
-      <div style={{ display: "flex", height: "calc(100vh - 48px - 28px)", marginLeft: -56 }}>
-        {/* NotebookSidebar replaces the global sidebar */}
+      <div style={{ display: "flex", height: "calc(100vh - 48px - 28px)" }}>
+        {/* NotebookSidebar is position:fixed at viewport left, replacing the global sidebar
+            slot (GlobalSidebar returns null inside notebooks). Content sits next to it. */}
         <NotebookSidebar notebookId={params.notebookId} />
 
         {/* Content area */}

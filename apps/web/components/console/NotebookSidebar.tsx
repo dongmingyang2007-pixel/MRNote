@@ -114,7 +114,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
       } else if (tabId === "memory_graph") {
         openWindow({
           type: "memory_graph",
-          title: tn("sidebar.openMemoryGraph"),
+          title: tn("memoryGraph.title"),
           meta: { notebookId },
         });
       } else if (tabId === "learn") {
@@ -148,7 +148,10 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
       <nav
         className="glass-sidebar glass-sidebar--collapsed"
         style={{
-          position: "relative",
+          position: "fixed",
+          top: 48,
+          left: 0,
+          bottom: 0,
           width: 56,
           display: "flex",
           flexDirection: "column",
@@ -157,7 +160,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
           paddingBottom: 12,
           gap: 4,
           flexShrink: 0,
-          zIndex: 2,
+          zIndex: 40,
         }}
       >
         <Link
