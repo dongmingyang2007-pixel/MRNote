@@ -95,7 +95,7 @@
   "memoryGraph.roles.summary": "摘要",
   "memoryGraph.drawer.summary": "摘要",
   "memoryGraph.drawer.neighbors": "邻居",
-  "memoryGraph.drawer.lifecycle": "生命周期",
+  "memoryGraph.drawer.lifecycleHeader": "生命周期",
   "memoryGraph.drawer.lifecycle.observe": "观察",
   "memoryGraph.drawer.lifecycle.consolidate": "巩固",
   "memoryGraph.drawer.lifecycle.reuse": "复用",

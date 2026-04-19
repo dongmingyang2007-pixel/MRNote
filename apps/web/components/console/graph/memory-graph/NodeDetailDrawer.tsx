@@ -16,6 +16,7 @@ interface Props {
   neighbors: DrawerNeighbor[];
   onSelectNeighbor: (id: string) => void;
   onClose: () => void;
+  layout?: "side" | "bottomSheet";
 }
 
 const LIFECYCLE_STAGES: ReadonlyArray<{ id: string; done: boolean }> = [
@@ -25,10 +26,23 @@ const LIFECYCLE_STAGES: ReadonlyArray<{ id: string; done: boolean }> = [
   { id: "reinforce",   done: false },
 ];
 
-export function NodeDetailDrawer({ node, neighbors, onSelectNeighbor, onClose }: Props) {
+export function NodeDetailDrawer({ node, neighbors, onSelectNeighbor, onClose, layout = "side" }: Props) {
   const t = useTranslations("console-notebooks");
   const style = ROLE_STYLE[node.role];
   const summary = node.raw?.content ?? "";
+
+  const sideStyle = {
+    width: 300,
+    height: "100%",
+    flexShrink: 0,
+    borderLeft: "1px solid var(--border, rgba(15,42,45,0.08))",
+  } as const;
+  const bottomSheetStyle = {
+    width: "100%",
+    height: "55%",
+    flexShrink: 0,
+    borderTop: "1px solid var(--border, rgba(15,42,45,0.08))",
+  } as const;
 
   return (
     <aside
@@ -36,9 +50,8 @@ export function NodeDetailDrawer({ node, neighbors, onSelectNeighbor, onClose }:
       aria-label="Node detail"
       className="mg-drawer"
       style={{
-        width: 300, height: "100%", flexShrink: 0,
+        ...(layout === "bottomSheet" ? bottomSheetStyle : sideStyle),
         background: "var(--bg-surface, #fff)",
-        borderLeft: "1px solid var(--border, rgba(15,42,45,0.08))",
         padding: 16, overflowY: "auto", fontSize: 13, lineHeight: 1.5,
         display: "flex", flexDirection: "column", gap: 12,
       }}
@@ -124,7 +137,7 @@ export function NodeDetailDrawer({ node, neighbors, onSelectNeighbor, onClose }:
       </section>
 
       <section>
-        <SectionLabel>{t("memoryGraph.drawer.lifecycle")}</SectionLabel>
+        <SectionLabel>{t("memoryGraph.drawer.lifecycleHeader")}</SectionLabel>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {LIFECYCLE_STAGES.map((s) => (
             <div

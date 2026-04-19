@@ -95,7 +95,7 @@
   "memoryGraph.roles.summary": "Summary",
   "memoryGraph.drawer.summary": "Summary",
   "memoryGraph.drawer.neighbors": "Neighbors",
-  "memoryGraph.drawer.lifecycle": "Lifecycle",
+  "memoryGraph.drawer.lifecycleHeader": "Lifecycle",
   "memoryGraph.drawer.lifecycle.observe": "Observe",
   "memoryGraph.drawer.lifecycle.consolidate": "Consolidate",
   "memoryGraph.drawer.lifecycle.reuse": "Reuse",

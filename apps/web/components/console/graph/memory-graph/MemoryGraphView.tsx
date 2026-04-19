@@ -182,6 +182,7 @@ export function MemoryGraphView({ nodes, edges }: Props) {
           neighbors={drawerNeighbors}
           onSelectNeighbor={(id) => setSelectedId(id)}
           onClose={() => setSelectedId(null)}
+          layout={isNarrow ? "bottomSheet" : "side"}
         />
       )}
     </div>
