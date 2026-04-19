@@ -32,6 +32,7 @@ vi.mock("next-intl", () => ({
     relativeTime: (d: Date | string) => String(d),
     list: (items: string[]) => items.join(", "),
   }),
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode; locale?: string; messages?: Record<string, Record<string, string>> }) => children,
 }));
 
 const storeMap = new WeakMap<Storage, Map<string, string>>();
