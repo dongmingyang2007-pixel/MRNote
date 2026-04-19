@@ -5,6 +5,7 @@ import { HeaderBar } from "./HeaderBar";
 import { FilterRow } from "./FilterRow";
 import { ViewBar, type MemoryGraphView as ViewId } from "./ViewBar";
 import { CanvasControls } from "./CanvasControls";
+import { Memory3D } from "./Memory3D/Memory3D";
 import { GraphCanvas, nextZoom } from "./GraphCanvas";
 import { LegendAndZoom } from "./LegendAndZoom";
 import { NodeDetailDrawer, type DrawerNeighbor } from "./NodeDetailDrawer";
@@ -150,9 +151,14 @@ export function MemoryGraphView({ nodes, edges }: Props) {
             </>
           )}
           {view === "3d" && (
-            <div data-testid="mg-3d-placeholder" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
-              3D view coming
-            </div>
+            <Memory3D
+              nodes={effectiveNodes}
+              edges={effectiveEdges}
+              selectedId={selectedId}
+              hoverId={hoverId}
+              onHover={setHoverId}
+              onSelect={setSelectedId}
+            />
           )}
           {view === "list" && (
             <ListView nodes={effectiveNodes} selectedId={selectedId} onSelect={setSelectedId} />

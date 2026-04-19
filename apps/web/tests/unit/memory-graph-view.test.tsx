@@ -1,5 +1,14 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+// Mock the 3D scene hook — jsdom has no WebGL.
+vi.mock("@/components/console/graph/memory-graph/Memory3D/useThreeScene", () => ({
+  useThreeScene: () => ({
+    focusOn: vi.fn(), rearrange: vi.fn(), zoomIn: vi.fn(), zoomOut: vi.fn(),
+    fit: vi.fn(), toggleAutoRotate: vi.fn(), getProjectedScreenPos: vi.fn(() => null),
+  }),
+}));
+
 import { MemoryGraphView } from "@/components/console/graph/memory-graph/MemoryGraphView";
 import type { GraphNode } from "@/components/console/graph/memory-graph/types";
 
@@ -42,9 +51,9 @@ describe("MemoryGraphView layout", () => {
     expect(screen.queryByTestId("mg-svg")).toBeFalsy();
   });
 
-  it("switches to 3d view placeholder (full impl in T13)", () => {
+  it("switches to 3d view (Memory3D mount)", () => {
     render(<MemoryGraphView nodes={[]} edges={[]} />);
     fireEvent.click(screen.getByTestId("mg-btn-view-3d"));
-    expect(screen.getByTestId("mg-3d-placeholder")).toBeTruthy();
+    expect(screen.getByTestId("mg3d-mount")).toBeTruthy();
   });
 });
