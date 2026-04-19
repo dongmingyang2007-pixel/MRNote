@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Toolbar } from "./Toolbar";
+import { HeaderBar } from "./HeaderBar";
+import { FilterRow } from "./FilterRow";
+import { ViewBar, type MemoryGraphView as ViewId } from "./ViewBar";
+import { CanvasControls } from "./CanvasControls";
 import { GraphCanvas, nextZoom } from "./GraphCanvas";
 import { LegendAndZoom } from "./LegendAndZoom";
 import { NodeDetailDrawer, type DrawerNeighbor } from "./NodeDetailDrawer";
@@ -17,7 +20,7 @@ interface Props {
 
 const ALL_ROLES: Role[] = ["fact", "structure", "subject", "concept", "summary"];
 const BOTTOM_SHEET_BREAKPOINT = 960;
-const LEGEND_HIDE_BREAKPOINT = 720;
+const COMPACT_BREAKPOINT = 720;
 
 export function MemoryGraphView({ nodes, edges }: Props) {
   const [search, setSearch] = useState("");
@@ -25,7 +28,7 @@ export function MemoryGraphView({ nodes, edges }: Props) {
   const [filters, setFilters] = useState<Record<Role, boolean>>(() =>
     Object.fromEntries(ALL_ROLES.map((r) => [r, true])) as Record<Role, boolean>,
   );
-  const [view, setView] = useState<"graph" | "list">("graph");
+  const [view, setView] = useState<ViewId>("graph");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({
@@ -34,12 +37,10 @@ export function MemoryGraphView({ nodes, edges }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 800, h: 600 });
   const isNarrow = box.w < BOTTOM_SHEET_BREAKPOINT;
-  const compactToolbar = box.w < LEGEND_HIDE_BREAKPOINT;
+  const compact = box.w < COMPACT_BREAKPOINT;
 
-  // Resize observer → canvas dimensions (guard for jsdom which lacks ResizeObserver)
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined" || !containerRef.current) return;
     const el = containerRef.current;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -51,14 +52,12 @@ export function MemoryGraphView({ nodes, edges }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Counts by role (applies confMin)
   const counts = useMemo(() => {
     const out = Object.fromEntries(ALL_ROLES.map((r) => [r, 0])) as Record<Role, number>;
     for (const n of nodes) if (n.conf >= confMin) out[n.role]++;
     return out;
   }, [nodes, confMin]);
 
-  // Effective nodes (applies confMin, but NOT role-filter — role-filter is opacity-based to keep layout stable)
   const effectiveNodes = useMemo(() => nodes.filter((n) => n.conf >= confMin), [nodes, confMin]);
   const effectiveIds = useMemo(() => new Set(effectiveNodes.map((n) => n.id)), [effectiveNodes]);
   const effectiveEdges = useMemo(
@@ -66,14 +65,11 @@ export function MemoryGraphView({ nodes, edges }: Props) {
     [edges, effectiveIds],
   );
 
-  // Search matches: empty set = not searching
   const searchMatches = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return new Set<string>();
     const out = new Set<string>();
-    for (const n of effectiveNodes) {
-      if (n.label.toLowerCase().includes(q)) out.add(n.id);
-    }
+    for (const n of effectiveNodes) if (n.label.toLowerCase().includes(q)) out.add(n.id);
     return out;
   }, [effectiveNodes, search]);
 
@@ -97,14 +93,12 @@ export function MemoryGraphView({ nodes, edges }: Props) {
     return out;
   }, [selectedNode, effectiveEdges, effectiveNodes]);
 
-  // Single sim instance; positions flow down to GraphCanvas as a prop
   const canvasWidth = box.w - (isNarrow ? 0 : (selectedId ? 300 : 0));
-  const canvasHeight = box.h - 52 - (isNarrow && selectedId ? Math.floor(box.h * 0.6) : 0);
+  const canvasHeight = box.h - 120 - (isNarrow && selectedId ? Math.floor(box.h * 0.55) : 0);
+
   const sim = useForceSim({
-    nodes: effectiveNodes,
-    edges: effectiveEdges,
-    width: canvasWidth,
-    height: canvasHeight,
+    nodes: effectiveNodes, edges: effectiveEdges,
+    width: canvasWidth, height: canvasHeight,
   });
   const positions = sim.getPositions();
 
@@ -112,27 +106,11 @@ export function MemoryGraphView({ nodes, edges }: Props) {
   const handleFit = useCallback(() => setViewport({ k: 1, tx: 0, ty: 0 }), []);
   const handleZoomIn = useCallback(() => setViewport((v) => ({ ...v, k: nextZoom(v.k, "in") })), []);
   const handleZoomOut = useCallback(() => setViewport((v) => ({ ...v, k: nextZoom(v.k, "out") })), []);
-
-  const toggleFilter = useCallback(
-    (role: Role) => setFilters((f) => ({ ...f, [role]: !f[role] })),
-    [],
-  );
-
-  const handleDragStart = useCallback((id: string) => {
-    void id;
-  }, []);
-  const handleDrag = useCallback((id: string, x: number, y: number) => {
-    sim.setFixed(id, x, y);
-  }, [sim]);
-  const handleDragEnd = useCallback((id: string) => {
-    sim.setFixed(id, null, null);
-    sim.reheat(0.3);
-  }, [sim]);
-
-  const handleRearrange = useCallback(() => {
-    sim.rearrange();
-    handleFit();
-  }, [sim, handleFit]);
+  const toggleFilter = useCallback((role: Role) => setFilters((f) => ({ ...f, [role]: !f[role] })), []);
+  const handleDragStart = useCallback((id: string) => { void id; }, []);
+  const handleDrag = useCallback((id: string, x: number, y: number) => { sim.setFixed(id, x, y); }, [sim]);
+  const handleDragEnd = useCallback((id: string) => { sim.setFixed(id, null, null); sim.reheat(0.3); }, [sim]);
+  const handleRearrange = useCallback(() => { sim.rearrange(); handleFit(); }, [sim, handleFit]);
 
   return (
     <div
@@ -145,45 +123,45 @@ export function MemoryGraphView({ nodes, edges }: Props) {
       }}
     >
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-        <Toolbar
-          search={search} confMin={confMin} filters={filters} view={view} counts={counts}
+        <HeaderBar />
+        <FilterRow
+          search={search} confMin={confMin} filters={filters} counts={counts} compact={compact}
           onSearch={setSearch} onConfMin={setConfMin} onToggleFilter={toggleFilter}
-          onRearrange={handleRearrange} onFit={handleFit} onViewChange={setView}
-          compact={compactToolbar}
         />
+        <ViewBar view={view} totalCount={effectiveNodes.length} onViewChange={setView} />
         <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
-          {view === "graph" ? (
+          {view === "graph" && (
             <>
               <GraphCanvas
-                nodes={effectiveNodes} edges={effectiveEdges}
-                positions={positions}
-                width={canvasWidth}
-                height={canvasHeight}
-                viewport={viewport}
+                nodes={effectiveNodes} edges={effectiveEdges} positions={positions}
+                width={canvasWidth} height={canvasHeight} viewport={viewport}
                 hoverId={hoverId} selectedId={selectedId} searchMatches={searchMatches}
                 filters={filters}
                 onViewportChange={handleViewport}
-                onHover={setHoverId}
-                onSelect={setSelectedId}
-                onDragStart={handleDragStart}
-                onDrag={handleDrag}
-                onDragEnd={handleDragEnd}
+                onHover={setHoverId} onSelect={setSelectedId}
+                onDragStart={handleDragStart} onDrag={handleDrag} onDragEnd={handleDragEnd}
               />
+              <CanvasControls onRearrange={handleRearrange} onFit={handleFit} />
               <LegendAndZoom
                 zoom={viewport.k}
                 onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFit={handleFit}
-                showLegend={!compactToolbar}
+                showLegend={!compact}
               />
             </>
-          ) : (
+          )}
+          {view === "3d" && (
+            <div data-testid="mg-3d-placeholder" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+              3D view coming
+            </div>
+          )}
+          {view === "list" && (
             <ListView nodes={effectiveNodes} selectedId={selectedId} onSelect={setSelectedId} />
           )}
         </div>
       </div>
       {selectedNode && (
         <NodeDetailDrawer
-          node={selectedNode}
-          neighbors={drawerNeighbors}
+          node={selectedNode} neighbors={drawerNeighbors}
           onSelectNeighbor={(id) => setSelectedId(id)}
           onClose={() => setSelectedId(null)}
           layout={isNarrow ? "bottomSheet" : "side"}

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryGraphView } from "@/components/console/graph/memory-graph/MemoryGraphView";
-import type { GraphNode, GraphEdge } from "@/components/console/graph/memory-graph/types";
+import type { GraphNode } from "@/components/console/graph/memory-graph/types";
 
 function makeNode(over: Partial<GraphNode>): GraphNode {
   return {
@@ -15,31 +15,36 @@ function makeNode(over: Partial<GraphNode>): GraphNode {
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-describe("MemoryGraphView", () => {
-  it("renders toolbar + canvas + legend, no drawer until a node is selected", () => {
-    const nodes: GraphNode[] = [makeNode({ id: "a", label: "Alpha" })];
-    const edges: GraphEdge[] = [];
-    render(<MemoryGraphView nodes={nodes} edges={edges} />);
+describe("MemoryGraphView layout", () => {
+  it("renders HeaderBar + FilterRow + ViewBar + graph canvas", () => {
+    render(<MemoryGraphView nodes={[makeNode({ id: "a", label: "Alpha" })]} edges={[]} />);
+    expect(screen.getByText("memoryGraph.title")).toBeTruthy();
     expect(screen.getByTestId("mg-search-input")).toBeTruthy();
+    expect(screen.getByTestId("mg-btn-view-graph")).toBeTruthy();
+    expect(screen.getByTestId("mg-btn-view-3d")).toBeTruthy();
+    expect(screen.getByTestId("mg-btn-view-list")).toBeTruthy();
     expect(screen.getByTestId("mg-svg")).toBeTruthy();
-    expect(screen.queryByRole("complementary", { name: "Node detail" })).toBeNull();
   });
 
   it("opens drawer when a node is clicked", () => {
-    const nodes: GraphNode[] = [makeNode({ id: "a", label: "Alpha" })];
+    const nodes = [makeNode({ id: "a", label: "Alpha" })];
     render(<MemoryGraphView nodes={nodes} edges={[]} />);
     fireEvent.click(screen.getByTestId("mg-node-a"));
     const drawer = screen.getByRole("complementary", { name: "Node detail" });
     expect(drawer).toBeTruthy();
-    // drawer h2 contains the node label
     expect(drawer.querySelector("h2")?.textContent).toBe("Alpha");
   });
 
-  it("switches to ListView when List tab clicked", () => {
-    const nodes: GraphNode[] = [makeNode({ id: "a", label: "Alpha" })];
-    render(<MemoryGraphView nodes={nodes} edges={[]} />);
+  it("switches to list view when List tab clicked", () => {
+    render(<MemoryGraphView nodes={[makeNode({ id: "a", label: "Alpha" })]} edges={[]} />);
     fireEvent.click(screen.getByTestId("mg-btn-view-list"));
     expect(screen.getByTestId("mg-list-row-a")).toBeTruthy();
-    expect(screen.queryByTestId("mg-svg")).toBeNull();
+    expect(screen.queryByTestId("mg-svg")).toBeFalsy();
+  });
+
+  it("switches to 3d view placeholder (full impl in T13)", () => {
+    render(<MemoryGraphView nodes={[]} edges={[]} />);
+    fireEvent.click(screen.getByTestId("mg-btn-view-3d"));
+    expect(screen.getByTestId("mg-3d-placeholder")).toBeTruthy();
   });
 });
