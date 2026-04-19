@@ -8,7 +8,9 @@ describe("humanizeRelativeTime", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("returns null for null/undefined/empty", () => {
     expect(humanizeRelativeTime(null)).toBeNull();
