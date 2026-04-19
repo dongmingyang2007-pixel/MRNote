@@ -3,6 +3,7 @@
   "nav.home": "Home",
   "nav.assistants": "My AI",
   "nav.memory": "Memory",
+  "nav.memoryGraph": "Memory Graph",
   "nav.discover": "Discover",
   "nav.chat": "Chat",
   "nav.aiPanel": "AI Panel",

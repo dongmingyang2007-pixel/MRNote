@@ -10,6 +10,7 @@ import {
   FileText,
   Sparkles,
   Brain,
+  Network,
   BookOpen,
   Settings,
   Search,
@@ -20,7 +21,7 @@ import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
 import { useBillingMe } from "@/hooks/useBillingMe";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
 
-type SideTab = "pages" | "ai_panel" | "memory" | "learn" | "digest" | "search" | null;
+type SideTab = "pages" | "ai_panel" | "memory" | "memory_graph" | "learn" | "digest" | "search" | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
@@ -31,6 +32,7 @@ const TABS = [
   { id: "search" as const, Icon: Search, key: "nav.search" },
   { id: "ai_panel" as const, Icon: Sparkles, key: "nav.aiPanel" },
   { id: "memory" as const, Icon: Brain, key: "nav.memory" },
+  { id: "memory_graph" as const, Icon: Network, key: "nav.memoryGraph" },
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
   { id: "digest" as const, Icon: Bell, key: "nav.digest" },
 ] as const;
@@ -107,6 +109,12 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         openWindow({
           type: "memory",
           title: tn("sidebar.openMemory"),
+          meta: { notebookId },
+        });
+      } else if (tabId === "memory_graph") {
+        openWindow({
+          type: "memory_graph",
+          title: tn("sidebar.openMemoryGraph"),
           meta: { notebookId },
         });
       } else if (tabId === "learn") {
