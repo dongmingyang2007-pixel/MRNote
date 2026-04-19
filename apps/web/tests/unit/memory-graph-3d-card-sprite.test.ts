@@ -4,7 +4,8 @@ import type { GraphNode } from "@/components/console/graph/memory-graph/types";
 
 // jsdom doesn't provide 2D canvas; install a minimal polyfill.
 beforeAll(() => {
-  const proto = HTMLCanvasElement.prototype;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proto = HTMLCanvasElement.prototype as any;
   const origGetContext = proto.getContext;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   proto.getContext = function (type: string): any {
