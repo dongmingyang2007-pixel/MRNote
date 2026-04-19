@@ -19,6 +19,8 @@ interface Props {
   onRearrange: () => void;
   onFit: () => void;
   onViewChange: (view: "graph" | "list") => void;
+  /** Compact mode for narrow windows: hide role chips + slider numeric value, shrink slider. */
+  compact?: boolean;
 }
 
 export function Toolbar(p: Props) {
@@ -45,16 +47,17 @@ export function Toolbar(p: Props) {
         }}
       />
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-        <span>{t("memoryGraph.confSlider.label")}</span>
+        {!p.compact && <span>{t("memoryGraph.confSlider.label")}</span>}
         <input
           data-testid="mg-conf-slider"
           type="range" min={0.6} max={0.99} step={0.01}
           value={p.confMin}
           onChange={(e) => p.onConfMin(Number(e.target.value))}
-          style={{ width: 120 }}
+          style={{ width: p.compact ? 80 : 120 }}
         />
         <span style={{ minWidth: 30, fontFamily: "monospace" }}>{p.confMin.toFixed(2)}</span>
       </label>
+      {!p.compact && (
       <div style={{ display: "flex", gap: 4 }}>
         {ALL_ROLES.map((r) => {
           const on = p.filters[r];
@@ -84,6 +87,7 @@ export function Toolbar(p: Props) {
           );
         })}
       </div>
+      )}
       <div style={{ flex: 1 }} />
       <button data-testid="mg-btn-rearrange" type="button" onClick={p.onRearrange}
         style={{ padding: "4px 8px", fontSize: 12 }}>

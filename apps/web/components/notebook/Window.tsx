@@ -35,6 +35,13 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   search: Search,
 };
 
+// Per-type minimum dimensions — prevents users from shrinking a window
+// below a usable size. Fallback to the generic 200x150 for types that
+// don't declare their own.
+const MIN_SIZES: Partial<Record<WindowType, { width: number; height: number }>> = {
+  memory_graph: { width: 600, height: 440 },
+};
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -125,8 +132,8 @@ export default function Window({
       position={position}
       dragHandleClassName="wm-titlebar"
       bounds="parent"
-      minWidth={200}
-      minHeight={150}
+      minWidth={MIN_SIZES[windowState.type]?.width ?? 200}
+      minHeight={MIN_SIZES[windowState.type]?.height ?? 150}
       disableDragging={maximized}
       enableResizing={!maximized}
       onDragStop={(_e, d) => {

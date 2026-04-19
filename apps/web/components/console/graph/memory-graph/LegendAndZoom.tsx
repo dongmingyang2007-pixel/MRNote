@@ -10,14 +10,17 @@ interface Props {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
+  /** Hide the legend overlay when the canvas is too narrow. Zoom controls always show. */
+  showLegend?: boolean;
 }
 
 const ORDERED_ROLES: Role[] = ["fact", "structure", "subject", "concept", "summary"];
 
-export function LegendAndZoom({ zoom, onZoomIn, onZoomOut, onFit }: Props) {
+export function LegendAndZoom({ zoom, onZoomIn, onZoomOut, onFit, showLegend = true }: Props) {
   const t = useTranslations("console-notebooks");
   return (
     <>
+      {showLegend && (
       <div
         className="mg-legend"
         style={{
@@ -45,6 +48,7 @@ export function LegendAndZoom({ zoom, onZoomIn, onZoomOut, onFit }: Props) {
           </div>
         ))}
       </div>
+      )}
       <div
         className="mg-zoom"
         style={{

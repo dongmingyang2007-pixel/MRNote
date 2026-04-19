@@ -17,6 +17,7 @@ interface Props {
 
 const ALL_ROLES: Role[] = ["fact", "structure", "subject", "concept", "summary"];
 const BOTTOM_SHEET_BREAKPOINT = 960;
+const LEGEND_HIDE_BREAKPOINT = 720;
 
 export function MemoryGraphView({ nodes, edges }: Props) {
   const [search, setSearch] = useState("");
@@ -33,6 +34,7 @@ export function MemoryGraphView({ nodes, edges }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 800, h: 600 });
   const isNarrow = box.w < BOTTOM_SHEET_BREAKPOINT;
+  const compactToolbar = box.w < LEGEND_HIDE_BREAKPOINT;
 
   // Resize observer → canvas dimensions (guard for jsdom which lacks ResizeObserver)
   useEffect(() => {
@@ -147,6 +149,7 @@ export function MemoryGraphView({ nodes, edges }: Props) {
           search={search} confMin={confMin} filters={filters} view={view} counts={counts}
           onSearch={setSearch} onConfMin={setConfMin} onToggleFilter={toggleFilter}
           onRearrange={handleRearrange} onFit={handleFit} onViewChange={setView}
+          compact={compactToolbar}
         />
         <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
           {view === "graph" ? (
@@ -169,6 +172,7 @@ export function MemoryGraphView({ nodes, edges }: Props) {
               <LegendAndZoom
                 zoom={viewport.k}
                 onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFit={handleFit}
+                showLegend={!compactToolbar}
               />
             </>
           ) : (
