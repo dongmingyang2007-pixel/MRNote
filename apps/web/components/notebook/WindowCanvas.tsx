@@ -11,6 +11,7 @@ import NoteWindow from "./contents/NoteWindow";
 import AIPanelWindow from "./contents/AIPanelWindow";
 import FileWindow from "./contents/FileWindow";
 import MemoryWindow from "./contents/MemoryWindow";
+import MemoryGraphWindow from "./contents/MemoryGraphWindow";
 import StudyWindow from "./contents/StudyWindow";
 import DigestWindow from "./contents/DigestWindow";
 import SearchWindow from "./contents/SearchWindow";
@@ -47,6 +48,13 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
         <MemoryWindow
           notebookId={windowState.meta.notebookId || ""}
           initialPageId={windowState.meta.pageId}
+        />
+      );
+
+    case "memory_graph":
+      return (
+        <MemoryGraphWindow
+          notebookId={windowState.meta.notebookId || ""}
         />
       );
 
