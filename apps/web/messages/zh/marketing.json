@@ -14,8 +14,6 @@
   "hero.sub": "每一次对话都有持久记忆。自动提醒后续跟进。每周周报反思。为同时服务 10 到 50 位客户的咨询师、自由职业者与独立创业者而打造。",
   "hero.cta.primary": "免费开始 — 无需信用卡",
   "hero.cta.secondary": "观看 2 分钟演示",
-  "hero.demo.placeholder.title": "30 秒产品导览",
-  "hero.demo.placeholder.hint": "演示视频占位",
 
   "problem.kicker": "痛点",
   "problem.title": "客户名单越来越长,大脑却扩展不了。",
@@ -38,8 +36,6 @@
   "feature1.bullets.0": "自动从通话、笔记与文档中提取",
   "feature1.bullets.1": "用自然语言查询,每条都可溯源",
   "feature1.bullets.2": "默认私有,绝不用于模型训练",
-  "feature1.screenshot.label": "记忆视窗",
-  "feature1.screenshot.hint": "截图占位 —— MemoryWindow",
 
   "feature2.eyebrow": "跟进提醒",
   "feature2.title": "不再遗忘任何一位客户",
@@ -47,8 +43,6 @@
   "feature2.bullets.0": "每次对话自动追踪承诺",
   "feature2.bullets.1": "客户联系频率预警",
   "feature2.bullets.2": "一键稍后提醒、标记完成或重排",
-  "feature2.screenshot.label": "跟进摘要",
-  "feature2.screenshot.hint": "截图占位 —— Digest reminder",
 
   "feature3.eyebrow": "每周反思",
   "feature3.title": "30 秒的周一复盘",
@@ -56,14 +50,11 @@
   "feature3.bullets.0": "自动生成上周摘要",
   "feature3.bullets.1": "逾期承诺优先呈现",
   "feature3.bullets.2": "核心客户的目标偏移检测",
-  "feature3.screenshot.label": "周一摘要",
-  "feature3.screenshot.hint": "截图占位 —— DigestWindow",
 
   "screenshot.kicker": "工作区",
   "screenshot.title": "一块画布,而非一棵文件树。",
   "screenshot.sub": "把任何文档、记忆或摘要拖到白板上。三个客户并排开着,也不会迷失。",
-  "screenshot.placeholder.label": "产品截图",
-  "screenshot.placeholder.hint": "截图占位 —— 整体工作区",
+  "screenshot.canvas.hint": "拖动任意窗口 — 试试看",
 
   "pricing.kicker": "定价",
   "pricing.title": "定价清晰。免费起步。",

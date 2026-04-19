@@ -1,10 +1,22 @@
 import { getTranslations } from "next-intl/server";
 import { Brain, Bell, CalendarCheck } from "lucide-react";
 
+import MemoryMock from "./mocks/MemoryMock";
+import FollowupMock from "./mocks/FollowupMock";
+import DigestMock from "./mocks/DigestMock";
+
 const FEATURE_ICONS = {
   1: Brain,
   2: Bell,
   3: CalendarCheck,
+} as const;
+
+// Map feature index → mock component. Kept here (not in mocks/) so
+// the feature→mock pairing is visible at the call site.
+const FEATURE_MOCKS = {
+  1: MemoryMock,
+  2: FollowupMock,
+  3: DigestMock,
 } as const;
 
 type FeatureKey = 1 | 2 | 3;
@@ -28,6 +40,7 @@ export default async function FeaturesSection() {
 
         {features.map((i) => {
           const Icon = FEATURE_ICONS[i];
+          const Mock = FEATURE_MOCKS[i];
           const reverse = i % 2 === 0;
           return (
             <div
@@ -59,19 +72,8 @@ export default async function FeaturesSection() {
                   </li>
                 </ul>
               </div>
-              <div className="marketing-feature__media">
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {t(`feature${i}.screenshot.label`)}
-                  </div>
-                  <div>{t(`feature${i}.screenshot.hint`)}</div>
-                </div>
+              <div className="marketing-feature__media-wrap">
+                <Mock />
               </div>
             </div>
           );

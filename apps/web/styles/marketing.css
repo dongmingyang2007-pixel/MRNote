@@ -164,23 +164,9 @@
   margin-top: 32px;
 }
 
-.marketing-hero__demo {
+.marketing-hero__demo-wrap {
   position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: linear-gradient(
-    135deg,
-    var(--bg-surface) 0%,
-    rgba(15, 118, 255, 0.04) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 32px;
-  color: var(--text-secondary);
+  width: 100%;
 }
 
 /* ─── Problem (3-col) ─── */
@@ -235,7 +221,7 @@
   .marketing-feature--reverse .marketing-feature__copy {
     order: 2;
   }
-  .marketing-feature--reverse .marketing-feature__media {
+  .marketing-feature--reverse .marketing-feature__media-wrap {
     order: 1;
   }
 }
@@ -271,35 +257,6 @@
   border-radius: 999px;
   background: var(--brand-v2);
   margin-top: 9px;
-}
-
-.marketing-feature__media {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: var(--bg-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-/* ─── Big product screenshot ─── */
-
-.marketing-screenshot {
-  aspect-ratio: 16 / 10;
-  max-width: 1100px;
-  margin: 56px auto 0;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: var(--bg-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
 }
 
 /* ─── Pricing cards ─── */
@@ -785,3 +742,328 @@
     transform: translateY(0);
   }
 }
+
+/* ─── Mock product chrome (in-page UI mockups) ─── */
+/* Used by HeroCanvasStage, FeaturesSection media, LiveCanvasDemo.   *
+ * Every visual on the landing page renders through these classes —  *
+ * no binary images, no Lottie. Motion is CSS keyframe-driven so the *
+ * bundle stays lean. Respect `prefers-reduced-motion`.              */
+
+.marketing-mock {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 32px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.marketing-mock__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.02) 0%,
+    transparent 100%
+  );
+}
+
+.marketing-mock__lights {
+  display: inline-flex;
+  gap: 6px;
+}
+.marketing-mock__light {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.marketing-mock__light--red    { background: #ff5f57; }
+.marketing-mock__light--yellow { background: #febc2e; }
+.marketing-mock__light--green  { background: #28c840; }
+
+.marketing-mock__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.marketing-mock__body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Generic key/value row used by Memory / Followup / Digest mocks. */
+.marketing-mock__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+}
+
+.marketing-mock__row-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand-v2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  width: 64px;
+  line-height: 1.4;
+}
+
+.marketing-mock__row-value {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  flex: 1;
+}
+
+.marketing-mock__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--brand-v2);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.marketing-mock__dot--pulse {
+  animation: marketing-mock-pulse 1.8s ease-in-out infinite;
+}
+.marketing-mock__dot--amber {
+  background: #f59e0b;
+}
+
+/* Typewriter caret used by MemoryMock on the "extracted" value. */
+.marketing-mock__caret {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--text-primary);
+  vertical-align: -2px;
+  animation: marketing-mock-blink 1s steps(1) infinite;
+}
+
+/* ─── Hero canvas stage ─── */
+/* Three mocks overlap and float idly — gives the Hero a "living"    *
+ * floating-window impression without a binary screenshot.           */
+
+.marketing-canvas-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  isolation: isolate;
+}
+
+.marketing-canvas-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      rgba(15, 118, 255, 0.08) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 80% 80%,
+      rgba(15, 118, 255, 0.06) 0%,
+      transparent 55%
+    );
+  z-index: -1;
+}
+
+.marketing-canvas-stage__slot {
+  position: absolute;
+  width: 62%;
+  animation: marketing-mock-float 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.marketing-canvas-stage__slot--a {
+  top: 2%;
+  left: 4%;
+  animation-delay: 0s;
+  z-index: 3;
+}
+.marketing-canvas-stage__slot--b {
+  top: 30%;
+  right: 2%;
+  width: 58%;
+  animation-delay: -2.3s;
+  z-index: 2;
+}
+.marketing-canvas-stage__slot--c {
+  bottom: 2%;
+  left: 10%;
+  width: 60%;
+  animation-delay: -4.6s;
+  z-index: 1;
+}
+
+/* ─── Live canvas demo (draggable) ─── */
+/* Container for react-rnd wrappers. We hand react-rnd absolute      *
+ * positioning — it sets `position: absolute` + inline transforms on *
+ * its own root node, so our container must be `position: relative`  *
+ * and clip on both axes.                                            */
+
+.marketing-live-canvas {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  margin: 56px auto 0;
+  height: 520px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(15, 118, 255, 0.06) 0%,
+      transparent 55%
+    ),
+    var(--bg-surface);
+  overflow: hidden;
+}
+
+.marketing-live-canvas__hint {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  z-index: 10;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .marketing-live-canvas {
+    height: 420px;
+    margin-top: 32px;
+  }
+}
+
+/* ─── Keyframes ─── */
+
+@keyframes marketing-mock-float {
+  0%, 100% {
+    transform: translateY(0) rotate(-0.2deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.2deg);
+  }
+}
+
+@keyframes marketing-mock-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(15, 118, 255, 0.35);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 0 6px rgba(15, 118, 255, 0);
+  }
+}
+
+@keyframes marketing-mock-blink {
+  50% { opacity: 0; }
+}
+
+@keyframes marketing-mock-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-canvas-stage__slot,
+  .marketing-mock__dot--pulse,
+  .marketing-mock__caret {
+    animation: none !important;
+  }
+}
+
+.marketing-feature__media-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .marketing-feature__media-wrap {
+    max-width: 520px;
+    margin-inline: auto;
+  }
+}
+
+/* ─── Mobile override: stack mocks, kill absolute positioning ─── */
+/* Hero canvas + LiveCanvasDemo both use absolute positioning for   *
+ * overlapping / draggable windows. That design doesn't survive     *
+ * <768px viewports where windows are too narrow to hold their      *
+ * content. Below 768px we flatten the stages into a plain vertical *
+ * stack and rely on the mocks rendering at their natural width.    */
+
+@media (max-width: 767px) {
+  /* Hero canvas: collapse to a simple column. */
+  .marketing-canvas-stage {
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .marketing-canvas-stage::before {
+    display: none;
+  }
+  .marketing-canvas-stage__slot,
+  .marketing-canvas-stage__slot--a,
+  .marketing-canvas-stage__slot--b,
+  .marketing-canvas-stage__slot--c {
+    position: static;
+    width: 100%;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    animation: none;
+  }
+
+  /* Live canvas: hide the interactive container, expose the stacked
+   * fallback rendered by .marketing-live-canvas__mobile-fallback. */
+  .marketing-live-canvas {
+    display: none;
+  }
+  .marketing-live-canvas__mobile-fallback {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 32px;
+  }
+}
+
+@media (min-width: 768px) {
+  .marketing-live-canvas__mobile-fallback {
+    display: none;
+  }
+}
+

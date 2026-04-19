@@ -14,8 +14,6 @@
   "hero.sub": "Persistent memory across every session. Automatic follow-up reminders. Weekly reflections. Built for consultants, freelancers, and solopreneurs running 10 to 50 client relationships.",
   "hero.cta.primary": "Start free — no credit card",
   "hero.cta.secondary": "Watch 2-min demo",
-  "hero.demo.placeholder.title": "30-second product tour",
-  "hero.demo.placeholder.hint": "Demo video placeholder",
 
   "problem.kicker": "The problem",
   "problem.title": "Your client list keeps growing. Your brain doesn't scale.",
@@ -38,8 +36,6 @@
   "feature1.bullets.0": "Auto-extracted from calls, notes, and docs",
   "feature1.bullets.1": "Query in natural language, cited to source",
   "feature1.bullets.2": "Private by default, never used to train models",
-  "feature1.screenshot.label": "Memory window",
-  "feature1.screenshot.hint": "Screenshot placeholder — MemoryWindow",
 
   "feature2.eyebrow": "Follow-up reminders",
   "feature2.title": "Never drop a client again",
@@ -47,8 +43,6 @@
   "feature2.bullets.0": "Commitment tracking from every conversation",
   "feature2.bullets.1": "Relationship cadence alerts",
   "feature2.bullets.2": "Snooze, mark done, or reschedule in one click",
-  "feature2.screenshot.label": "Follow-up digest",
-  "feature2.screenshot.hint": "Screenshot placeholder — Digest reminder",
 
   "feature3.eyebrow": "Weekly reflections",
   "feature3.title": "30-second Monday reflection",
@@ -56,14 +50,11 @@
   "feature3.bullets.0": "Auto-generated summary of the past week",
   "feature3.bullets.1": "Overdue commitments surfaced first",
   "feature3.bullets.2": "Goal drift detection across your top clients",
-  "feature3.screenshot.label": "Monday digest",
-  "feature3.screenshot.hint": "Screenshot placeholder — DigestWindow",
 
   "screenshot.kicker": "The workspace",
   "screenshot.title": "A canvas, not a file tree.",
   "screenshot.sub": "Drag any document, memory, or digest onto the whiteboard. Keep three clients open side-by-side without losing your place.",
-  "screenshot.placeholder.label": "Product screenshot",
-  "screenshot.placeholder.hint": "Screenshot placeholder — full workspace",
+  "screenshot.canvas.hint": "Drag any window — try it",
 
   "pricing.kicker": "Pricing",
   "pricing.title": "Simple pricing. Start free.",

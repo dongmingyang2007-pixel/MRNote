@@ -1,3 +1,4 @@
+import AuthBrandHeader from "@/components/marketing/AuthBrandHeader";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -8,22 +9,11 @@ import { getTranslations } from "next-intl/server";
  * carries all the weight, terms + privacy footer sits muted at bottom.
  */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const tMarketing = await getTranslations("marketing");
   const tAuth = await getTranslations("auth");
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)]">
-      {/* Top bar — just the wordmark, nothing else. */}
-      <header className="px-6 pt-8 md:px-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold"
-          aria-label={tMarketing("brand.name")}
-        >
-          <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-v2)]" />
-          <span className="font-display tracking-tight">{tMarketing("brand.name")}</span>
-        </Link>
-      </header>
+      <AuthBrandHeader />
 
       {/* Form — single column, centered, max-w-sm. */}
       <main className="flex flex-1 items-center justify-center px-6 py-16">
