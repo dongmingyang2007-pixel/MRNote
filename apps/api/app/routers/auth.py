@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
@@ -24,7 +24,12 @@ from app.core.deps import (
 )
 from app.core.errors import ApiError
 from app.core.oauth import oauth
-from app.core.security import create_access_token, hash_password, verify_password_or_dummy
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    verify_password,
+    verify_password_or_dummy,
+)
 from app.core.config import settings
 from app.models import Membership, OAuthIdentity, User, Workspace
 from app.schemas.auth import (
@@ -35,6 +40,12 @@ from app.schemas.auth import (
     SendCodeRequest,
     UserOut,
     WorkspaceOut,
+)
+from app.schemas.oauth import (
+    OAuthDisconnectResponse,
+    OAuthIdentityOut,
+    SetPasswordRequest,
+    SetPasswordResponse,
 )
 from app.services.audit import write_audit_log
 from app.services.email import send_verification_email, store_verification_code, verify_code
@@ -500,3 +511,97 @@ async def google_callback(
     for cookie_header in response.headers.getlist("set-cookie"):
         redir.headers.append("set-cookie", cookie_header)
     return redir
+
+
+@router.get("/identities", response_model=list[OAuthIdentityOut])
+def list_identities(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> list[OAuthIdentityOut]:
+    """Return the current user's linked external identities."""
+    rows = db.execute(
+        select(OAuthIdentity)
+        .where(OAuthIdentity.user_id == current_user.id)
+        .order_by(OAuthIdentity.linked_at.desc())
+    ).scalars().all()
+    return [OAuthIdentityOut.model_validate(r) for r in rows]
+
+
+@router.post("/google/disconnect", response_model=OAuthDisconnectResponse)
+def google_disconnect(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf_protection),
+) -> OAuthDisconnectResponse:
+    """Unlink Google from the current user.
+
+    Blocks with 409 ``password_required`` when the user has no password
+    (removing the link would lock them out of every sign-in method).
+    """
+    enforce_rate_limit(
+        request,
+        scope="auth:oauth_disconnect:user",
+        identifier=current_user.id,
+        limit=10,
+        window_seconds=3600,
+    )
+    if current_user.password_hash is None:
+        raise ApiError(
+            "password_required",
+            "Please set a password before disconnecting Google.",
+            status_code=409,
+        )
+    db.execute(
+        delete(OAuthIdentity).where(
+            OAuthIdentity.user_id == current_user.id,
+            OAuthIdentity.provider == "google",
+        )
+    )
+    write_audit_log(
+        db,
+        workspace_id=None,
+        actor_user_id=current_user.id,
+        action="auth.oauth.google.disconnect",
+        target_type="user",
+        target_id=current_user.id,
+        meta_json={"provider": "google"},
+    )
+    db.commit()
+    return OAuthDisconnectResponse(success=True)
+
+
+@router.put("/password", response_model=SetPasswordResponse)
+def set_password(
+    payload: SetPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+    _csrf: None = Depends(require_csrf_protection),
+) -> SetPasswordResponse:
+    """Set or change the current user's password.
+
+    Users who signed up via Google have ``password_hash=None``; they can
+    simply ``PUT {new_password}``. Users who already have a password must
+    include ``current_password`` to rotate.
+    """
+    if current_user.password_hash is not None:
+        if not payload.current_password:
+            raise ApiError(
+                "invalid_request", "current_password required", status_code=400
+            )
+        if not verify_password(payload.current_password, current_user.password_hash):
+            raise ApiError(
+                "invalid_credentials", "Wrong current password", status_code=400
+            )
+    current_user.password_hash = hash_password(payload.new_password)
+    write_audit_log(
+        db,
+        workspace_id=None,
+        actor_user_id=current_user.id,
+        action="auth.password.set",
+        target_type="user",
+        target_id=current_user.id,
+        meta_json={},
+    )
+    db.commit()
+    return SetPasswordResponse(success=True)

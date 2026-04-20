@@ -320,3 +320,154 @@ def test_callback_existing_oauth_signs_in(client: TestClient):
     )
     assert resp.status_code == 302
     assert resp.headers["location"] == "/app"
+
+
+# ---------------------------------------------------------------------------
+# /auth/identities + /auth/google/disconnect + /auth/password
+# ---------------------------------------------------------------------------
+
+
+def _login_existing_user(client: TestClient, user_id: str) -> dict[str, str]:
+    """Seed TestClient cookies + CSRF so authenticated requests just work.
+
+    Returns headers including `x-csrf-token` and `origin` for CSRF-protected
+    endpoints.
+    """
+    from app.core.security import create_access_token
+
+    token = create_access_token(user_id)
+    client.cookies.set(settings.access_cookie_name, token)
+    resp = client.get("/api/v1/auth/csrf", headers=public_headers())
+    assert resp.status_code == 200, resp.text
+    csrf = resp.json()["csrf_token"]
+    return {"origin": ORIGIN, "x-csrf-token": csrf}
+
+
+def test_identities_returns_linked_accounts(client: TestClient):
+    from app.models import OAuthIdentity, User
+
+    with SessionLocal() as db:
+        u = User(email="u@x.com", password_hash="p")
+        db.add(u)
+        db.flush()
+        db.add(OAuthIdentity(
+            user_id=u.id, provider="google",
+            provider_id="9001", provider_email="u@x.com",
+        ))
+        db.commit()
+        uid = u.id
+
+    _login_existing_user(client, uid)
+    resp = client.get("/api/v1/auth/identities", headers=public_headers())
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["provider"] == "google"
+    assert data[0]["provider_email"] == "u@x.com"
+
+
+def test_disconnect_blocks_user_without_password(client: TestClient):
+    from app.models import OAuthIdentity, User
+
+    with SessionLocal() as db:
+        u = User(email="oauth-only@x.com", password_hash=None)
+        db.add(u)
+        db.flush()
+        db.add(OAuthIdentity(
+            user_id=u.id, provider="google",
+            provider_id="9002", provider_email="oauth-only@x.com",
+        ))
+        db.commit()
+        uid = u.id
+
+    auth_headers = _login_existing_user(client, uid)
+    resp = client.post(
+        "/api/v1/auth/google/disconnect",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "password_required"
+
+
+def test_disconnect_succeeds_when_user_has_password(client: TestClient):
+    from sqlalchemy import select
+
+    from app.models import OAuthIdentity, User
+
+    with SessionLocal() as db:
+        u = User(email="both@x.com", password_hash="hashed")
+        db.add(u)
+        db.flush()
+        db.add(OAuthIdentity(
+            user_id=u.id, provider="google",
+            provider_id="9003", provider_email="both@x.com",
+        ))
+        db.commit()
+        uid = u.id
+
+    auth_headers = _login_existing_user(client, uid)
+    resp = client.post("/api/v1/auth/google/disconnect", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    with SessionLocal() as db:
+        remaining = db.execute(
+            select(OAuthIdentity).where(OAuthIdentity.user_id == uid)
+        ).scalars().all()
+        assert remaining == []
+
+
+def test_set_password_for_oauth_only_user(client: TestClient):
+    from app.models import User
+
+    with SessionLocal() as db:
+        u = User(email="no-pw@x.com", password_hash=None)
+        db.add(u)
+        db.commit()
+        uid = u.id
+
+    auth_headers = _login_existing_user(client, uid)
+    resp = client.put(
+        "/api/v1/auth/password",
+        json={"new_password": "NewStrongPass123"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    with SessionLocal() as db:
+        u = db.get(User, uid)
+        assert u.password_hash is not None
+
+
+def test_change_password_requires_current_when_one_exists(client: TestClient):
+    from app.core.security import hash_password
+    from app.models import User
+
+    with SessionLocal() as db:
+        u = User(email="has-pw@x.com", password_hash=hash_password("CurrentPass123"))
+        db.add(u)
+        db.commit()
+        uid = u.id
+
+    auth_headers = _login_existing_user(client, uid)
+
+    # Missing current_password → 400
+    resp = client.put(
+        "/api/v1/auth/password",
+        json={"new_password": "NewPass123"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+
+    # Wrong current_password → 400
+    resp = client.put(
+        "/api/v1/auth/password",
+        json={"new_password": "NewPass123", "current_password": "Wrong"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+
+    # Correct → 200
+    resp = client.put(
+        "/api/v1/auth/password",
+        json={"new_password": "NewPass123", "current_password": "CurrentPass123"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
