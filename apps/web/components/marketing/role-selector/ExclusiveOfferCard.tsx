@@ -6,9 +6,10 @@ interface Props {
   cta: string;
   href: string;
   badge: string;
+  onClick?: () => void;
 }
 
-export default function ExclusiveOfferCard({ title, description, cta, href, badge }: Props) {
+export default function ExclusiveOfferCard({ title, description, cta, href, badge, onClick }: Props) {
   return (
     <div className="marketing-exclusive__card marketing-exclusive__card--offer">
       <span className="marketing-exclusive__offer-badge">{badge}</span>
@@ -17,7 +18,7 @@ export default function ExclusiveOfferCard({ title, description, cta, href, badg
       </span>
       <h4 className="marketing-exclusive__card-title">{title}</h4>
       <p className="marketing-exclusive__card-body">{description}</p>
-      <Link href={href} className="marketing-exclusive__offer-cta">
+      <Link href={href} className="marketing-exclusive__offer-cta" onClick={onClick}>
         {cta}
       </Link>
     </div>
