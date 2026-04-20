@@ -4,12 +4,29 @@ export const ROLE_KEYS: readonly RoleKey[] = [
   "researcher", "lawyer", "doctor", "teacher", "founder", "designer",
 ] as const;
 
+// Default role used when a visitor has no cookie yet. Keeps ExclusiveSection
+// populated on first paint (no "empty state" UX) while the Hero badge stays
+// hidden until the visitor actively picks — so the Hero "for independent
+// consultants" framing stays intact. `founder` is the closest match to that
+// framing among the six roles.
+export const DEFAULT_ROLE: RoleKey = "founder";
+
+// Maps to a lucide-react icon component. RoleIcon.tsx is the sole consumer —
+// keep this as a string so role-content stays a pure data module.
+export type RoleIconKey =
+  | "graduation-cap"
+  | "scale"
+  | "stethoscope"
+  | "book-open"
+  | "rocket"
+  | "palette";
+
 interface Localized { zh: string; en: string }
 
 export interface RoleContent {
   key: RoleKey;
   label: Localized;
-  icon: string;
+  iconKey: RoleIconKey;
   domainNoun: Localized;
   stat: { count: number; asOf: string };
   demo: { title: Localized; description: Localized; animationKey: string };
@@ -23,7 +40,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   researcher: {
     key: "researcher",
     label: { zh: "研究生", en: "Researcher" },
-    icon: "🔬",
+    iconKey: "graduation-cap",
     domainNoun: { zh: "研究伙伴", en: "research companion" },
     stat: { count: 5243, asOf: "2026-04" },
     demo: {
@@ -68,7 +85,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   lawyer: {
     key: "lawyer",
     label: { zh: "律师", en: "Lawyer" },
-    icon: "⚖️",
+    iconKey: "scale",
     domainNoun: { zh: "案件助手", en: "case assistant" },
     stat: { count: 1872, asOf: "2026-04" },
     demo: {
@@ -113,7 +130,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   doctor: {
     key: "doctor",
     label: { zh: "医生", en: "Doctor" },
-    icon: "👨‍⚕️",
+    iconKey: "stethoscope",
     domainNoun: { zh: "病历助手", en: "clinical sidekick" },
     stat: { count: 2104, asOf: "2026-04" },
     demo: {
@@ -158,7 +175,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   teacher: {
     key: "teacher",
     label: { zh: "老师", en: "Teacher" },
-    icon: "👨‍🏫",
+    iconKey: "book-open",
     domainNoun: { zh: "教学助手", en: "teaching co-pilot" },
     stat: { count: 3156, asOf: "2026-04" },
     demo: {
@@ -203,7 +220,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   founder: {
     key: "founder",
     label: { zh: "创业者", en: "Founder" },
-    icon: "🚀",
+    iconKey: "rocket",
     domainNoun: { zh: "创业大脑", en: "founder brain" },
     stat: { count: 1620, asOf: "2026-04" },
     demo: {
@@ -248,7 +265,7 @@ export const ROLE_CONTENT: Record<RoleKey, RoleContent> = {
   designer: {
     key: "designer",
     label: { zh: "设计师", en: "Designer" },
-    icon: "🎨",
+    iconKey: "palette",
     domainNoun: { zh: "灵感图书馆", en: "inspiration library" },
     stat: { count: 2789, asOf: "2026-04" },
     demo: {

@@ -45,12 +45,11 @@ describe("ExclusiveSection", () => {
     cleanup();
   });
 
-  it("renders the empty state with placeholder cards when no role selected", () => {
+  it("defaults to founder content when no initialRole is provided", () => {
     render(<RoleProvider initialRole={null} locale="zh"><ExclusiveSection locale="zh" /></RoleProvider>);
-    expect(screen.getByText("exclusiveSection.emptyTitle")).toBeTruthy();
-    expect(screen.queryByText("立即激活 →")).toBeNull();
-    const placeholders = screen.getAllByText("exclusiveSection.placeholderCard");
-    expect(placeholders.length).toBeGreaterThanOrEqual(3);
+    // DEFAULT_ROLE is founder — its demo title should render on first paint.
+    expect(screen.getByText("客户访谈自动提炼洞察")).toBeTruthy();
+    expect(screen.getByText("创业者 5 件套")).toBeTruthy();
   });
 
   it("renders role content when initialRole is provided", () => {
@@ -68,11 +67,10 @@ describe("ExclusiveSection", () => {
     expect(screen.getByText("合同摘要 10 秒出")).toBeTruthy();
   });
 
-  it("switch link clears the role and returns to empty state", () => {
-    render(<RoleProvider initialRole="lawyer" locale="zh"><ExclusiveSection locale="zh" /></RoleProvider>);
-    const switchBtn = screen.getByRole("button", { name: "exclusiveSection.switch" });
-    act(() => { fireEvent.click(switchBtn); });
-    expect(screen.queryByText("合同摘要 10 秒出")).toBeNull();
-    expect(screen.getByText("exclusiveSection.emptyTitle")).toBeTruthy();
+  it("the default role chip renders active when no user selection yet", () => {
+    render(<RoleProvider initialRole={null} locale="zh"><ExclusiveSection locale="zh" /></RoleProvider>);
+    // Default is founder — its radio should be aria-checked.
+    const founderRadio = screen.getByRole("radio", { name: "创业者" });
+    expect(founderRadio.getAttribute("aria-checked")).toBe("true");
   });
 });

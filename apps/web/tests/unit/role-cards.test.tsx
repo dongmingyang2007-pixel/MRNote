@@ -30,6 +30,7 @@ describe("ExclusiveOfferCard", () => {
   it("renders title, description, CTA link, and the 独家 badge", () => {
     render(
       <ExclusiveOfferCard
+        label="专属优惠"
         title=".edu 邮箱 · Pro 免费 6 月"
         description="验证学生身份即可激活，无需信用卡。"
         cta="立即激活 →"

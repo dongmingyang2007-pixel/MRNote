@@ -2,13 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { useRoleContext } from "@/lib/marketing/RoleContext";
-import { ROLE_CONTENT } from "@/lib/marketing/role-content";
+import { DEFAULT_ROLE, ROLE_CONTENT } from "@/lib/marketing/role-content";
 import type { RoleKey } from "@/lib/marketing/role-content";
 import { emitLandingEvent } from "@/lib/marketing/analytics";
 import RoleChipRow from "./role-selector/RoleChipRow";
 import RoleCard from "./role-selector/RoleCard";
 import ExclusiveOfferCard from "./role-selector/ExclusiveOfferCard";
-import StatCounter from "./role-selector/StatCounter";
+import StatHeadline from "./role-selector/StatHeadline";
 import TestimonialStrip from "./role-selector/TestimonialStrip";
 import InstitutionLogoRow from "./role-selector/InstitutionLogoRow";
 
@@ -18,7 +18,7 @@ interface Props {
 
 export default function ExclusiveSection({ locale }: Props) {
   const t = useTranslations("marketing");
-  const { role, setRole, clearRole } = useRoleContext();
+  const { role, setRole } = useRoleContext();
 
   function handleSelect(next: RoleKey) {
     if (role && role !== next) {
@@ -29,12 +29,8 @@ export default function ExclusiveSection({ locale }: Props) {
     setRole(next);
   }
 
-  function handleClear() {
-    if (role) emitLandingEvent("landing.role.cleared", { fromRole: role, locale });
-    clearRole();
-  }
-
-  const content = role ? ROLE_CONTENT[role] : null;
+  const effectiveRole: RoleKey = role ?? DEFAULT_ROLE;
+  const content = ROLE_CONTENT[effectiveRole];
 
   return (
     <section
@@ -42,91 +38,73 @@ export default function ExclusiveSection({ locale }: Props) {
       aria-label={t("exclusiveSection.eyebrow")}
     >
       <div className="marketing-exclusive__inner">
-        <span className="marketing-exclusive__eyebrow">{t("exclusiveSection.eyebrow")}</span>
+        <header className="marketing-exclusive__header">
+          <span className="marketing-exclusive__eyebrow">
+            <span className="marketing-exclusive__eyebrow-dot" aria-hidden="true" />
+            {t("exclusiveSection.eyebrow")}
+          </span>
+          <h2 className="marketing-exclusive__title">
+            {t("exclusiveSection.populatedTitle", { role: content.label[locale] })}
+          </h2>
+          <StatHeadline
+            count={content.stat.count}
+            prefix={t("exclusiveSection.statLinePrefix")}
+            suffix={t("exclusiveSection.statLineSuffix", {
+              role: content.label[locale],
+              noun: content.domainNoun[locale],
+            })}
+            asOfTooltip={t("exclusiveSection.statAsOfTooltip", { month: content.stat.asOf })}
+          />
+        </header>
 
-        {content ? (
-          <>
-            <h2 className="marketing-exclusive__title">
-              {t("exclusiveSection.populatedTitle", { role: content.label[locale] })}
-            </h2>
-            <p className="marketing-exclusive__stat-line">
-              {t("exclusiveSection.statLinePrefix")}
-              <strong title={t("exclusiveSection.statAsOfTooltip", { month: content.stat.asOf })}>
-                <StatCounter target={content.stat.count} />
-              </strong>
-              {t("exclusiveSection.statLineSuffix", {
-                role: content.label[locale],
-                noun: content.domainNoun[locale],
+        <RoleChipRow
+          activeRole={effectiveRole}
+          onSelect={handleSelect}
+          locale={locale}
+          groupLabel={t("exclusiveSection.chipsLabel")}
+        />
+
+        <div className="marketing-exclusive__cards">
+          <RoleCard
+            variant="feature"
+            label={t("exclusiveSection.cardLabel.demo")}
+            title={content.demo.title[locale]}
+            description={content.demo.description[locale]}
+          />
+          <div className="marketing-exclusive__cards-stack">
+            <RoleCard
+              label={t("exclusiveSection.cardLabel.templatePack")}
+              title={content.templatePack.title[locale]}
+              description={content.templatePack.items.map((i) => i[locale]).join(" / ")}
+              cta={content.templatePack.cta[locale]}
+            />
+            <ExclusiveOfferCard
+              label={t("exclusiveSection.offerLabel")}
+              title={content.offer.title[locale]}
+              description={content.offer.description[locale]}
+              cta={content.offer.cta[locale]}
+              href={content.offer.href}
+              badge={t("exclusiveSection.offerBadge")}
+              onClick={() => emitLandingEvent("landing.offer.clicked", {
+                role: effectiveRole,
+                offerHref: content.offer.href,
+                locale,
               })}
-              <button
-                type="button"
-                className="marketing-exclusive__switch"
-                onClick={handleClear}
-              >
-                {t("exclusiveSection.switch")}
-              </button>
-            </p>
-
-            <RoleChipRow activeRole={role} onSelect={handleSelect} locale={locale} groupLabel={t("exclusiveSection.chipsLabel")} />
-
-            <div className="marketing-exclusive__cards">
-              <RoleCard
-                label={t("exclusiveSection.cardLabel.demo")}
-                title={content.demo.title[locale]}
-                description={content.demo.description[locale]}
-              />
-              <RoleCard
-                label={t("exclusiveSection.cardLabel.templatePack")}
-                title={content.templatePack.title[locale]}
-                description={content.templatePack.items.map((i) => i[locale]).join(" / ")}
-                cta={content.templatePack.cta[locale]}
-              />
-              <ExclusiveOfferCard
-                title={content.offer.title[locale]}
-                description={content.offer.description[locale]}
-                cta={content.offer.cta[locale]}
-                href={content.offer.href}
-                badge={t("exclusiveSection.offerBadge")}
-                onClick={() => emitLandingEvent("landing.offer.clicked", {
-                  role: role as string,
-                  offerHref: content.offer.href,
-                  locale,
-                })}
-              />
-            </div>
-
-            <TestimonialStrip
-              quote={content.testimonial.quote[locale]}
-              name={content.testimonial.name}
-              title={content.testimonial.title[locale]}
-              avatarInitial={content.testimonial.avatarInitial}
             />
+          </div>
+        </div>
 
-            <InstitutionLogoRow
-              heading={t("exclusiveSection.logosHeading")}
-              names={content.institutions}
-            />
-          </>
-        ) : (
-          <>
-            <h2 className="marketing-exclusive__title">
-              {t("exclusiveSection.emptyTitle")}
-            </h2>
-            <p className="marketing-exclusive__hint">{t("exclusiveSection.emptyHint")}</p>
-            <RoleChipRow activeRole={null} onSelect={handleSelect} locale={locale} groupLabel={t("exclusiveSection.chipsLabel")} />
-            <div className="marketing-exclusive__cards">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="marketing-exclusive__card marketing-exclusive__card--placeholder"
-                  aria-hidden="true"
-                >
-                  {t("exclusiveSection.placeholderCard")}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <TestimonialStrip
+          quote={content.testimonial.quote[locale]}
+          name={content.testimonial.name}
+          title={content.testimonial.title[locale]}
+          avatarInitial={content.testimonial.avatarInitial}
+        />
+
+        <InstitutionLogoRow
+          heading={t("exclusiveSection.logosHeading")}
+          names={content.institutions}
+        />
       </div>
     </section>
   );

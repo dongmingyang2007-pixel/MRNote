@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useRoleContext } from "@/lib/marketing/RoleContext";
 import { ROLE_CONTENT } from "@/lib/marketing/role-content";
 import { useTranslations } from "next-intl";
@@ -15,7 +16,8 @@ export default function HeroRoleBadge({ locale }: Props) {
   const label = ROLE_CONTENT[role].label[locale];
   return (
     <span data-testid="hero-role-badge" className="marketing-hero__role-badge">
-      <span aria-hidden="true">✨</span> {t("hero.forRole", { role: label })}
+      <Sparkles size={12} strokeWidth={2.25} aria-hidden="true" />
+      {t("hero.forRole", { role: label })}
     </span>
   );
 }

@@ -16,7 +16,7 @@ describe("ROLE_CONTENT", () => {
       expect(c.key).toBe(key);
       expect(c.label.zh.length).toBeGreaterThan(0);
       expect(c.label.en.length).toBeGreaterThan(0);
-      expect(c.icon.length).toBeGreaterThan(0);
+      expect(c.iconKey.length).toBeGreaterThan(0);
       expect(c.domainNoun.zh.length).toBeGreaterThan(0);
       expect(c.domainNoun.en.length).toBeGreaterThan(0);
       expect(c.stat.count).toBeGreaterThan(0);

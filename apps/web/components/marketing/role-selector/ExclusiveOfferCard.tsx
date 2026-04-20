@@ -1,6 +1,8 @@
 import { Link } from "@/i18n/navigation";
+import { Gift } from "lucide-react";
 
 interface Props {
+  label: string;
   title: string;
   description: string;
   cta: string;
@@ -9,12 +11,15 @@ interface Props {
   onClick?: () => void;
 }
 
-export default function ExclusiveOfferCard({ title, description, cta, href, badge, onClick }: Props) {
+export default function ExclusiveOfferCard({ label, title, description, cta, href, badge, onClick }: Props) {
   return (
     <div className="marketing-exclusive__card marketing-exclusive__card--offer">
-      <span className="marketing-exclusive__offer-badge">{badge}</span>
+      <span className="marketing-exclusive__offer-badge">
+        <Gift size={11} strokeWidth={2.25} aria-hidden="true" />
+        {badge}
+      </span>
       <span className="marketing-exclusive__card-label marketing-exclusive__card-label--offer">
-        专属优惠
+        {label}
       </span>
       <h4 className="marketing-exclusive__card-title">{title}</h4>
       <p className="marketing-exclusive__card-body">{description}</p>

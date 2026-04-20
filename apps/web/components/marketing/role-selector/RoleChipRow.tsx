@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { ROLE_CONTENT, ROLE_KEYS, type RoleKey } from "@/lib/marketing/role-content";
+import RoleIcon from "./RoleIcon";
 
 interface Props {
   activeRole: RoleKey | null;
@@ -46,8 +47,11 @@ export default function RoleChipRow({ activeRole, onSelect, locale, groupLabel }
             onClick={() => onSelect(key)}
             onKeyDown={(e) => handleKeyDown(e, i)}
           >
-            <span aria-hidden="true">{content.icon}</span>
-            <span>{content.label[locale]}</span>
+            <span className="marketing-exclusive__chip-icon">
+              <RoleIcon iconKey={content.iconKey} size={20} />
+            </span>
+            <span className="marketing-exclusive__chip-label">{content.label[locale]}</span>
+            <span className="marketing-exclusive__chip-sub">{content.domainNoun[locale]}</span>
           </button>
         );
       })}
