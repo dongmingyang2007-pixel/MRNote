@@ -186,6 +186,30 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
   // Keep ref in sync so onUpdate closure always calls latest version
   debouncedSaveRef.current = debouncedSave;
 
+  // Manual save — cancels any pending debounce and saves immediately.
+  const saveNow = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const content = latestContentRef.current
+      ?? (editor?.getJSON() as Record<string, unknown> | undefined)
+      ?? { type: "doc", content: [] };
+    void saveContent(content);
+  }, [saveContent, editor]);
+
+  // Cmd+S / Ctrl+S keyboard shortcut anywhere in the editor wrapper
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        saveNow();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [saveNow]);
+
   // ---- Title change -------------------------------------------------------
 
   const handleTitleChange = useCallback(
@@ -253,6 +277,26 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
           <span className="note-editor-save-status" data-status={saveStatus}>
             {t(`pages.${saveStatus}` as "pages.saving")}
           </span>
+          <button
+            type="button"
+            data-testid="note-editor-save"
+            onClick={saveNow}
+            disabled={saveStatus === "saving"}
+            title={t("pages.saveNow") + " (⌘S)"}
+            aria-label={t("pages.saveNow")}
+            style={{
+              marginLeft: 8, padding: "4px 10px",
+              fontSize: 12, fontWeight: 500,
+              borderRadius: 6,
+              border: "1px solid var(--border, rgba(15,42,45,0.12))",
+              background: saveStatus === "unsaved" ? "var(--accent, #0d9488)" : "transparent",
+              color: saveStatus === "unsaved" ? "#fff" : "var(--text-secondary)",
+              cursor: saveStatus === "saving" ? "wait" : "pointer",
+              transition: "all 150ms ease",
+            }}
+          >
+            {t("pages.save")}
+          </button>
         </div>
 
         {/* Floating Toolbar (on text selection) */}
