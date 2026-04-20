@@ -79,6 +79,7 @@
   "sidebar.openMemory": "打开记忆",
   "sidebar.openMemoryGraph": "打开记忆图谱",
   "sidebar.openMemoryGraphShort": "记忆图谱",
+  "sidebar.closePanel": "关闭面板",
   "sidebar.comingSoon": "即将推出",
   "memoryGraph.title": "记忆图谱",
   "memoryGraph.searchPlaceholder": "搜索节点…",

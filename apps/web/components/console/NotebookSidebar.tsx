@@ -14,6 +14,9 @@ import {
   BookOpen,
   Settings,
   Search,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
@@ -42,6 +45,19 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const t = useTranslations("console");
   const tn = useTranslations("console-notebooks");
   const [activeTab, setActiveTab] = useState<SideTab>("pages");
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Hydrate collapsed state from localStorage on mount.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("mrai.notebook-sidebar.collapsed");
+      if (v === "1") setCollapsed(true);
+    } catch { /* ignore */ }
+  }, []);
+  const setCollapsedPersist = useCallback((next: boolean) => {
+    setCollapsed(next);
+    try { localStorage.setItem("mrai.notebook-sidebar.collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+  }, []);
   const [pages, setPages] = useState<
     Array<{ id: string; title: string; page_type: string }>
   >([]);
@@ -142,6 +158,34 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
 
   const panelOpen = activeTab === "pages";
 
+  // When collapsed: render only a floating expand button at top-left.
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        data-testid="sidebar-expand"
+        onClick={() => setCollapsedPersist(false)}
+        title={t("nav.expandSidebar")}
+        aria-label={t("nav.expandSidebar")}
+        style={{
+          position: "fixed",
+          top: 56, left: 8,
+          width: 32, height: 32,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(15,42,45,0.1)",
+          borderRadius: 10,
+          color: "var(--text-primary, #0f172a)",
+          cursor: "pointer",
+          zIndex: 40,
+        }}
+      >
+        <PanelLeftOpen size={16} strokeWidth={1.8} />
+      </button>
+    );
+  }
+
   return (
     <div style={{ display: "flex", height: "100%" }}>
       {/* 56px icon rail */}
@@ -217,6 +261,18 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
 
         <div style={{ flex: 1 }} />
 
+        <button
+          type="button"
+          data-testid="sidebar-collapse"
+          onClick={() => setCollapsedPersist(true)}
+          className="glass-sidebar-nav-item"
+          title={t("nav.collapseSidebar")}
+          aria-label={t("nav.collapseSidebar")}
+          style={{ marginBottom: 8 }}
+        >
+          <PanelLeftClose size={18} strokeWidth={1.8} />
+        </button>
+
         <MinimizedTray />
 
         <Link
@@ -267,6 +323,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         >
           <div
             style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
               fontSize: "0.6875rem",
               fontWeight: 600,
               textTransform: "uppercase",
@@ -275,7 +332,22 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
               marginBottom: 12,
             }}
           >
-            {t("nav.pages")}
+            <span>{t("nav.pages")}</span>
+            <button
+              type="button"
+              data-testid="sidebar-panel-close"
+              onClick={() => setActiveTab(null)}
+              title={tn("sidebar.closePanel")}
+              aria-label={tn("sidebar.closePanel")}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 22, height: 22, border: "none", borderRadius: 6,
+                background: "transparent", cursor: "pointer",
+                color: "var(--console-text-muted, #6b7280)",
+              }}
+            >
+              <X size={13} strokeWidth={1.8} />
+            </button>
           </div>
 
           <div style={{ fontSize: "0.8125rem" }}>

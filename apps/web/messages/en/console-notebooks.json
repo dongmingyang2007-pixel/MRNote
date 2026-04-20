@@ -79,6 +79,7 @@
   "sidebar.openMemory": "Open Memory",
   "sidebar.openMemoryGraph": "Open Memory Graph",
   "sidebar.openMemoryGraphShort": "Memory Graph",
+  "sidebar.closePanel": "Close panel",
   "sidebar.comingSoon": "Coming soon",
   "memoryGraph.title": "Memory Graph",
   "memoryGraph.searchPlaceholder": "Search nodes…",

@@ -17,6 +17,8 @@
   "nav.digest": "Digest",
   "nav.search": "Search",
   "nav.notebookSettings": "Notebook Settings",
+  "nav.collapseSidebar": "Collapse sidebar",
+  "nav.expandSidebar": "Expand sidebar",
   "sidebar.projects": "Projects",
   "sidebar.newProject": "New Assistant",
   "sidebar.noProjects": "Create your first assistant",
