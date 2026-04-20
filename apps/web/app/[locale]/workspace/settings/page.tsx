@@ -7,6 +7,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 
 import { PageTransition } from "@/components/console/PageTransition";
 import { GlassCard } from "@/components/console/glass";
+import ConnectedAccountsList from "@/components/settings/ConnectedAccountsList";
 import { apiGet, logout } from "@/lib/api";
 import { useDeveloperMode } from "@/lib/developer-mode";
 
@@ -14,6 +15,7 @@ type UserMe = { id: string; email: string; display_name?: string };
 
 export default function SettingsPage() {
   const t = useTranslations("console-settings");
+  const tAuth = useTranslations("auth");
   const locale = useLocale();
   const pathname = usePathname();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperMode();
@@ -94,6 +96,15 @@ export default function SettingsPage() {
                   <div style={value}>{user.display_name}</div>
                 </div>
               )}
+            </GlassCard>
+
+            {/* Connected accounts */}
+            <GlassCard>
+              <div style={sectionTitle}>{tAuth("connectedAccounts.title")}</div>
+              <p style={{ ...sectionDesc, marginBottom: 14 }}>
+                {tAuth("connectedAccounts.desc")}
+              </p>
+              <ConnectedAccountsList />
             </GlassCard>
 
             {/* Language */}
