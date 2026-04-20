@@ -7,6 +7,7 @@ import { gsap } from "@/lib/gsap-register";
 
 import { apiPost, persistWorkspaceId } from "@/lib/api";
 import { getSafeNavigationPath } from "@/lib/security";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
@@ -46,6 +47,13 @@ export default function LoginPage() {
       </div>
 
       <div className="auth-form-card mt-6 w-full">
+        <div className="auth-oauth-block">
+          <GoogleSignInButton />
+          <div className="auth-divider">
+            <span>{t("oauth.divider")}</span>
+          </div>
+        </div>
+
         <form
           className="space-y-4"
           onSubmit={async (e) => {
