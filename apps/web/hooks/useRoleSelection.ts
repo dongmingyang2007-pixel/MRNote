@@ -36,8 +36,11 @@ export function useRoleSelection(initialRole: RoleKey | null): UseRoleSelection 
   }, []);
 
   const setRole = useCallback((next: RoleKey) => {
-    writeCookie(ROLE_COOKIE_NAME, next, THIRTY_DAYS_SECONDS);
-    setRoleState(next);
+    setRoleState((prev) => {
+      if (prev === next) return prev;
+      writeCookie(ROLE_COOKIE_NAME, next, THIRTY_DAYS_SECONDS);
+      return next;
+    });
   }, []);
 
   const clearRole = useCallback(() => {
