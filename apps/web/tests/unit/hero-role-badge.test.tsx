@@ -35,7 +35,7 @@ describe("HeroRoleBadge", () => {
 
   it("renders nothing when no role is selected", () => {
     render(
-      <RoleProvider initialRole={null}>
+      <RoleProvider initialRole={null} locale="zh">
         <HeroRoleBadge locale="zh" />
       </RoleProvider>,
     );
@@ -45,7 +45,7 @@ describe("HeroRoleBadge", () => {
   it("renders the badge with the localized role label when a role is provided", () => {
     _mockLocale = "zh";
     render(
-      <RoleProvider initialRole="researcher">
+      <RoleProvider initialRole="researcher" locale="zh">
         <HeroRoleBadge locale="zh" />
       </RoleProvider>,
     );
@@ -56,7 +56,7 @@ describe("HeroRoleBadge", () => {
   it("renders English label when locale=en", () => {
     _mockLocale = "en";
     render(
-      <RoleProvider initialRole="researcher">
+      <RoleProvider initialRole="researcher" locale="en">
         <HeroRoleBadge locale="en" />
       </RoleProvider>,
     );

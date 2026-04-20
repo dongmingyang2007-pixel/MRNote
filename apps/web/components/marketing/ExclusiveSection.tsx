@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useRoleContext } from "@/lib/marketing/RoleContext";
 import { ROLE_CONTENT } from "@/lib/marketing/role-content";
@@ -20,14 +19,6 @@ interface Props {
 export default function ExclusiveSection({ locale }: Props) {
   const t = useTranslations("marketing");
   const { role, setRole, clearRole } = useRoleContext();
-
-  const restoredOnce = useRef(false);
-  useEffect(() => {
-    if (!restoredOnce.current && role) {
-      restoredOnce.current = true;
-      emitLandingEvent("landing.role.restored", { role, locale });
-    }
-  }, [role, locale]);
 
   function handleSelect(next: RoleKey) {
     if (role && role !== next) {

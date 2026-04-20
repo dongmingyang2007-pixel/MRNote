@@ -52,7 +52,7 @@ export default async function HomePage({
     <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
       <PublicHeader />
       <main>
-        <RoleProvider initialRole={initialRole}>
+        <RoleProvider initialRole={initialRole} locale={sectionLocale}>
           <HeroSection locale={sectionLocale} />
           <ProblemSection />
           <FeaturesSection />
