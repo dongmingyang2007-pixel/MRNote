@@ -3,14 +3,26 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, PlayCircle } from "lucide-react";
 import HeroAnimatedClient from "./HeroAnimatedClient";
 import HeroCanvasStage from "./HeroCanvasStage";
+import { ROLE_CONTENT, type RoleKey } from "@/lib/marketing/role-content";
 
-export default async function HeroSection() {
+interface HeroSectionProps {
+  role?: RoleKey | null;
+  locale?: "zh" | "en";
+}
+
+export default async function HeroSection({ role = null, locale = "zh" }: HeroSectionProps = {}) {
   const t = await getTranslations("marketing");
+  const roleLabel = role ? ROLE_CONTENT[role].label[locale] : null;
   return (
     <section className="marketing-hero">
       <HeroAnimatedClient>
         <div className="marketing-hero__grid">
           <div className="marketing-fade-in">
+            {roleLabel ? (
+              <span data-testid="hero-role-badge" className="marketing-hero__role-badge">
+                ✨ {t("hero.forRole", { role: roleLabel })}
+              </span>
+            ) : null}
             <span className="marketing-eyebrow mb-4">{t("hero.kicker")}</span>
             <h1
               className="marketing-h1 font-display tracking-tight text-4xl md:text-6xl lg:text-7xl mb-6 md:mb-8"

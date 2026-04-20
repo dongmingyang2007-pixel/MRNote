@@ -14,6 +14,7 @@
   "hero.sub": "Persistent memory across every session. Automatic follow-up reminders. Weekly reflections. Built for consultants, freelancers, and solopreneurs running 10 to 50 client relationships.",
   "hero.cta.primary": "Start free — no credit card",
   "hero.cta.secondary": "Watch 2-min demo",
+  "hero.forRole": "Made for {role}",
 
   "exclusiveSection.eyebrow": "✦ Hand-picked for you · Exclusive",
   "exclusiveSection.chipsLabel": "Role selector",
