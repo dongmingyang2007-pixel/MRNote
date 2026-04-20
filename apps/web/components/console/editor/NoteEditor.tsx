@@ -192,11 +192,15 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setTitle(e.target.value);
       setSaveStatus("unsaved");
-      if (latestContentRef.current) {
-        debouncedSave(latestContentRef.current);
-      }
+      // Always debounce-save on title change — even when the body is still empty
+      // (new page, user only typed a title). Fall back to the editor's current
+      // doc, then to an empty Tiptap doc so the server gets a valid payload.
+      const content = latestContentRef.current
+        ?? (editor?.getJSON() as Record<string, unknown> | undefined)
+        ?? { type: "doc", content: [] };
+      debouncedSave(content);
     },
-    [debouncedSave],
+    [debouncedSave, editor],
   );
 
   // ---- Title Enter → focus editor ----------------------------------------

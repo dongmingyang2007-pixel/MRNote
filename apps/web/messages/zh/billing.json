@@ -18,6 +18,8 @@
   "plan.power.name": "高级版",
   "plan.team.name": "团队版",
   "plan.price.free": "免费",
+  "plan.notConfigured": "付费功能暂未开通，请联系支持或稍后再试。",
+  "plan.checkoutFailed": "结账失败，请重试。",
   "plan.price.monthly": "月",
   "plan.price.yearly": "年",
   "plan.currentLabel": "当前套餐",

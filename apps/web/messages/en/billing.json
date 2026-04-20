@@ -18,6 +18,8 @@
   "plan.power.name": "Power",
   "plan.team.name": "Team",
   "plan.price.free": "Free",
+  "plan.notConfigured": "Billing is not configured yet. Please contact support or try again later.",
+  "plan.checkoutFailed": "Checkout failed. Please try again.",
   "plan.price.monthly": "mo",
   "plan.price.yearly": "yr",
   "plan.currentLabel": "Current plan",

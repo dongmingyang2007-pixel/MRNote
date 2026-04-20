@@ -22,6 +22,8 @@
   "pages.unsaved": "Unsaved",
   "pages.lastEdited": "Last edited",
   "pages.deleteConfirm": "Are you sure you want to delete this page?",
+  "pages.collapseList": "Collapse page list",
+  "pages.expandList": "Expand page list",
   "editor.placeholder": "Type / for commands…",
   "editor.heading1": "Heading 1",
   "editor.heading2": "Heading 2",

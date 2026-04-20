@@ -22,6 +22,8 @@
   "pages.unsaved": "未保存",
   "pages.lastEdited": "最后编辑",
   "pages.deleteConfirm": "确定要删除这个页面吗？",
+  "pages.collapseList": "收起页面列表",
+  "pages.expandList": "展开页面列表",
   "editor.placeholder": "输入 / 调出命令菜单…",
   "editor.heading1": "标题 1",
   "editor.heading2": "标题 2",

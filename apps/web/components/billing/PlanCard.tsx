@@ -31,6 +31,12 @@ export default function PlanCard({ plan, cycle, isCurrent }: Props) {
       );
       window.location.href = data.checkout_url;
     } catch (e) {
+      const err = e as { response?: { data?: { error?: { code?: string } } } };
+      if (err?.response?.data?.error?.code === "billing_not_configured") {
+        alert(t("plan.notConfigured"));
+      } else {
+        alert(t("plan.checkoutFailed"));
+      }
       console.error("checkout failed", e);
     }
   };

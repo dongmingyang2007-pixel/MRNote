@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Plus, FileText, ArrowLeft, Pin, Trash2, ChevronRight } from "lucide-react";
+import { Plus, FileText, ArrowLeft, Pin, Trash2, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { useWindowManager } from "@/components/notebook/WindowManager";
 import WindowCanvas from "@/components/notebook/WindowCanvas";
@@ -34,7 +34,23 @@ export default function NotebookDetailPage() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
   const handledOpenTargetRef = useRef("");
+
+  // Hydrate collapsed state from localStorage
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("mrai.notebook-page-list.collapsed");
+      if (v === "1") setListCollapsed(true);
+    } catch { /* ignore */ }
+  }, []);
+  const toggleListCollapsed = useCallback(() => {
+    setListCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("mrai.notebook-page-list.collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     void apiGet<NotebookInfo>(`/api/v1/notebooks/${params.notebookId}`)
@@ -124,6 +140,32 @@ export default function NotebookDetailPage() {
   return (
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
       {/* Page list panel */}
+      {listCollapsed ? (
+        <div
+          style={{
+            width: 36, flexShrink: 0,
+            borderRight: "1px solid var(--console-border-subtle, rgba(255,255,255,0.5))",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            padding: "12px 0", gap: 8,
+          }}
+        >
+          <button
+            type="button"
+            data-testid="notebook-page-list-expand"
+            onClick={toggleListCollapsed}
+            title={t("pages.expandList")}
+            aria-label={t("pages.expandList")}
+            style={{
+              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(255,255,255,0.88)", backdropFilter: "blur(8px)",
+              border: "1px solid rgba(15,42,45,0.1)", borderRadius: 8,
+              color: "var(--console-text-primary, #1a1a2e)", cursor: "pointer",
+            }}
+          >
+            <PanelLeftOpen size={14} />
+          </button>
+        </div>
+      ) : (
       <div
         className="console-page-shell"
         style={{
@@ -132,8 +174,25 @@ export default function NotebookDetailPage() {
           padding: "24px 20px",
           overflowY: "auto",
           borderRight: "1px solid var(--console-border-subtle, rgba(255,255,255,0.5))",
+          position: "relative",
         }}
       >
+        {/* Collapse button */}
+        <button
+          type="button"
+          data-testid="notebook-page-list-collapse"
+          onClick={toggleListCollapsed}
+          title={t("pages.collapseList")}
+          aria-label={t("pages.collapseList")}
+          style={{
+            position: "absolute", top: 12, right: 8,
+            width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: "none", borderRadius: 6,
+            color: "var(--console-text-muted, #6b7280)", cursor: "pointer",
+          }}
+        >
+          <PanelLeftClose size={14} />
+        </button>
         {/* Breadcrumb */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, fontSize: "0.8125rem", color: "var(--console-text-muted, #6b7280)" }}>
           <button
@@ -264,6 +323,7 @@ export default function NotebookDetailPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Window canvas */}
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
