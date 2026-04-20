@@ -1,8 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRoleSelection } from "@/hooks/useRoleSelection";
-import { ROLE_CONTENT, type RoleKey } from "@/lib/marketing/role-content";
+import { useRoleContext } from "@/lib/marketing/RoleContext";
+import { ROLE_CONTENT } from "@/lib/marketing/role-content";
 import RoleChipRow from "./role-selector/RoleChipRow";
 import RoleCard from "./role-selector/RoleCard";
 import ExclusiveOfferCard from "./role-selector/ExclusiveOfferCard";
@@ -11,13 +11,12 @@ import TestimonialStrip from "./role-selector/TestimonialStrip";
 import InstitutionLogoRow from "./role-selector/InstitutionLogoRow";
 
 interface Props {
-  initialRole: RoleKey | null;
   locale: "zh" | "en";
 }
 
-export default function ExclusiveSection({ initialRole, locale }: Props) {
+export default function ExclusiveSection({ locale }: Props) {
   const t = useTranslations("marketing");
-  const { role, setRole, clearRole } = useRoleSelection(initialRole);
+  const { role, setRole, clearRole } = useRoleContext();
 
   const content = role ? ROLE_CONTENT[role] : null;
 

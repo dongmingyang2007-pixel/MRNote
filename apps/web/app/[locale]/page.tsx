@@ -6,6 +6,7 @@ import "@/styles/marketing.css";
 
 import PublicHeader from "@/components/marketing/PublicHeader";
 import HeroSection from "@/components/marketing/HeroSection";
+import { RoleProvider } from "@/lib/marketing/RoleContext";
 import ProblemSection from "@/components/marketing/ProblemSection";
 import FeaturesSection from "@/components/marketing/FeaturesSection";
 import ScreenshotSection from "@/components/marketing/ScreenshotSection";
@@ -51,12 +52,14 @@ export default async function HomePage({
     <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
       <PublicHeader />
       <main>
-        <HeroSection role={initialRole} locale={sectionLocale} />
-        <ProblemSection />
-        <FeaturesSection />
-        <ScreenshotSection />
-        <ExclusiveSection initialRole={initialRole} locale={sectionLocale} />
-        <PricingSnapshotSection />
+        <RoleProvider initialRole={initialRole}>
+          <HeroSection locale={sectionLocale} />
+          <ProblemSection />
+          <FeaturesSection />
+          <ScreenshotSection />
+          <ExclusiveSection locale={sectionLocale} />
+          <PricingSnapshotSection />
+        </RoleProvider>
         <CTAFooterSection />
       </main>
       <PublicFooter />

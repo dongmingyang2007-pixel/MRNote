@@ -26,6 +26,7 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 import ExclusiveSection from "@/components/marketing/ExclusiveSection";
+import { RoleProvider } from "@/lib/marketing/RoleContext";
 
 function clearAllCookies() {
   document.cookie
@@ -45,7 +46,7 @@ describe("ExclusiveSection", () => {
   });
 
   it("renders the empty state with placeholder cards when no role selected", () => {
-    render(<ExclusiveSection initialRole={null} locale="zh" />);
+    render(<RoleProvider initialRole={null}><ExclusiveSection locale="zh" /></RoleProvider>);
     expect(screen.getByText("exclusiveSection.emptyTitle")).toBeTruthy();
     expect(screen.queryByText("立即激活 →")).toBeNull();
     const placeholders = screen.getAllByText("exclusiveSection.placeholderCard");
@@ -53,14 +54,14 @@ describe("ExclusiveSection", () => {
   });
 
   it("renders role content when initialRole is provided", () => {
-    render(<ExclusiveSection initialRole="researcher" locale="zh" />);
+    render(<RoleProvider initialRole="researcher"><ExclusiveSection locale="zh" /></RoleProvider>);
     expect(screen.getByText("文献综述自动整理")).toBeTruthy();
     expect(screen.getByText("研究生 5 件套")).toBeTruthy();
     expect(screen.getByText(".edu 邮箱 · Pro 免费 6 月")).toBeTruthy();
   });
 
   it("selecting a chip swaps the populated content", () => {
-    render(<ExclusiveSection initialRole={null} locale="zh" />);
+    render(<RoleProvider initialRole={null}><ExclusiveSection locale="zh" /></RoleProvider>);
     act(() => {
       fireEvent.click(screen.getByRole("radio", { name: "律师" }));
     });
@@ -68,7 +69,7 @@ describe("ExclusiveSection", () => {
   });
 
   it("switch link clears the role and returns to empty state", () => {
-    render(<ExclusiveSection initialRole="lawyer" locale="zh" />);
+    render(<RoleProvider initialRole="lawyer"><ExclusiveSection locale="zh" /></RoleProvider>);
     const switchBtn = screen.getByRole("button", { name: "exclusiveSection.switch" });
     act(() => { fireEvent.click(switchBtn); });
     expect(screen.queryByText("合同摘要 10 秒出")).toBeNull();
