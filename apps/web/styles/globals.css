@@ -19924,3 +19924,25 @@ a[href] {
     justify-content: space-between;
   }
 }
+
+/* ===== OAuth sign-in block (Google button + "OR" divider) ===== */
+.auth-oauth-block {
+  margin-bottom: 16px;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0;
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border, rgba(15, 42, 45, 0.1));
+}
