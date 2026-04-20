@@ -39,6 +39,16 @@ def _ensure_customer(
     return ca
 
 
+def _require_billing_configured() -> None:
+    if not settings.stripe_api_key:
+        raise ApiError(
+            "billing_not_configured",
+            "Billing is not configured for this environment. "
+            "Operator must set STRIPE_API_KEY and STRIPE_PRICE_* env vars.",
+            status_code=503,
+        )
+
+
 @router.post("/checkout", response_model=CheckoutResponse)
 def post_checkout(
     payload: CheckoutRequest,
@@ -47,25 +57,25 @@ def post_checkout(
     workspace_id: str = Depends(get_current_workspace_id),
     _: None = Depends(require_csrf_protection),
 ) -> CheckoutResponse:
+    _require_billing_configured()
     if payload.plan != "team" and payload.seats != 1:
         raise ApiError("invalid_input",
                        "seats only valid for team plan", status_code=400)
-    ca = _ensure_customer(db, workspace_id=workspace_id, user=current_user)
     try:
         price_id = stripe_client.stripe_price_id_for(payload.plan, payload.cycle)
     except ValueError:
         raise ApiError(
             "billing_not_configured",
-            "Billing is not configured for this environment. "
-            "Ask the operator to set STRIPE_PRICE_* environment variables.",
+            "Billing plan prices are not configured.",
             status_code=503,
         )
     if not price_id:
         raise ApiError(
             "billing_not_configured",
-            "Billing is not configured for this environment.",
+            "Billing plan prices are not configured.",
             status_code=503,
         )
+    ca = _ensure_customer(db, workspace_id=workspace_id, user=current_user)
     # Pro / Power get a 14-day trial; Team is treated as enterprise-like
     # and starts paid immediately.
     trial_days = 14 if payload.plan in ("pro", "power") else None
