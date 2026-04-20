@@ -40,6 +40,9 @@ const lowlight = createLowlight(common);
 interface NoteEditorProps {
   pageId: string;
   onPlainTextChange?: (text: string) => void;
+  /** Called whenever the title text changes (every keystroke). Parent windows
+   *  use this to keep the window titlebar / page list card in sync. */
+  onTitleChange?: (title: string) => void;
 }
 
 interface PageData {
@@ -55,7 +58,7 @@ type SaveStatus = "saved" | "saving" | "unsaved";
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProps) {
+export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }: NoteEditorProps) {
   const t = useTranslations("console-notebooks");
   const [title, setTitle] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
@@ -113,7 +116,10 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
     void apiGet<PageData>(`/api/v1/pages/${pageId}`).then((data) => {
       if (cancelled) return;
-      setTitle(data.title || "");
+      const t0 = data.title || "";
+      setTitle(t0);
+      // Echo loaded title up so parent window syncs its titlebar to the saved value
+      onTitleChange?.(t0);
       if (
         editor &&
         data.content_json &&
@@ -214,8 +220,10 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
 
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setTitle(e.target.value);
+      const nextTitle = e.target.value;
+      setTitle(nextTitle);
       setSaveStatus("unsaved");
+      onTitleChange?.(nextTitle);
       // Always debounce-save on title change — even when the body is still empty
       // (new page, user only typed a title). Fall back to the editor's current
       // doc, then to an empty Tiptap doc so the server gets a valid payload.
@@ -224,7 +232,7 @@ export default function NoteEditor({ pageId, onPlainTextChange }: NoteEditorProp
         ?? { type: "doc", content: [] };
       debouncedSave(content);
     },
-    [debouncedSave, editor],
+    [debouncedSave, editor, onTitleChange],
   );
 
   // ---- Title Enter → focus editor ----------------------------------------

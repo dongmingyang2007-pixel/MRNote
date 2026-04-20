@@ -52,7 +52,9 @@ type WindowAction =
   | { kind: "RESTORE"; id: string }
   | { kind: "FOCUS"; id: string }
   | { kind: "MOVE"; id: string; x: number; y: number }
-  | { kind: "RESIZE"; id: string; width: number; height: number };
+  | { kind: "RESIZE"; id: string; width: number; height: number }
+  | { kind: "RENAME"; id: string; title: string }
+  | { kind: "RENAME_BY_META"; metaKey: string; metaValue: string; title: string };
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -180,6 +182,18 @@ function windowReducer(
         w.id === action.id ? { ...w, x: action.x, y: action.y } : w,
       );
 
+    case "RENAME":
+      return state.map((w) =>
+        w.id === action.id && w.title !== action.title ? { ...w, title: action.title } : w,
+      );
+
+    case "RENAME_BY_META":
+      return state.map((w) =>
+        w.meta[action.metaKey] === action.metaValue && w.title !== action.title
+          ? { ...w, title: action.title }
+          : w,
+      );
+
     case "RESIZE":
       return state.map((w) =>
         w.id === action.id
@@ -201,6 +215,8 @@ interface WindowManagerContextValue {
   dispatch: (action: WindowAction) => void;
   openWindow: (payload: OpenWindowPayload) => void;
   closeWindow: (id: string) => void;
+  renameWindow: (id: string, title: string) => void;
+  renameWindowByMeta: (metaKey: string, metaValue: string, title: string) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
   restoreWindow: (id: string) => void;
@@ -272,6 +288,15 @@ export function WindowManagerProvider({
       dispatch({ kind: "RESIZE", id, width, height }),
     [],
   );
+  const renameWindow = useCallback(
+    (id: string, title: string) => dispatch({ kind: "RENAME", id, title }),
+    [],
+  );
+  const renameWindowByMeta = useCallback(
+    (metaKey: string, metaValue: string, title: string) =>
+      dispatch({ kind: "RENAME_BY_META", metaKey, metaValue, title }),
+    [],
+  );
 
   const value = useMemo<WindowManagerContextValue>(
     () => ({
@@ -279,6 +304,8 @@ export function WindowManagerProvider({
       dispatch,
       openWindow,
       closeWindow,
+      renameWindow,
+      renameWindowByMeta,
       minimizeWindow,
       maximizeWindow,
       restoreWindow,
@@ -290,6 +317,8 @@ export function WindowManagerProvider({
       windows,
       openWindow,
       closeWindow,
+      renameWindow,
+      renameWindowByMeta,
       minimizeWindow,
       maximizeWindow,
       restoreWindow,
