@@ -156,3 +156,167 @@ def test_authorize_connect_mode_without_login_redirects_to_login(
     assert resp.status_code == 302
     assert "/login" in resp.headers.get("location", "")
     assert "auth_required" in resp.headers.get("location", "")
+
+
+# ---------------------------------------------------------------------------
+# /auth/google/callback
+# ---------------------------------------------------------------------------
+
+
+def _stub_callback(client: TestClient, id_claims: dict, session_overrides: dict):
+    """Patch Authlib so the callback hits our branches without a real Google hop.
+
+    Works in two steps:
+    1. Hit ``/authorize`` with a patched ``authorize_redirect`` that stashes
+       our desired session state; the signed session cookie stays on the
+       TestClient for step 2.
+    2. Hit ``/callback`` with patched token-exchange + id-token parsing.
+    """
+    from starlette.responses import Response as StarletteResponse
+
+    async def seed(request, redirect_uri, **kwargs):
+        for k, v in session_overrides.items():
+            request.session[k] = v
+        return StarletteResponse(status_code=204)
+
+    async def fake_token(request, **kwargs):
+        return {"access_token": "at", "id_token": "it"}
+
+    async def fake_parse(request, token, **kwargs):
+        return id_claims
+
+    previous = settings.google_oauth_enabled
+    settings.google_oauth_enabled = True
+    try:
+        with patch(
+            "app.routers.auth.oauth.google.authorize_redirect",
+            new=AsyncMock(side_effect=seed),
+        ):
+            client.get(
+                "/api/v1/auth/google/authorize?next=/app",
+                headers=public_headers(),
+                follow_redirects=False,
+            )
+        with patch(
+            "app.routers.auth.oauth.google.authorize_access_token",
+            new=AsyncMock(side_effect=fake_token),
+        ), patch(
+            "app.routers.auth.oauth.google.parse_id_token",
+            new=AsyncMock(side_effect=fake_parse),
+        ):
+            return client.get(
+                "/api/v1/auth/google/callback?code=X&state=Y",
+                headers=public_headers(),
+                follow_redirects=False,
+            )
+    finally:
+        settings.google_oauth_enabled = previous
+
+
+def test_callback_creates_new_user(client: TestClient):
+    from sqlalchemy import select
+
+    from app.models import OAuthIdentity, User
+
+    resp = _stub_callback(
+        client,
+        id_claims={
+            "sub": "109876",
+            "email": "new@gmail.com",
+            "email_verified": True,
+            "name": "New User",
+        },
+        session_overrides={"oauth_mode": "signin", "oauth_next": "/app"},
+    )
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/app"
+    with SessionLocal() as db:
+        user = db.execute(select(User).where(User.email == "new@gmail.com")).scalar_one()
+        assert user.password_hash is None
+        ident = db.execute(
+            select(OAuthIdentity).where(OAuthIdentity.user_id == user.id)
+        ).scalar_one()
+        assert ident.provider == "google"
+        assert ident.provider_id == "109876"
+
+
+def test_callback_auto_links_existing_email(client: TestClient):
+    from sqlalchemy import select
+
+    from app.models import OAuthIdentity, User, Workspace, Membership
+
+    with SessionLocal() as db:
+        existing = User(email="exists@gmail.com", password_hash="hashed")
+        ws = Workspace(name="exists Workspace", plan="free")
+        db.add(existing)
+        db.add(ws)
+        db.flush()
+        db.add(Membership(workspace_id=ws.id, user_id=existing.id, role="owner"))
+        db.commit()
+        existing_id = existing.id
+
+    resp = _stub_callback(
+        client,
+        id_claims={
+            "sub": "200",
+            "email": "exists@gmail.com",
+            "email_verified": True,
+            "name": "X",
+        },
+        session_overrides={"oauth_mode": "signin", "oauth_next": "/app"},
+    )
+    assert resp.status_code == 302
+    with SessionLocal() as db:
+        ident = db.execute(
+            select(OAuthIdentity).where(OAuthIdentity.user_id == existing_id)
+        ).scalar_one()
+        assert ident.provider_id == "200"
+        users = db.execute(
+            select(User).where(User.email == "exists@gmail.com")
+        ).scalars().all()
+        assert len(users) == 1
+
+
+def test_callback_rejects_unverified_email(client: TestClient):
+    resp = _stub_callback(
+        client,
+        id_claims={
+            "sub": "300",
+            "email": "x@y.com",
+            "email_verified": False,
+            "name": "X",
+        },
+        session_overrides={"oauth_mode": "signin", "oauth_next": "/app"},
+    )
+    assert resp.status_code == 302
+    assert "error=google_email_unverified" in resp.headers["location"]
+
+
+def test_callback_existing_oauth_signs_in(client: TestClient):
+    from app.models import OAuthIdentity, User, Workspace, Membership
+
+    with SessionLocal() as db:
+        u = User(email="linked@gmail.com", password_hash=None)
+        ws = Workspace(name="linked Workspace", plan="free")
+        db.add(u)
+        db.add(ws)
+        db.flush()
+        db.add(Membership(workspace_id=ws.id, user_id=u.id, role="owner"))
+        db.add(OAuthIdentity(
+            user_id=u.id, provider="google", provider_id="400",
+            provider_email="linked@gmail.com",
+        ))
+        db.commit()
+
+    resp = _stub_callback(
+        client,
+        id_claims={
+            "sub": "400",
+            "email": "new-email@gmail.com",
+            "email_verified": True,
+            "name": "X",
+        },  # user changed their Google email
+        session_overrides={"oauth_mode": "signin", "oauth_next": "/app"},
+    )
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/app"
