@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { clearCookie, readCookie, writeCookie } from "@/lib/cookie";
 import { ROLE_KEYS, type RoleKey } from "@/lib/marketing/role-content";
 
@@ -20,13 +20,20 @@ export interface UseRoleSelection {
 }
 
 export function useRoleSelection(initialRole: RoleKey | null): UseRoleSelection {
-  const [role, setRoleState] = useState<RoleKey | null>(() => {
-    // In browser, prefer live cookie over stale SSR hint.
-    if (typeof document !== "undefined") {
-      return readRoleFromCookie() ?? initialRole ?? null;
+  const [role, setRoleState] = useState<RoleKey | null>(initialRole ?? null);
+
+  // Reconcile with the live cookie once after mount. SSR may have computed a
+  // stale initialRole (user cleared the cookie in devtools, multi-tab, etc.).
+  // Initializing from the prop (not the cookie) keeps server + client renders
+  // identical and avoids React hydration warnings.
+  useEffect(() => {
+    const live = readRoleFromCookie();
+    if (live !== role) {
+      setRoleState(live ?? initialRole ?? null);
     }
-    return initialRole ?? null;
-  });
+    // Only reconcile once on mount. setRole / clearRole take over afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setRole = useCallback((next: RoleKey) => {
     writeCookie(ROLE_COOKIE_NAME, next, THIRTY_DAYS_SECONDS);

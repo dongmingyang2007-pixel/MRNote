@@ -60,4 +60,17 @@ describe("useRoleSelection", () => {
     render(<Probe onReady={(a) => (api = a)} />);
     expect(api!.role).toBeNull();
   });
+
+  it("reconciles a live cookie over a stale initialRole after mount", async () => {
+    document.cookie = `${ROLE_COOKIE_NAME}=doctor; Path=/`;
+    let api: ReturnType<typeof useRoleSelection> | null = null;
+    function P() {
+      api = useRoleSelection("lawyer");
+      return null;
+    }
+    await act(async () => {
+      render(<P />);
+    });
+    expect(api!.role).toBe("doctor");
+  });
 });
