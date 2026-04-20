@@ -6,8 +6,11 @@
   "nav.pricing": "定价",
   "nav.login": "登录",
   "nav.start": "免费开始",
+  "nav.openWorkspace": "进入工作台",
   "nav.menu.open": "打开菜单",
   "nav.menu.close": "关闭菜单",
+
+  "userMenu.ariaLabel": "账号菜单",
 
   "hero.kicker": "献给独立咨询师",
   "hero.title": "能记住所有客户的 AI 笔记本。",
@@ -189,5 +192,26 @@
   "pricingPage.faq.q7": "有学生折扣吗?",
   "pricingPage.faq.a7": "目前没有。如果你是学生、价格是门槛,请邮件联系 hello@mingrun-tech.com —— 我们会视情况处理。",
   "pricingPage.faq.q8": "是否提供退款保证?",
-  "pricingPage.faq.a8": "Pro 提供 14 天免费试用作为替代。整整两周时间让你决定 MRNote 是否值得每月 10 美元,然后才会扣费。"
+  "pricingPage.faq.a8": "Pro 提供 14 天免费试用作为替代。整整两周时间让你决定 MRNote 是否值得每月 10 美元,然后才会扣费。",
+
+  "mocks.memory.title": "记忆 · Sarah Chen",
+  "mocks.memory.row1.label": "报价",
+  "mocks.memory.row1.value": "$18K · 6 周交付",
+  "mocks.memory.row2.label": "偏好",
+  "mocks.memory.row2.value": "异步更新，不要每周例会",
+  "mocks.memory.row3.label": "下一步",
+  "mocks.memory.row3.value": "周五前发修订版 SOW",
+
+  "mocks.followup.title": "跟进 · 今日到期",
+  "mocks.followup.row1": "给 <b>Lisa Patel</b> 发方案 · 周一承诺",
+  "mocks.followup.row2": "修订 <b>Sarah Chen</b> 的 Q3 SOW",
+  "mocks.followup.row3": "<b>David Kim</b> — 45 天未回复",
+
+  "mocks.digest.title": "周一摘要 · 第 16 周",
+  "mocks.digest.row1.label": "已完成",
+  "mocks.digest.row1.value": "14 次对话 · 联系了 6 位客户",
+  "mocks.digest.row2.label": "逾期",
+  "mocks.digest.row2.value": "2 条承诺逾期 — Lisa, Marco",
+  "mocks.digest.row3.label": "偏离",
+  "mocks.digest.row3.value": "Sarah 的范围较原 SOW 扩大 32%"
 }

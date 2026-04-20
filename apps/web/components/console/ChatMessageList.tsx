@@ -951,6 +951,7 @@ export const ChatMessageList = forwardRef<
   ref,
 ) {
   const t = useTranslations("console-chat");
+  const tCommon = useTranslations("common");
 
   /* ---------- keep a ref to the latest messages for imperative handle ---------- */
   const messagesRef = useRef(messages);
@@ -1252,7 +1253,7 @@ export const ChatMessageList = forwardRef<
                 aria-hidden="true"
               >
                 {showAvatar ? (
-                  <span className="chat-avatar-ai-char">铭</span>
+                  <span className="chat-avatar-ai-char">{tCommon("brand.glyph")}</span>
                 ) : null}
               </div>
             ) : null}

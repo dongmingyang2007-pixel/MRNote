@@ -72,6 +72,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const t = useTranslations("console");
+  const tCommon = useTranslations("common");
   const { projects } = useProjectContext();
   const [showExpanded, setShowExpanded] = useState(false);
   const [animState, setAnimState] = useState<"idle" | "opening" | "closing">(
@@ -134,7 +135,7 @@ export function Sidebar() {
         onMouseEnter={handleExpand}
       >
         {/* Logo */}
-        <div className="glass-sidebar-logo">铭</div>
+        <div className="glass-sidebar-logo">{tCommon("brand.glyph")}</div>
 
         {/* Nav items */}
         <div className="glass-sidebar-nav">
@@ -260,10 +261,10 @@ export function Sidebar() {
           >
             {/* Header */}
             <div className="glass-sidebar-header">
-              <div className="glass-sidebar-logo">铭</div>
+              <div className="glass-sidebar-logo">{tCommon("brand.glyph")}</div>
               <div className="glass-sidebar-header-text">
-                <div className="glass-sidebar-brand">铭润科技</div>
-                <div className="glass-sidebar-subtitle">Personal AI Studio</div>
+                <div className="glass-sidebar-brand">{tCommon("brand.company")}</div>
+                <div className="glass-sidebar-subtitle">{tCommon("brand.tagline")}</div>
               </div>
             </div>
 

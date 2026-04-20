@@ -6,8 +6,11 @@
   "nav.pricing": "Pricing",
   "nav.login": "Log in",
   "nav.start": "Start free",
+  "nav.openWorkspace": "Open workspace",
   "nav.menu.open": "Open menu",
   "nav.menu.close": "Close menu",
+
+  "userMenu.ariaLabel": "Account menu",
 
   "hero.kicker": "For independent consultants",
   "hero.title": "The AI notebook that remembers your clients.",
@@ -189,5 +192,26 @@
   "pricingPage.faq.q7": "Do you offer a student discount?",
   "pricingPage.faq.a7": "Not today. If you're a student and cost is a barrier, email us at hello@mingrun-tech.com — we figure something out case by case.",
   "pricingPage.faq.q8": "Is there a money-back guarantee?",
-  "pricingPage.faq.a8": "Pro includes a 14-day free trial instead. That's a full two weeks to decide whether MRNote is worth the ten dollars before a charge happens."
+  "pricingPage.faq.a8": "Pro includes a 14-day free trial instead. That's a full two weeks to decide whether MRNote is worth the ten dollars before a charge happens.",
+
+  "mocks.memory.title": "Memory · Sarah Chen",
+  "mocks.memory.row1.label": "Quote",
+  "mocks.memory.row1.value": "$18K · delivery in 6 weeks",
+  "mocks.memory.row2.label": "Prefers",
+  "mocks.memory.row2.value": "Async updates, no weekly calls",
+  "mocks.memory.row3.label": "Next",
+  "mocks.memory.row3.value": "Send revised SOW by Fri",
+
+  "mocks.followup.title": "Follow-ups · Due today",
+  "mocks.followup.row1": "Send proposal to <b>Lisa Patel</b> · promised Mon",
+  "mocks.followup.row2": "Revise Q3 SOW for <b>Sarah Chen</b>",
+  "mocks.followup.row3": "<b>David Kim</b> — 45 days since last reply",
+
+  "mocks.digest.title": "Monday Digest · Wk 16",
+  "mocks.digest.row1.label": "Done",
+  "mocks.digest.row1.value": "14 conversations · 6 clients touched",
+  "mocks.digest.row2.label": "Overdue",
+  "mocks.digest.row2.value": "2 promises past due — Lisa, Marco",
+  "mocks.digest.row3.label": "Drift",
+  "mocks.digest.row3.value": "Sarah's scope +32% vs. original SOW"
 }

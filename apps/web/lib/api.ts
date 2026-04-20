@@ -1,6 +1,8 @@
 import { getApiBaseUrl, getApiHttpBaseUrl } from "@/lib/env";
 import { clearAuthState, setAuthState } from "@/lib/auth-state";
 import { readCookie, writeCookie, clearCookie } from "@/lib/cookie";
+import ERROR_ZH from "@/messages/zh/error.json";
+import ERROR_EN from "@/messages/en/error.json";
 
 const WORKSPACE_COOKIE_NAME = "mingrun_workspace_id";
 const LEGACY_WORKSPACE_COOKIE_NAME = "qihang_workspace_id";
@@ -41,11 +43,16 @@ function isEnglishLocale(): boolean {
   return window.location.pathname === "/en" || window.location.pathname.startsWith("/en/");
 }
 
+// Lib-level error messages read directly from messages/{zh,en}/error.json so
+// that translations stay in one place, even though this module can't use
+// next-intl hooks (it's callable from non-React code paths).
+function readErrorMessage(key: "api.connection" | "api.csrfFailed"): string {
+  const table = (isEnglishLocale() ? ERROR_EN : ERROR_ZH) as Record<string, string>;
+  return table[key] ?? key;
+}
+
 function buildNetworkUnavailableMessage(apiBaseUrl: string): string {
-  if (isEnglishLocale()) {
-    return `Cannot reach the API service at ${apiBaseUrl}. Make sure apps/api is running.`;
-  }
-  return `无法连接到 API 服务 ${apiBaseUrl}。请确认 apps/api 已启动。`;
+  return readErrorMessage("api.connection").replace("{apiBaseUrl}", apiBaseUrl);
 }
 
 function toApiRequestError(error: unknown, apiBaseUrl: string): ApiRequestError {
@@ -107,7 +114,7 @@ async function ensureCsrfToken(options?: { suppressUnauthorizedHandling?: boolea
     handleUnauthorizedSession();
   }
   if (!res.ok || !data?.csrf_token) {
-    throw new Error(data?.error?.message || "无法获取安全令牌");
+    throw new Error(data?.error?.message || readErrorMessage("api.csrfFailed"));
   }
   cachedCsrfToken = data.csrf_token as string;
   return cachedCsrfToken;
@@ -284,11 +291,12 @@ export async function apiPost<T>(path: string, body?: unknown, init?: RequestIni
   );
 }
 
-export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+export async function apiPatch<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
   return apiRequest<T>(
     path,
     {
       method: "PATCH",
+      ...init,
       body: body ? JSON.stringify(body) : undefined,
     },
     { requireCsrf: true },

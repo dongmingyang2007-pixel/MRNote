@@ -5,6 +5,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useState } from "react";
 import { CalendarDays, MoreVertical } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiPost } from "@/lib/api";
 import { useCurrentPageId } from "@/components/console/editor/PageIdContext";
 
@@ -18,6 +19,7 @@ interface TaskAttrs {
 }
 
 function TaskBlockView(props: NodeViewProps) {
+  const t = useTranslations("console-notebooks");
   const attrs = props.node.attrs as TaskAttrs;
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -56,7 +58,7 @@ function TaskBlockView(props: NodeViewProps) {
           type="text"
           className="task-block__title"
           value={attrs.title}
-          placeholder="Task title"
+          placeholder={t("block.task.titlePlaceholder")}
           onChange={(e) => props.updateAttributes({ title: e.target.value })}
         />
         {attrs.due_date && (
@@ -68,7 +70,7 @@ function TaskBlockView(props: NodeViewProps) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="task-block__menu"
-          title="Details"
+          title={t("block.task.detailsTitle")}
         >
           <MoreVertical size={14} />
         </button>
@@ -76,7 +78,7 @@ function TaskBlockView(props: NodeViewProps) {
       {expanded && (
         <div className="task-block__expanded">
           <textarea
-            placeholder="Description"
+            placeholder={t("block.task.descriptionPlaceholder")}
             value={attrs.description ?? ""}
             onChange={(e) =>
               props.updateAttributes({ description: e.target.value || null })
@@ -91,7 +93,7 @@ function TaskBlockView(props: NodeViewProps) {
           />
         </div>
       )}
-      {failed && <p className="task-block__error">Couldn&apos;t save; try again.</p>}
+      {failed && <p className="task-block__error">{t("block.task.saveError")}</p>}
     </NodeViewWrapper>
   );
 }

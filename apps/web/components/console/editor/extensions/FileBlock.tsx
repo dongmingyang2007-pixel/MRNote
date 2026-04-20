@@ -5,6 +5,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileUp, Loader2, Download, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { apiGet, apiPostFormData } from "@/lib/api";
 import { useCurrentPageId } from "@/components/console/editor/PageIdContext";
 import { useWindowManager } from "@/components/notebook/WindowManager";
@@ -23,6 +24,7 @@ function humanSize(n: number): string {
 }
 
 function FileBlockView(props: NodeViewProps) {
+  const t = useTranslations("console-notebooks");
   const attrs = props.node.attrs as FileBlockAttrs;
   const hasAttachment = Boolean(attrs.attachment_id);
 
@@ -54,7 +56,7 @@ function FileBlockView(props: NodeViewProps) {
     if (!url) return;
     openWindow({
       type: "file",
-      title: attrs.filename || "File",
+      title: attrs.filename || t("block.file.defaultWindowTitle"),
       meta: {
         url,
         mimeType: attrs.mime_type,
@@ -68,7 +70,7 @@ function FileBlockView(props: NodeViewProps) {
       const file = e.target.files?.[0];
       if (!file) return;
       if (!pageId) {
-        setError("Page not ready yet, try again.");
+        setError(t("block.file.pageNotReady"));
         return;
       }
       setUploading(true);
@@ -89,7 +91,7 @@ function FileBlockView(props: NodeViewProps) {
           size_bytes: resp.size_bytes,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
+        setError(err instanceof Error ? err.message : t("block.file.uploadFailed"));
       } finally {
         setUploading(false);
       }
@@ -108,7 +110,7 @@ function FileBlockView(props: NodeViewProps) {
           className="file-block__picker"
         >
           {uploading ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
-          {uploading ? "Uploading…" : "Upload file"}
+          {uploading ? t("block.file.uploading") : t("block.file.uploadButton")}
         </button>
       )}
       {hasAttachment && (
@@ -121,7 +123,7 @@ function FileBlockView(props: NodeViewProps) {
               type="button"
               onClick={handleOpenInWindow}
               className="file-block__image-button"
-              title="Open in window"
+              title={t("block.file.openInWindow")}
               data-testid="file-block-open-image"
             >
               <img src={url} alt={attrs.filename} className="file-block__preview" />
@@ -134,7 +136,7 @@ function FileBlockView(props: NodeViewProps) {
               className="file-block__open"
               data-testid="file-block-open"
             >
-              <ExternalLink size={14} /> Open
+              <ExternalLink size={14} /> {t("block.file.open")}
             </button>
           )}
           {url && (
@@ -142,7 +144,7 @@ function FileBlockView(props: NodeViewProps) {
               href={url}
               download={attrs.filename}
               className="file-block__download"
-              title="Download"
+              title={t("block.file.download")}
             >
               <Download size={14} />
             </a>

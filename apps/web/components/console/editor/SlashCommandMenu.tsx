@@ -387,7 +387,9 @@ const CommandListComponent = ({
 // ---------------------------------------------------------------------------
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function createSuggestionConfig(): Omit<SuggestionOptions, "editor"> {
+type Translator = (key: string) => string;
+
+export function createSuggestionConfig(translate: Translator): Omit<SuggestionOptions, "editor"> {
   return {
     char: "/",
     // Return the full list; the React component filters by translated title.
@@ -406,26 +408,6 @@ function createSuggestionConfig(): Omit<SuggestionOptions, "editor"> {
     }) => {
       // Delete the "/query" text the user typed.
       editor.chain().focus().deleteRange(range).run();
-      // Execute the selected block's insertion. We don't have access to
-      // the translator here, so the tiny set of commands that need i18n
-      // (image URL prompt) look it up from document.documentElement.lang
-      // or fall back to English. Since we pass a minimal translator, we
-      // inline a simple passthrough that tries next-intl's bundle via
-      // window globals if available, else returns the key unchanged.
-      const translate = (key: string): string => {
-        // Best-effort: next-intl sets messages on the __NEXT_INTL__ hook,
-        // but we can't import the hook at module scope. The only key
-        // used here is "slash.image.prompt" — fall back to a hardcoded
-        // bilingual value.
-        if (key === "slash.image.prompt") {
-          const lang =
-            typeof document !== "undefined"
-              ? (document.documentElement.lang || "").toLowerCase()
-              : "";
-          return lang.startsWith("zh") ? "图片链接:" : "Image URL:";
-        }
-        return key;
-      };
       props.run(editor, translate);
     },
     render: () => {
@@ -484,8 +466,10 @@ const SlashCommand = Extension.create({
   name: "slashCommand",
 
   addOptions() {
+    // Default translator returns the key itself. Callers should configure
+    // this extension with a real translator bound to next-intl.
     return {
-      suggestion: createSuggestionConfig(),
+      suggestion: createSuggestionConfig((k) => k),
     };
   },
 

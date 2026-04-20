@@ -58,4 +58,7 @@ export function getApiHttpBaseUrl(): string {
   return getApiBaseUrl();
 }
 
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "铭润科技";
+// Product name default. Override via NEXT_PUBLIC_APP_NAME at build time. This
+// is the app/product name (e.g. "MRNote"), not the company brand — for
+// locale-aware copy use the `common.brand.*` i18n keys instead.
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "MRNote";

@@ -317,5 +317,39 @@
   "aiActions.title": "AI Actions",
   "aiActions.refresh": "Refresh",
   "aiActions.loading": "Loading…",
-  "aiActions.empty": "No AI actions yet."
+  "aiActions.empty": "No AI actions yet.",
+
+  "block.flashcard.edit": "Edit",
+  "block.flashcard.preview": "Preview",
+  "block.flashcard.adding": "Adding…",
+  "block.flashcard.add": "Add to Deck",
+  "block.flashcard.inDeck": "In deck ✓",
+  "block.flashcard.frontPlaceholder": "Front (question)",
+  "block.flashcard.backPlaceholder": "Back (answer)",
+  "block.flashcard.ariaFront": "Flashcard, front side",
+  "block.flashcard.ariaBack": "Flashcard, back side",
+  "block.flashcard.hintQuestion": "Question",
+  "block.flashcard.hintAnswer": "Answer",
+  "block.flashcard.hintFlip": "click to flip",
+
+  "block.task.titlePlaceholder": "Task title",
+  "block.task.detailsTitle": "Details",
+  "block.task.descriptionPlaceholder": "Description",
+  "block.task.saveError": "Couldn't save; try again.",
+
+  "block.file.defaultWindowTitle": "File",
+  "block.file.pageNotReady": "Page not ready yet, try again.",
+  "block.file.uploadFailed": "Upload failed",
+  "block.file.openInWindow": "Open in window",
+  "block.file.uploadButton": "Upload file",
+  "block.file.uploading": "Uploading…",
+  "block.file.open": "Open",
+  "block.file.download": "Download",
+
+  "block.math.placeholder": "LaTeX formula…",
+  "block.math.doubleClickEdit": "Double-click to edit",
+
+  "block.whiteboard.clickEdit": "Click to edit",
+  "block.whiteboard.emptyHint": "Click to start drawing",
+  "block.whiteboard.loadingPreview": "Loading preview…"
 }

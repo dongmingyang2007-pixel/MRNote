@@ -1,6 +1,9 @@
+"use client";
+
 import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import katex from "katex";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // ---------------------------------------------------------------------------
@@ -9,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function MathBlockView(props: any) {
+  const t = useTranslations("console-notebooks");
   const { node, updateAttributes, selected } = props;
   const latex: string = node.attrs.latex || "";
 
@@ -73,7 +77,7 @@ function MathBlockView(props: any) {
             onChange={(e) => setDraft(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            placeholder="LaTeX formula…"
+            placeholder={t("block.math.placeholder")}
             rows={3}
           />
         </div>
@@ -85,7 +89,7 @@ function MathBlockView(props: any) {
             setDraft(latex);
             setEditing(true);
           }}
-          title="Double-click to edit"
+          title={t("block.math.doubleClickEdit")}
         />
       )}
     </NodeViewWrapper>

@@ -14,6 +14,7 @@ const NAV_ITEMS = [
 export default function GlobalSidebar() {
   const pathname = usePathname();
   const t = useTranslations("console");
+  const tCommon = useTranslations("common");
 
   const isActive = (href: string) => {
     if (href === "/app") return pathname === "/app" || pathname.endsWith("/workspace");
@@ -44,7 +45,7 @@ export default function GlobalSidebar() {
     >
       {/* Logo */}
       <Link href="/app" className="glass-sidebar-logo" style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>铭</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{tCommon("brand.glyph")}</span>
       </Link>
 
       {/* Nav items */}

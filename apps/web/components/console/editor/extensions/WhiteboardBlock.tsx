@@ -1,7 +1,10 @@
+"use client";
+
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // ---------------------------------------------------------------------------
@@ -41,6 +44,7 @@ type WhiteboardNodeViewProps = NodeViewProps & {
 // ---------------------------------------------------------------------------
 
 function WhiteboardBlockView(props: WhiteboardNodeViewProps) {
+  const t = useTranslations("console-notebooks");
   const { node, updateAttributes, selected } = props;
 
   const rawElements = node.attrs.elements;
@@ -202,17 +206,17 @@ function WhiteboardBlockView(props: WhiteboardNodeViewProps) {
             className="whiteboard-preview"
             style={{ width, minHeight: 200 }}
             onClick={() => setEditing(true)}
-            title="Click to edit"
+            title={t("block.whiteboard.clickEdit")}
           >
             {isEmpty ? (
-              <span className="whiteboard-preview-empty">点击开始绘图</span>
+              <span className="whiteboard-preview-empty">{t("block.whiteboard.emptyHint")}</span>
             ) : svgPreview ? (
               <div
                 className="whiteboard-preview-svg"
                 ref={previewContainerRef}
               />
             ) : (
-              <span className="whiteboard-preview-empty">Loading preview...</span>
+              <span className="whiteboard-preview-empty">{t("block.whiteboard.loadingPreview")}</span>
             )}
           </div>
         )}

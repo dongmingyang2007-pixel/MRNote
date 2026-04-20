@@ -79,7 +79,7 @@ export function GlassTopBar() {
         </button>
 
         <Link
-          href="/app"
+          href="/"
           style={{
             display: "flex",
             alignItems: "center",
@@ -155,10 +155,10 @@ export function GlassTopBar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={8}>
             <DropdownMenuItem asChild>
-              <Link href="/app/settings">Settings</Link>
+              <Link href="/app/settings">{tCommon("user.settings")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void logout()}>
-              Logout
+              {tCommon("user.logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

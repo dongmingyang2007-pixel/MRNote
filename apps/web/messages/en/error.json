@@ -4,5 +4,11 @@
   "notFound.title": "Page not found",
   "notFound.body": "The address you visited doesn't exist. The link may have expired or the resource has been removed.",
   "notFound.home": "Back to home",
-  "notFound.console": "Open Console"
+  "notFound.console": "Open Console",
+  "notFound.copyright": "© {year} Mingrun Tech",
+  "api.connection": "Cannot reach API at {apiBaseUrl}. Make sure apps/api is running.",
+  "api.csrfFailed": "Failed to fetch security token",
+  "voice.autoplayBlocked": "The browser blocked synthetic voice autoplay. Tap the realtime control again or check your mute settings.",
+  "voice.turnFailed": "This turn failed. Please try again.",
+  "voice.ttsUnavailable": "Voice output is temporarily unavailable"
 }

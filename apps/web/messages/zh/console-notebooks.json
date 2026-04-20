@@ -317,5 +317,39 @@
   "aiActions.title": "AI 操作记录",
   "aiActions.refresh": "刷新",
   "aiActions.loading": "加载中…",
-  "aiActions.empty": "暂无 AI 操作记录。"
+  "aiActions.empty": "暂无 AI 操作记录。",
+
+  "block.flashcard.edit": "编辑",
+  "block.flashcard.preview": "预览",
+  "block.flashcard.adding": "加入中……",
+  "block.flashcard.add": "加入卡组",
+  "block.flashcard.inDeck": "已加入 ✓",
+  "block.flashcard.frontPlaceholder": "正面（问题）",
+  "block.flashcard.backPlaceholder": "背面（答案）",
+  "block.flashcard.ariaFront": "记忆卡 · 正面",
+  "block.flashcard.ariaBack": "记忆卡 · 背面",
+  "block.flashcard.hintQuestion": "问题",
+  "block.flashcard.hintAnswer": "答案",
+  "block.flashcard.hintFlip": "点击翻面",
+
+  "block.task.titlePlaceholder": "任务标题",
+  "block.task.detailsTitle": "详情",
+  "block.task.descriptionPlaceholder": "描述",
+  "block.task.saveError": "保存失败，请重试。",
+
+  "block.file.defaultWindowTitle": "文件",
+  "block.file.pageNotReady": "页面尚未就绪，请稍后再试。",
+  "block.file.uploadFailed": "上传失败",
+  "block.file.openInWindow": "在窗口中打开",
+  "block.file.uploadButton": "上传文件",
+  "block.file.uploading": "上传中……",
+  "block.file.open": "打开",
+  "block.file.download": "下载",
+
+  "block.math.placeholder": "LaTeX 公式…",
+  "block.math.doubleClickEdit": "双击编辑",
+
+  "block.whiteboard.clickEdit": "点击编辑",
+  "block.whiteboard.emptyHint": "点击开始绘图",
+  "block.whiteboard.loadingPreview": "正在加载预览……"
 }

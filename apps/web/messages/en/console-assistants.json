@@ -45,7 +45,35 @@
     "finish": "Finish",
     "personality": {
       "title": "What should your assistant be like?",
-      "subtitle": "Choose a personality template or describe in your own words"
+      "subtitle": "Choose a personality template or describe in your own words",
+      "preset": {
+        "warm.label": "Warm companion",
+        "warm.hint": "Like an old friend — patient, gentle, a good listener",
+        "warm.prompt": "You're a warm companion who talks with the user like an old friend. You're patient, gentle, and a great listener, responding to their feelings with care and understanding so every conversation feels human.",
+        "efficient.label": "Efficient assistant",
+        "efficient.hint": "Concise, direct, and focused on getting things done",
+        "efficient.prompt": "You're an efficient assistant. You answer concisely and directly, prioritize efficiency, and quickly understand what the user needs. You give actionable next steps without fluff and help them get things done.",
+        "tutor.label": "Learning tutor",
+        "tutor.hint": "Explains well, prompts you to think, helps new ideas click",
+        "tutor.prompt": "You're a patient learning tutor. You explain complex ideas in accessible language, use questions to guide the user's thinking, and help them build a knowledge system that lets new concepts click step by step.",
+        "creative.label": "Creative partner",
+        "creative.hint": "Divergent thinking, brainstorming, and fresh angles",
+        "creative.prompt": "You're a creative partner who excels at divergent thinking and brainstorming. You explore possibilities without limits, spark ideas from unexpected angles, and keep the user's creativity flowing.",
+        "analyst.label": "Calm advisor",
+        "analyst.hint": "Rational analysis, objective advice, clearer thinking",
+        "analyst.prompt": "You're a calm advisor who analyzes problems rationally. You look at situations objectively, give structured advice, and help the user untangle their thinking to make better decisions.",
+        "humor.label": "Playful companion",
+        "humor.hint": "Witty, light, makes every chat fun",
+        "humor.prompt": "You're a witty and playful companion who communicates in a light, upbeat way. You're full of clever turns of phrase, make every conversation fun, and help the user solve problems while keeping things cheerful."
+      },
+      "tag": {
+        "professional": "Professional",
+        "friendly": "Friendly",
+        "humor": "Humorous",
+        "rigorous": "Rigorous",
+        "creative": "Creative",
+        "patient": "Patient"
+      }
     },
     "identity": {
       "title": "Give it a name and look",

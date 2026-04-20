@@ -1,34 +1,41 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import MockWindow from "./MockWindow";
 
 /**
- * Feature 2 — "跟进提醒". Two due-today items with pulsing brand-blue
- * dots + one 45-day dormant client warning in amber. The pulse is the
- * "nudge" motion; no timer or wall-clock logic — it's purely visual.
+ * Feature 2 — follow-up reminders. Two due-today items with pulsing
+ * brand-blue dots + one 45-day dormant client warning in amber. The
+ * pulse is the "nudge" motion; no timer or wall-clock logic — it's
+ * purely visual.
  */
 interface FollowupMockProps {
   style?: React.CSSProperties;
   decorative?: boolean;
 }
 
+const richName = { b: (chunks: React.ReactNode) => <strong>{chunks}</strong> };
+
 export default function FollowupMock({ style, decorative }: FollowupMockProps) {
+  const t = useTranslations("marketing");
   return (
-    <MockWindow title="Follow-ups · Due today" style={style} decorative={decorative}>
+    <MockWindow title={t("mocks.followup.title")} style={style} decorative={decorative}>
       <div className="marketing-mock__row">
         <span className="marketing-mock__dot marketing-mock__dot--pulse" />
         <span className="marketing-mock__row-value">
-          Send proposal to <strong>Lisa Patel</strong> · promised Mon
+          {t.rich("mocks.followup.row1", richName)}
         </span>
       </div>
       <div className="marketing-mock__row">
         <span className="marketing-mock__dot marketing-mock__dot--pulse" />
         <span className="marketing-mock__row-value">
-          Revise Q3 SOW for <strong>Sarah Chen</strong>
+          {t.rich("mocks.followup.row2", richName)}
         </span>
       </div>
       <div className="marketing-mock__row">
         <span className="marketing-mock__dot marketing-mock__dot--amber" />
         <span className="marketing-mock__row-value">
-          <strong>David Kim</strong> — 45 days since last reply
+          {t.rich("mocks.followup.row3", richName)}
         </span>
       </div>
     </MockWindow>

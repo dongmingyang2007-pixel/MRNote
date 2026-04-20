@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, isApiRequestError } from "@/lib/api";
 import { getApiBaseUrl } from "@/lib/env";
@@ -103,8 +104,6 @@ const CALIBRATION_MIN_THRESHOLD = 0.008;
 const CALIBRATION_P75_MULTIPLIER = 2.5;
 const SILENT_AUDIO_DATA_URL =
   "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
-const AUTOPLAY_BLOCKED_MESSAGE =
-  "浏览器阻止了合成语音自动播放，请再次点击合成实时或检查静音设置";
 const MICROPHONE_PERMISSION_REQUIRED_MESSAGE =
   "Microphone permission is required";
 const WEBSOCKET_CONNECTION_FAILED_MESSAGE = "WebSocket connection failed";
@@ -127,6 +126,9 @@ function useBlobPlayback(wsPath: string): boolean {
 export function useRealtimeVoiceBase(
   config: RealtimeVoiceBaseConfig,
 ): RealtimeVoiceBaseReturn {
+  const tError = useTranslations("error");
+  const AUTOPLAY_BLOCKED_MESSAGE = tError("voice.autoplayBlocked");
+
   // -- Keep a ref so WS callbacks always read the latest config ---------------
   const configRef = useRef(config);
   configRef.current = config;
@@ -1232,14 +1234,14 @@ export function useRealtimeVoiceBase(
           clearTurnBuffers();
           setState("listening");
           cfg.onError?.(
-            msg.message || getMessage("turnError", "本轮处理失败，请重试"),
+            msg.message || getMessage("turnError", tError("voice.turnFailed")),
           );
           cfg.onCustomMessage?.(msg as Record<string, unknown>, ws);
           break;
 
         case "turn.notice":
           cfg.onError?.(
-            msg.message || getMessage("turnNotice", "语音输出暂时不可用"),
+            msg.message || getMessage("turnNotice", tError("voice.ttsUnavailable")),
           );
           cfg.onCustomMessage?.(msg as Record<string, unknown>, ws);
           break;

@@ -24,7 +24,7 @@ import {
   TaskBlock,
   FlashcardBlock,
 } from "./extensions";
-import SlashCommand from "./SlashCommandMenu";
+import SlashCommand, { createSuggestionConfig } from "./SlashCommandMenu";
 import FloatingToolbar from "./FloatingToolbar";
 import { PageIdProvider } from "./PageIdContext";
 
@@ -92,7 +92,9 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       ReferenceBlock,
       TaskBlock,
       FlashcardBlock,
-      SlashCommand,
+      SlashCommand.configure({
+        suggestion: createSuggestionConfig((key: string) => t(key)),
+      }),
     ],
     editorProps: {
       attributes: {
@@ -164,14 +166,19 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
   const saveContent = useCallback(
     async (contentJson: Record<string, unknown>) => {
       setSaveStatus("saving");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       try {
-        await apiPatch(`/api/v1/pages/${pageId}`, {
-          content_json: contentJson,
-          title,
-        });
+        await apiPatch(
+          `/api/v1/pages/${pageId}`,
+          { content_json: contentJson, title },
+          { signal: controller.signal },
+        );
         setSaveStatus("saved");
       } catch {
         setSaveStatus("unsaved");
+      } finally {
+        clearTimeout(timeoutId);
       }
     },
     [pageId, title],

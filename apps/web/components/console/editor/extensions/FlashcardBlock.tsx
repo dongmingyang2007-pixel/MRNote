@@ -5,6 +5,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useCallback, useState } from "react";
 import { Layers, Pencil, Eye } from "lucide-react";
+import { useTranslations } from "next-intl";
 import DeckPickerDialog from "@/components/notebook/contents/study/DeckPickerDialog";
 import { apiPost } from "@/lib/api";
 
@@ -22,6 +23,7 @@ interface FlashcardAttrs {
 }
 
 function FlashcardBlockView(props: NodeViewProps) {
+  const t = useTranslations("console-notebooks");
   const attrs = props.node.attrs as FlashcardAttrs;
   const [mode, setMode] = useState<"edit" | "preview">(
     attrs.front || attrs.back ? "preview" : "edit",
@@ -71,7 +73,7 @@ function FlashcardBlockView(props: NodeViewProps) {
           onClick={() => setMode("edit")}
           data-testid="flashcard-mode-edit"
         >
-          <Pencil size={12} /> Edit
+          <Pencil size={12} /> {t("block.flashcard.edit")}
         </button>
         <button
           type="button"
@@ -79,7 +81,7 @@ function FlashcardBlockView(props: NodeViewProps) {
           onClick={() => setMode("preview")}
           data-testid="flashcard-mode-preview"
         >
-          <Eye size={12} /> Preview
+          <Eye size={12} /> {t("block.flashcard.preview")}
         </button>
         {!attrs.card_id && (
           <button
@@ -89,7 +91,7 @@ function FlashcardBlockView(props: NodeViewProps) {
             disabled={adding}
             data-testid="flashcard-add-to-deck"
           >
-            {adding ? "Adding…" : "Add to Deck"}
+            {adding ? t("block.flashcard.adding") : t("block.flashcard.add")}
           </button>
         )}
         {attrs.card_id && (
@@ -98,20 +100,20 @@ function FlashcardBlockView(props: NodeViewProps) {
             data-testid="flashcard-in-deck"
             style={{ fontSize: 10, color: "#2563eb", marginLeft: 6 }}
           >
-            In deck ✓
+            {t("block.flashcard.inDeck")}
           </span>
         )}
       </div>
       {mode === "edit" ? (
         <div className="flashcard-block__editor">
           <textarea
-            placeholder="Front (question)"
+            placeholder={t("block.flashcard.frontPlaceholder")}
             value={attrs.front}
             onChange={(e) => props.updateAttributes({ front: e.target.value })}
             data-testid="flashcard-front"
           />
           <textarea
-            placeholder="Back (answer)"
+            placeholder={t("block.flashcard.backPlaceholder")}
             value={attrs.back}
             onChange={(e) => props.updateAttributes({ back: e.target.value })}
             data-testid="flashcard-back"
@@ -123,12 +125,14 @@ function FlashcardBlockView(props: NodeViewProps) {
           onClick={handleFlip}
           className={`flashcard-block__card${isBack ? " is-flipped" : ""}`}
           aria-label={
-            isBack ? "Flashcard, back side" : "Flashcard, front side"
+            isBack
+              ? t("block.flashcard.ariaBack")
+              : t("block.flashcard.ariaFront")
           }
           data-testid="flashcard-card"
         >
           <span className="flashcard-block__hint">
-            {isBack ? "Answer" : "Question"} · click to flip
+            {isBack ? t("block.flashcard.hintAnswer") : t("block.flashcard.hintQuestion")} · {t("block.flashcard.hintFlip")}
           </span>
           <div className="flashcard-block__body">
             {isBack ? attrs.back || "(empty)" : attrs.front || "(empty)"}

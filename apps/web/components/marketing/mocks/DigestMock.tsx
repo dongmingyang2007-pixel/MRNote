@@ -1,7 +1,10 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import MockWindow from "./MockWindow";
 
 /**
- * Feature 3 — "每周反思". Monday digest preview. Three compressed
+ * Feature 3 — weekly reflection. Monday digest preview. Three compressed
  * bullets giving the feeling of a "weekly at a glance". No motion —
  * this one is intentionally calm to contrast with the pulsing
  * FollowupMock.
@@ -12,25 +15,20 @@ interface DigestMockProps {
 }
 
 export default function DigestMock({ style, decorative }: DigestMockProps) {
+  const t = useTranslations("marketing");
   return (
-    <MockWindow title="Monday Digest · Wk 16" style={style} decorative={decorative}>
+    <MockWindow title={t("mocks.digest.title")} style={style} decorative={decorative}>
       <div className="marketing-mock__row">
-        <span className="marketing-mock__row-label">Done</span>
-        <span className="marketing-mock__row-value">
-          14 conversations · 6 clients touched
-        </span>
+        <span className="marketing-mock__row-label">{t("mocks.digest.row1.label")}</span>
+        <span className="marketing-mock__row-value">{t("mocks.digest.row1.value")}</span>
       </div>
       <div className="marketing-mock__row">
-        <span className="marketing-mock__row-label">Overdue</span>
-        <span className="marketing-mock__row-value">
-          2 promises past due — Lisa, Marco
-        </span>
+        <span className="marketing-mock__row-label">{t("mocks.digest.row2.label")}</span>
+        <span className="marketing-mock__row-value">{t("mocks.digest.row2.value")}</span>
       </div>
       <div className="marketing-mock__row">
-        <span className="marketing-mock__row-label">Drift</span>
-        <span className="marketing-mock__row-value">
-          Sarah&apos;s scope +32% vs. original SOW
-        </span>
+        <span className="marketing-mock__row-label">{t("mocks.digest.row3.label")}</span>
+        <span className="marketing-mock__row-value">{t("mocks.digest.row3.value")}</span>
       </div>
     </MockWindow>
   );

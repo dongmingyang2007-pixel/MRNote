@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useCallback,
@@ -50,6 +51,7 @@ export function useModal(): ModalContextValue {
 /* ── Provider ──────────────────────────────────── */
 
 export function ModalProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations("common");
   const [modal, setModal] = useState<ModalState | null>(null);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -177,7 +179,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
                   onClick={handleCancel}
                   type="button"
                 >
-                  {modal.cancelLabel ?? "取消"}
+                  {modal.cancelLabel ?? t("button.cancel")}
                 </button>
               )}
               <button
@@ -185,7 +187,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
                 onClick={handleConfirm}
                 type="button"
               >
-                {modal.confirmLabel ?? "确定"}
+                {modal.confirmLabel ?? t("button.confirm")}
               </button>
             </div>
           </div>

@@ -1,10 +1,14 @@
 {
   "brand.company": "Mingrun Tech",
   "brand.short": "Mingrun",
+  "brand.glyph": "M",
+  "brand.tagline": "Personal AI Studio",
   "user.settings": "Account Settings",
   "user.logout": "Log Out",
   "user.login": "Log In",
   "session.expiredTitle": "Session expired",
   "session.expiredBody": "Redirecting to login. Please sign in again to continue.",
-  "nav.closeMenu": "Close menu"
+  "nav.closeMenu": "Close menu",
+  "button.confirm": "OK",
+  "button.cancel": "Cancel"
 }

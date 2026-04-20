@@ -1,10 +1,14 @@
 {
   "brand.company": "铭润科技",
   "brand.short": "铭润",
+  "brand.glyph": "铭",
+  "brand.tagline": "个人 AI 工作室",
   "user.settings": "账号设置",
   "user.logout": "退出登录",
   "user.login": "登录",
   "session.expiredTitle": "登录已过期",
   "session.expiredBody": "正在返回登录页，请重新登录后继续。",
-  "nav.closeMenu": "关闭菜单"
+  "nav.closeMenu": "关闭菜单",
+  "button.confirm": "确定",
+  "button.cancel": "取消"
 }
