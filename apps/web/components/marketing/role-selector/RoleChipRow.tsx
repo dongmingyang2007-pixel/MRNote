@@ -7,9 +7,10 @@ interface Props {
   activeRole: RoleKey | null;
   onSelect: (role: RoleKey) => void;
   locale: "zh" | "en";
+  groupLabel: string;
 }
 
-export default function RoleChipRow({ activeRole, onSelect, locale }: Props) {
+export default function RoleChipRow({ activeRole, onSelect, locale, groupLabel }: Props) {
   const chipsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
   const handleKeyDown = useCallback(
@@ -27,7 +28,7 @@ export default function RoleChipRow({ activeRole, onSelect, locale }: Props) {
   );
 
   return (
-    <div role="radiogroup" aria-label="role selector" className="marketing-exclusive__chips">
+    <div role="radiogroup" aria-label={groupLabel} className="marketing-exclusive__chips">
       {ROLE_KEYS.map((key, i) => {
         const content = ROLE_CONTENT[key];
         const isActive = activeRole === key;
