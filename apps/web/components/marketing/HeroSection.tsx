@@ -3,14 +3,20 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, PlayCircle } from "lucide-react";
 import HeroAnimatedClient from "./HeroAnimatedClient";
 import HeroCanvasStage from "./HeroCanvasStage";
+import HeroRoleBadge from "./HeroRoleBadge";
 
-export default async function HeroSection() {
+interface HeroSectionProps {
+  locale?: "zh" | "en";
+}
+
+export default async function HeroSection({ locale = "zh" }: HeroSectionProps = {}) {
   const t = await getTranslations("marketing");
   return (
     <section className="marketing-hero">
       <HeroAnimatedClient>
         <div className="marketing-hero__grid">
           <div className="marketing-fade-in">
+            <HeroRoleBadge locale={locale} />
             <span className="marketing-eyebrow mb-4">{t("hero.kicker")}</span>
             <h1
               className="marketing-h1 font-display tracking-tight text-4xl md:text-6xl lg:text-7xl mb-6 md:mb-8"

@@ -492,8 +492,6 @@ async def google_callback(
             db.commit()
 
     token_str = create_access_token(user.id)
-    set_auth_cookie(response, token_str)
-    issue_csrf_token(response, token_str, user.id)
     write_audit_log(
         db,
         workspace_id=None,
@@ -505,11 +503,12 @@ async def google_callback(
     )
     db.commit()
 
+    # Apply cookies directly to the redirect response we actually return,
+    # not the injected `response` (FastAPI's auto-merge doesn't cover the
+    # case where we return a different Response subclass).
     redir = RedirectResponse(url=next_path, status_code=302)
-    # Carry the Set-Cookie headers written onto ``response`` by set_auth_cookie
-    # + issue_csrf_token through to the actual redirect response we return.
-    for cookie_header in response.headers.getlist("set-cookie"):
-        redir.headers.append("set-cookie", cookie_header)
+    set_auth_cookie(redir, token_str)
+    issue_csrf_token(redir, token_str, user.id)
     return redir
 
 

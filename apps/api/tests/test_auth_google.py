@@ -230,6 +230,12 @@ def test_callback_creates_new_user(client: TestClient):
     )
     assert resp.status_code == 302
     assert resp.headers["location"] == "/app"
+    # The redirect MUST carry Set-Cookie for access_token — otherwise the
+    # browser ends up on /app unauthenticated and gets bounced back to /login.
+    cookie_headers = resp.headers.get_list("set-cookie")
+    assert any(
+        h.startswith(f"{settings.access_cookie_name}=") for h in cookie_headers
+    ), f"access_token cookie missing from callback redirect: {cookie_headers}"
     with SessionLocal() as db:
         user = db.execute(select(User).where(User.email == "new@gmail.com")).scalar_one()
         assert user.password_hash is None

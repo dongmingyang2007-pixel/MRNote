@@ -1212,6 +1212,7 @@ Open `apps/web/messages/zh/marketing.json`, add these keys to the top-level obje
 
 ```json
 "exclusiveSection.eyebrow": "✦ 为你精选 · 独家",
+"exclusiveSection.chipsLabel": "身份选择",
 "exclusiveSection.emptyTitle": "选择你的身份，解锁定制内容",
 "exclusiveSection.emptyHint": "告诉我们你的身份，为你推荐对的 demo、模板和专属优惠。",
 "exclusiveSection.populatedTitle": "为{role}打造的 MRNote",
@@ -1230,6 +1231,7 @@ Open `apps/web/messages/zh/marketing.json`, add these keys to the top-level obje
 
 ```json
 "exclusiveSection.eyebrow": "✦ Hand-picked for you · Exclusive",
+"exclusiveSection.chipsLabel": "Role selector",
 "exclusiveSection.emptyTitle": "Pick your role to unlock tailored content",
 "exclusiveSection.emptyHint": "Tell us what you do; we'll show the right demo, templates, and offers.",
 "exclusiveSection.populatedTitle": "MRNote for {role}",
@@ -1751,7 +1753,7 @@ export default function ExclusiveSection({ initialRole, locale }: Props) {
               </button>
             </p>
 
-            <RoleChipRow activeRole={role} onSelect={setRole} locale={locale} />
+            <RoleChipRow activeRole={role} onSelect={setRole} locale={locale} groupLabel={t("exclusiveSection.chipsLabel")} />
 
             <div className="marketing-exclusive__cards">
               <RoleCard
@@ -1792,7 +1794,7 @@ export default function ExclusiveSection({ initialRole, locale }: Props) {
               {t("exclusiveSection.emptyTitle")}
             </h2>
             <p className="marketing-exclusive__hint">{t("exclusiveSection.emptyHint")}</p>
-            <RoleChipRow activeRole={null} onSelect={setRole} locale={locale} />
+            <RoleChipRow activeRole={null} onSelect={setRole} locale={locale} groupLabel={t("exclusiveSection.chipsLabel")} />
             <div className="marketing-exclusive__cards">
               {[0, 1, 2].map((i) => (
                 <div
