@@ -157,6 +157,24 @@ class Settings(BaseSettings):
         default="price_1TNFnrRzO5cz1hgYPFabWMpM", env="STRIPE_PRICE_TEAM_YEARLY",
     )
 
+    # ---------------------------------------------------------------
+    # Google OAuth (see docs/superpowers/specs/2026-04-19-google-oauth-design.md)
+    # ---------------------------------------------------------------
+    google_client_id: str = Field(default="", env="GOOGLE_CLIENT_ID")
+    google_client_secret: str = Field(default="", env="GOOGLE_CLIENT_SECRET")
+    google_oauth_redirect_base: str = Field(
+        default="http://localhost:3000", env="GOOGLE_OAUTH_REDIRECT_BASE",
+    )
+    oauth_session_secret: str = Field(
+        default="change-me-in-prod-use-openssl-rand-hex-32",
+        env="OAUTH_SESSION_SECRET",
+    )
+    google_oauth_enabled: bool = Field(default=False, env="GOOGLE_OAUTH_ENABLED")
+
+    @property
+    def google_oauth_redirect_uri(self) -> str:
+        return f"{self.google_oauth_redirect_base.rstrip('/')}/api/v1/auth/google/callback"
+
     @field_validator("cors_origins", "allowed_hosts", "image_allowed_media_types", mode="before")
     @classmethod
     def _parse_list_settings(cls, value):

@@ -6,6 +6,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -118,6 +119,16 @@ app = FastAPI(
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+# OAuth round-trip session cookie (separate from JWT access_token).
+# Used by Authlib to stash state/nonce + our mode/next across the Google redirect.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.oauth_session_secret,
+    session_cookie="mr_oauth_session",
+    max_age=600,  # 10 minutes — OAuth round-trip only
+    same_site="lax",
+    https_only=settings.cookie_secure,
+)
 if settings.allowed_hosts:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 app.add_middleware(

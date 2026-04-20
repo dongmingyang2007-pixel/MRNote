@@ -58,6 +58,44 @@ def get_current_user(
     return user
 
 
+def get_current_user_optional(
+    request: Request,
+    db: Session = Depends(get_db_session),
+    access_token: str | None = Cookie(default=None, alias=settings.access_cookie_name),
+) -> User | None:
+    """Same as get_current_user but returns None instead of raising when
+    unauthenticated. Used by routes that accept both signed-in and anonymous
+    callers (e.g. OAuth /authorize in either signin or connect mode)."""
+    if not access_token:
+        return None
+    try:
+        user, payload = authenticate_access_token(db=db, access_token=access_token)
+    except ApiError:
+        return None
+    request.state.access_token = access_token
+    request.state.access_token_payload = payload
+    request.state.current_user_id = user.id
+    return user
+
+
+def is_safe_redirect_path(path: str | None) -> bool:
+    """Validate a user-controllable `next` parameter is a relative in-app path.
+
+    Rejects absolute URLs, protocol-relative (//evil.com), backslash tricks,
+    and javascript:/data: URIs. Only single-slash-prefixed relative paths pass.
+    """
+    if not path or not isinstance(path, str):
+        return False
+    if not path.startswith("/"):
+        return False
+    if path.startswith("//") or path.startswith("/\\"):
+        return False
+    lower = path.lower()
+    if lower.startswith("/javascript:") or lower.startswith("/data:"):
+        return False
+    return True
+
+
 def get_current_workspace_membership(
     request: Request,
     db: Session = Depends(get_db_session),

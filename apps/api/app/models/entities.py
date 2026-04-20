@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
@@ -26,7 +26,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
@@ -46,6 +46,33 @@ class Membership(Base, TimestampMixin):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     role: Mapped[str] = mapped_column(Text, default="owner", nullable=False)
+
+
+class OAuthIdentity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """External identity provider link (Google / Apple / GitHub / …).
+
+    One row per (provider, provider_id) — keyed on the provider's stable user ID
+    (Google calls it `sub`), so email changes at the provider don't orphan the
+    link. `provider_email` is a display snapshot, never used for lookup.
+    """
+
+    __tablename__ = "oauth_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_id", name="uq_oauth_provider_id"),
+        UniqueConstraint("provider", "user_id", name="uq_oauth_provider_user"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_id: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    linked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 
 class Project(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):

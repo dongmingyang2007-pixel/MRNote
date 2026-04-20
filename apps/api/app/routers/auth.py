@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
+from starlette.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
@@ -11,7 +12,9 @@ from app.core.deps import (
     get_active_csrf_token,
     get_client_ip,
     get_current_user,
+    get_current_user_optional,
     get_db_session,
+    is_safe_redirect_path,
     issue_csrf_token,
     revoke_user_tokens,
     require_allowed_origin,
@@ -19,6 +22,7 @@ from app.core.deps import (
     set_auth_cookie,
 )
 from app.core.errors import ApiError
+from app.core.oauth import oauth
 from app.core.security import create_access_token, hash_password, verify_password_or_dummy
 from app.core.config import settings
 from app.models import Membership, User, Workspace
@@ -265,3 +269,52 @@ def complete_onboarding(
         "ok": True,
         "onboarding_completed_at": current_user.onboarding_completed_at.isoformat(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Google OAuth
+# ---------------------------------------------------------------------------
+
+
+@router.get("/google/authorize")
+async def google_authorize(
+    request: Request,
+    next: str | None = None,
+    mode: Literal["signin", "connect"] = "signin",
+    current_user: User | None = Depends(get_current_user_optional),
+):
+    """Start the Google OAuth round-trip.
+
+    ``mode="signin"`` handles sign-in + sign-up (new users auto-provision).
+    ``mode="connect"`` is used by signed-in users to link an additional
+    Google identity from the Settings page.
+    """
+    if not settings.google_oauth_enabled:
+        raise ApiError("not_found", "OAuth is disabled", status_code=404)
+
+    client_ip = get_client_ip(request)
+    enforce_rate_limit(
+        request,
+        scope="auth:oauth_authorize:ip",
+        identifier=client_ip,
+        limit=settings.auth_rate_limit_ip_max,
+        window_seconds=settings.auth_rate_limit_window_seconds,
+    )
+
+    safe_next = next if is_safe_redirect_path(next) else "/app"
+
+    if mode == "connect":
+        if current_user is None:
+            return RedirectResponse(
+                url="/login?error=auth_required", status_code=302
+            )
+        request.session["oauth_mode"] = "connect"
+        request.session["oauth_connect_user_id"] = current_user.id
+    else:
+        request.session["oauth_mode"] = "signin"
+        request.session["oauth_connect_user_id"] = None
+
+    request.session["oauth_next"] = safe_next
+
+    redirect_uri = settings.google_oauth_redirect_uri
+    return await oauth.google.authorize_redirect(request, redirect_uri)
