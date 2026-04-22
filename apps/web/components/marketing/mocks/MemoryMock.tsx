@@ -5,7 +5,7 @@ import MockWindow from "./MockWindow";
 
 /**
  * Feature 1 — "persistent memory". Three memory rows extracted from a
- * client conversation. The last row ends with a blinking caret to
+ * notebook workstream. The last row ends with a blinking caret to
  * suggest it's being written in real-time, reinforcing the
  * "auto-extracted" promise of the feature.
  */

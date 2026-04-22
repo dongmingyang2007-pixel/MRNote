@@ -8,7 +8,6 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
@@ -65,7 +64,19 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
   const [loading, setLoading] = useState(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestContentRef = useRef<Record<string, unknown> | null>(null);
+  const titleRef = useRef("");
+  const saveStatusRef = useRef<SaveStatus>("saved");
   const debouncedSaveRef = useRef<(json: Record<string, unknown>) => void>(() => {});
+
+  const setTrackedTitle = useCallback((nextTitle: string) => {
+    titleRef.current = nextTitle;
+    setTitle(nextTitle);
+  }, []);
+
+  const setTrackedSaveStatus = useCallback((nextStatus: SaveStatus) => {
+    saveStatusRef.current = nextStatus;
+    setSaveStatus(nextStatus);
+  }, []);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -73,6 +84,10 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       StarterKit.configure({
         codeBlock: false,
         horizontalRule: false,
+        link: {
+          openOnClick: false,
+          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        },
       }),
       Placeholder.configure({
         placeholder: t("editor.placeholder"),
@@ -80,7 +95,6 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       TaskList,
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" } }),
       HorizontalRule,
       CodeBlockLowlight.configure({ lowlight }),
       MathBlock,
@@ -104,7 +118,7 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
     onUpdate: ({ editor: ed }) => {
       const json = ed.getJSON();
       latestContentRef.current = json;
-      setSaveStatus("unsaved");
+      setTrackedSaveStatus("unsaved");
       debouncedSaveRef.current(json);
       onPlainTextChange?.(ed.getText());
     },
@@ -119,7 +133,7 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
     void apiGet<PageData>(`/api/v1/pages/${pageId}`).then((data) => {
       if (cancelled) return;
       const t0 = data.title || "";
-      setTitle(t0);
+      setTrackedTitle(t0);
       // Echo loaded title up so parent window syncs its titlebar to the saved value
       onTitleChange?.(t0);
       if (
@@ -128,6 +142,7 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
         typeof data.content_json === "object" &&
         Object.keys(data.content_json).length > 0
       ) {
+        latestContentRef.current = data.content_json;
         editor.commands.setContent(data.content_json);
       }
       setLoading(false);
@@ -164,33 +179,33 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
   // ---- Auto-save ----------------------------------------------------------
 
   const saveContent = useCallback(
-    async (contentJson: Record<string, unknown>) => {
-      setSaveStatus("saving");
+    async (contentJson: Record<string, unknown>, nextTitle?: string) => {
+      setTrackedSaveStatus("saving");
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000);
       try {
         await apiPatch(
           `/api/v1/pages/${pageId}`,
-          { content_json: contentJson, title },
+          { content_json: contentJson, title: nextTitle ?? titleRef.current },
           { signal: controller.signal },
         );
-        setSaveStatus("saved");
+        setTrackedSaveStatus("saved");
       } catch {
-        setSaveStatus("unsaved");
+        setTrackedSaveStatus("unsaved");
       } finally {
         clearTimeout(timeoutId);
       }
     },
-    [pageId, title],
+    [pageId, setTrackedSaveStatus],
   );
 
   const debouncedSave = useCallback(
-    (contentJson: Record<string, unknown>) => {
+    (contentJson: Record<string, unknown>, nextTitle?: string) => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
       saveTimerRef.current = setTimeout(() => {
-        void saveContent(contentJson);
+        void saveContent(contentJson, nextTitle);
       }, 1500);
     },
     [saveContent],
@@ -228,8 +243,8 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const nextTitle = e.target.value;
-      setTitle(nextTitle);
-      setSaveStatus("unsaved");
+      setTrackedTitle(nextTitle);
+      setTrackedSaveStatus("unsaved");
       onTitleChange?.(nextTitle);
       // Always debounce-save on title change — even when the body is still empty
       // (new page, user only typed a title). Fall back to the editor's current
@@ -237,9 +252,9 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       const content = latestContentRef.current
         ?? (editor?.getJSON() as Record<string, unknown> | undefined)
         ?? { type: "doc", content: [] };
-      debouncedSave(content);
+      debouncedSave(content, nextTitle);
     },
-    [debouncedSave, editor, onTitleChange],
+    [debouncedSave, editor, onTitleChange, setTrackedSaveStatus, setTrackedTitle],
   );
 
   // ---- Title Enter → focus editor ----------------------------------------
@@ -263,12 +278,11 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       }
       // Flush any unsaved content synchronously before unmount
       const pendingContent = latestContentRef.current;
-      if (pendingContent && saveStatus !== "saved") {
-        void saveContent(pendingContent);
+      if (pendingContent && saveStatusRef.current !== "saved") {
+        void saveContent(pendingContent, titleRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId]);
+  }, [pageId, saveContent]);
 
   // ---- Render -------------------------------------------------------------
 

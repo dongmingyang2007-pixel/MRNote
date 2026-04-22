@@ -44,6 +44,10 @@ def setup_function() -> None:
     if cache_clear:
         cache_clear()
     storage_service.get_s3_client = lambda: fake  # type: ignore[assignment]
+    presign_cache_clear = getattr(storage_service.get_s3_presign_client, "cache_clear", None)
+    if presign_cache_clear:
+        presign_cache_clear()
+    storage_service.get_s3_presign_client = lambda: fake  # type: ignore[assignment]
 
 
 engine = _s.engine
@@ -173,3 +177,28 @@ def test_attachment_url_returns_presigned_url() -> None:
     assert body["url"].startswith("http")
     assert "doc.pdf" in body["url"] or upload["attachment_id"] in body["url"]
     assert body["expires_in_seconds"] == 900
+
+
+def test_attachment_url_forces_download_disposition() -> None:
+    client, auth = _register_client("u5@x.co")
+    page_id = _seed_page(auth["ws_id"], auth["user_id"])
+    upload = client.post(
+        f"/api/v1/pages/{page_id}/attachments/upload",
+        files={"file": ("dangerous.svg", io.BytesIO(b"<svg></svg>"), "image/svg+xml")},
+    ).json()
+
+    captured: dict[str, dict] = {}
+
+    class CapturePresignClient:
+        def generate_presigned_url(self, operation: str = "get_object", *, Params=None, ExpiresIn=900, **_kwargs):
+            captured["params"] = Params or {}
+            captured["expires"] = {"value": ExpiresIn}
+            return "http://fake-s3/download"
+
+    storage_service.get_s3_presign_client = lambda: CapturePresignClient()  # type: ignore[assignment]
+
+    resp = client.get(f"/api/v1/attachments/{upload['attachment_id']}/url")
+    assert resp.status_code == 200, resp.text
+    disposition = captured["params"]["ResponseContentDisposition"]
+    assert disposition.startswith("attachment;")
+    assert "dangerous.svg" in disposition

@@ -8,12 +8,26 @@ import { MemoryGraphView, adaptGraphData } from "@/components/console/graph/memo
 
 interface Props {
   notebookId: string;
+  initialSelectedId?: string;
+  initialMemoryViewId?: string;
 }
 
-export default function MemoryGraphWindow({ notebookId }: Props) {
+interface MemoryViewSummary {
+  id: string;
+  source_subject_id?: string | null;
+}
+
+export default function MemoryGraphWindow({
+  notebookId,
+  initialSelectedId,
+  initialMemoryViewId,
+}: Props) {
   const t = useTranslations("console-notebooks");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [resolvedSelectedId, setResolvedSelectedId] = useState<string | null>(
+    initialSelectedId || null,
+  );
 
   useEffect(() => {
     if (!notebookId) return;
@@ -27,6 +41,37 @@ export default function MemoryGraphWindow({ notebookId }: Props) {
       });
     return () => { cancelled = true; };
   }, [notebookId]);
+
+  useEffect(() => {
+    setResolvedSelectedId(initialSelectedId || null);
+  }, [initialSelectedId]);
+
+  useEffect(() => {
+    if (!projectId || !initialMemoryViewId || initialSelectedId) {
+      return;
+    }
+    let cancelled = false;
+
+    void apiGet<MemoryViewSummary[]>(
+      `/api/v1/memory/views?project_id=${encodeURIComponent(projectId)}`,
+    )
+      .then((views) => {
+        if (cancelled) {
+          return;
+        }
+        const matchedView = views.find((view) => view.id === initialMemoryViewId);
+        setResolvedSelectedId(matchedView?.source_subject_id || null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResolvedSelectedId(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialMemoryViewId, initialSelectedId, projectId]);
 
   const { data, loading } = useGraphData(projectId || "");
 
@@ -54,5 +99,11 @@ export default function MemoryGraphWindow({ notebookId }: Props) {
     );
   }
 
-  return <MemoryGraphView nodes={graph.nodes} edges={graph.edges} />;
+  return (
+    <MemoryGraphView
+      nodes={graph.nodes}
+      edges={graph.edges}
+      initialSelectedId={resolvedSelectedId || undefined}
+    />
+  );
 }

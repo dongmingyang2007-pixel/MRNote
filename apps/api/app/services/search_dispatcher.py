@@ -6,9 +6,12 @@ import asyncio
 import logging
 from typing import Any
 
+from sqlalchemy import or_
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
+from app.core.deps import is_workspace_privileged_role
+from app.models import AIActionLog, DataItem, Notebook, NotebookAttachment, NotebookPage, StudyAsset
 from app.services.memory_v2 import (
     search_memories_lexical,
     search_memory_views_lexical,
@@ -23,7 +26,7 @@ from app.services.search_vector import (
 logger = logging.getLogger(__name__)
 
 SCOPES: tuple[str, ...] = (
-    "pages", "blocks", "study_assets", "memory", "playbooks",
+    "pages", "blocks", "study_assets", "files", "memory", "playbooks", "ai_actions",
 )
 MIN_QUERY_LENGTH = 2
 
@@ -37,6 +40,8 @@ async def search_workspace(
     project_id: str | None = None,
     notebook_id: str | None = None,
     limit: int = 8,
+    current_user_id: str | None = None,
+    workspace_role: str = "owner",
 ) -> dict[str, list[dict[str, Any]]]:
     """Entry point. Returns {scope_name: list[Hit]}."""
     out: dict[str, list[dict[str, Any]]] = {s: [] for s in SCOPES}
@@ -52,6 +57,23 @@ async def search_workspace(
         ).fetchone()
         if row and row[0]:
             resolved_project_id = row[0]
+
+    readable_notebook_ids: set[str] | None = None
+    if current_user_id and not is_workspace_privileged_role(workspace_role):
+        readable_notebook_ids = {
+            notebook_id
+            for (notebook_id,) in (
+                db.query(Notebook.id)
+                .filter(Notebook.workspace_id == workspace_id)
+                .filter(
+                    or_(
+                        Notebook.visibility != "private",
+                        Notebook.created_by == current_user_id,
+                    )
+                )
+                .all()
+            )
+        }
 
     jobs: list[tuple[str, Any]] = []
     if "pages" in scopes:
@@ -69,6 +91,11 @@ async def search_workspace(
             db, workspace_id=workspace_id, project_id=resolved_project_id,
             notebook_id=notebook_id, query=query, limit=limit,
         )))
+    if "files" in scopes:
+        jobs.append(("files", _search_files(
+            db, workspace_id=workspace_id, project_id=resolved_project_id,
+            notebook_id=notebook_id, query=query, limit=limit,
+        )))
     if "memory" in scopes and resolved_project_id:
         jobs.append(("memory", _search_memory(
             db, workspace_id=workspace_id, project_id=resolved_project_id,
@@ -78,6 +105,13 @@ async def search_workspace(
         jobs.append(("playbooks", _search_playbooks(
             db, workspace_id=workspace_id, project_id=resolved_project_id,
             query=query, limit=limit,
+        )))
+    if "ai_actions" in scopes:
+        jobs.append(("ai_actions", _search_ai_actions(
+            db, workspace_id=workspace_id, notebook_id=notebook_id,
+            query=query, limit=limit,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
         )))
 
     results = await asyncio.gather(
@@ -89,7 +123,31 @@ async def search_workspace(
             out[scope] = []
         else:
             out[scope] = result  # type: ignore[assignment]
+            if readable_notebook_ids is not None and scope in {
+                "pages", "blocks", "study_assets", "files", "ai_actions",
+            }:
+                out[scope] = [
+                    hit
+                    for hit in out[scope]
+                    if _hit_is_visible_to_viewer(
+                        hit,
+                        scope=scope,
+                        readable_notebook_ids=readable_notebook_ids,
+                    )
+                ]
     return out
+
+
+def _hit_is_visible_to_viewer(
+    hit: dict[str, Any],
+    *,
+    scope: str,
+    readable_notebook_ids: set[str],
+) -> bool:
+    notebook_id = hit.get("notebook_id")
+    if notebook_id is None:
+        return scope == "ai_actions"
+    return str(notebook_id) in readable_notebook_ids
 
 
 def _lexical_pages_sql(db: Session, *, workspace_id: str,
@@ -248,6 +306,7 @@ async def _search_study_assets(
                 WHERE n.workspace_id = :workspace_id
                   AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
                   AND (CAST(:notebook_id AS TEXT) IS NULL OR sa.notebook_id = :notebook_id)
+                  AND sa.status != 'deleted'
                   AND (sa.title % :q OR sa.title ILIKE :like)
                 ORDER BY score DESC, sa.updated_at DESC
                 LIMIT :limit
@@ -267,6 +326,7 @@ async def _search_study_assets(
                 WHERE n.workspace_id = :workspace_id
                   AND (CAST(:project_id AS TEXT) IS NULL OR n.project_id = :project_id)
                   AND (CAST(:notebook_id AS TEXT) IS NULL OR sa.notebook_id = :notebook_id)
+                  AND sa.status != 'deleted'
                   AND sa.title LIKE :like
                 LIMIT :limit
             """),
@@ -325,6 +385,87 @@ async def _search_memory(
     return merged
 
 
+async def _search_files(
+    db: Session,
+    *,
+    workspace_id: str,
+    project_id: str | None,
+    notebook_id: str | None,
+    query: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    like = f"%{query.strip()}%"
+    attachment_rows = (
+        db.query(NotebookAttachment, NotebookPage.notebook_id)
+        .join(NotebookPage, NotebookPage.id == NotebookAttachment.page_id)
+        .join(Notebook, Notebook.id == NotebookPage.notebook_id)
+        .filter(Notebook.workspace_id == workspace_id)
+        .filter(NotebookAttachment.title.ilike(like))
+        .filter(NotebookPage.is_archived.is_(False))
+    )
+    if project_id:
+        attachment_rows = attachment_rows.filter(Notebook.project_id == project_id)
+    if notebook_id:
+        attachment_rows = attachment_rows.filter(NotebookPage.notebook_id == notebook_id)
+    attachment_items = attachment_rows.order_by(NotebookAttachment.created_at.desc()).limit(limit * 2).all()
+
+    study_rows = (
+        db.query(StudyAsset, DataItem)
+        .join(Notebook, Notebook.id == StudyAsset.notebook_id)
+        .join(DataItem, DataItem.id == StudyAsset.data_item_id)
+        .filter(Notebook.workspace_id == workspace_id)
+        .filter(StudyAsset.status != "deleted")
+        .filter(DataItem.deleted_at.is_(None))
+        .filter(
+            or_(
+                StudyAsset.title.ilike(like),
+                DataItem.filename.ilike(like),
+            )
+        )
+    )
+    if project_id:
+        study_rows = study_rows.filter(Notebook.project_id == project_id)
+    if notebook_id:
+        study_rows = study_rows.filter(StudyAsset.notebook_id == notebook_id)
+    study_items = study_rows.order_by(StudyAsset.created_at.desc()).limit(limit * 2).all()
+
+    hits = [
+        {
+            "id": attachment.id,
+            "attachment_id": attachment.id,
+            "page_id": attachment.page_id,
+            "notebook_id": page_notebook_id,
+            "title": attachment.title or "Attachment",
+            "snippet": attachment.title or "",
+            "mime_type": str((attachment.meta_json or {}).get("mime_type") or ""),
+            "score": 0.5,
+            "source": "lexical",
+            "_created_at": attachment.created_at,
+        }
+        for attachment, page_notebook_id in attachment_items
+    ]
+    hits.extend(
+        {
+            "id": asset.id,
+            "asset_id": asset.id,
+            "data_item_id": asset.data_item_id,
+            "notebook_id": asset.notebook_id,
+            "title": asset.title or data_item.filename or "Study document",
+            "snippet": data_item.filename or asset.title or "",
+            "mime_type": data_item.media_type or "",
+            "score": 0.5,
+            "source": "lexical",
+            "_created_at": asset.created_at,
+        }
+        for asset, data_item in study_items
+    )
+    hits.sort(key=lambda hit: hit.get("_created_at"), reverse=True)
+    return [
+        {key: value for key, value in hit.items() if key != "_created_at"}
+        for hit in hits[:limit]
+    ]
+
+
 async def _search_playbooks(
     db: Session, *, workspace_id: str, project_id: str,
     query: str, limit: int,
@@ -350,4 +491,47 @@ async def _search_playbooks(
         }
         for r in raw
         if r.get("view_type") == "playbook"
+    ]
+
+
+async def _search_ai_actions(
+    db: Session,
+    *,
+    workspace_id: str,
+    notebook_id: str | None,
+    query: str,
+    limit: int,
+    current_user_id: str | None = None,
+    workspace_role: str = "owner",
+) -> list[dict[str, Any]]:
+    like = f"%{query.strip()}%"
+    rows = (
+        db.query(AIActionLog, NotebookPage.title, Notebook.title)
+        .outerjoin(NotebookPage, NotebookPage.id == AIActionLog.page_id)
+        .outerjoin(Notebook, Notebook.id == AIActionLog.notebook_id)
+        .filter(AIActionLog.workspace_id == workspace_id)
+        .filter(
+            (AIActionLog.action_type.ilike(like))
+            | (AIActionLog.output_summary.ilike(like))
+        )
+    )
+    if current_user_id and not is_workspace_privileged_role(workspace_role):
+        rows = rows.filter(AIActionLog.user_id == current_user_id)
+    if notebook_id:
+        rows = rows.filter(AIActionLog.notebook_id == notebook_id)
+    items = rows.order_by(AIActionLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": action.id,
+            "action_log_id": action.id,
+            "page_id": action.page_id,
+            "notebook_id": action.notebook_id,
+            "title": page_title or action.action_type,
+            "snippet": action.output_summary or action.action_type,
+            "action_type": action.action_type,
+            "notebook_title": notebook_title or "",
+            "score": 0.5,
+            "source": "lexical",
+        }
+        for action, page_title, notebook_title in items
     ]

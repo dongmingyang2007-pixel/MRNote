@@ -233,3 +233,34 @@ def test_checkout_team_skips_trial() -> None:
         )
     assert resp.status_code == 200, resp.text
     assert captured["trial_period_days"] is None
+
+
+def test_non_owner_member_cannot_manage_workspace_billing() -> None:
+    _owner_client, owner_auth = _register_client("billing-owner@x.co")
+    member_client, member_auth = _register_client("billing-member@x.co")
+
+    from app.models import Membership
+
+    with _s.SessionLocal() as db:
+        db.add(Membership(
+            workspace_id=owner_auth["ws_id"],
+            user_id=member_auth["user_id"],
+            role="member",
+        ))
+        db.commit()
+
+    member_client.headers["x-workspace-id"] = owner_auth["ws_id"]
+
+    responses = [
+        member_client.post(
+            "/api/v1/billing/checkout",
+            json={"plan": "pro", "cycle": "monthly"},
+        ),
+        member_client.post(
+            "/api/v1/billing/checkout-onetime",
+            json={"plan": "pro", "cycle": "monthly", "payment_method": "alipay"},
+        ),
+        member_client.post("/api/v1/billing/portal", json={}),
+    ]
+
+    assert all(resp.status_code == 403 for resp in responses)

@@ -1,9 +1,11 @@
 import re
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import PlainTextResponse
 
@@ -12,6 +14,7 @@ from app.core.deps import (
     get_current_user,
     get_current_workspace_id,
     get_db_session,
+    is_workspace_privileged_role,
     require_csrf_protection,
     require_workspace_write_access,
 )
@@ -22,6 +25,9 @@ from app.models import (
     NotebookPage,
     NotebookPageVersion,
     Project,
+    StudyAsset,
+    AIActionLog,
+    Membership,
     User,
 )
 from app.core.entitlements import require_entitlement
@@ -30,6 +36,13 @@ from app.services.ai_action_logger import action_log_context
 from app.services.quota_counters import count_notebooks, count_pages
 from app.schemas.notebook import (
     NotebookCreate,
+    NotebookHomeAIAction,
+    NotebookHomeAISummary,
+    NotebookHomeFocusItem,
+    NotebookHomeNotebook,
+    NotebookHomeOut,
+    NotebookHomePage,
+    NotebookHomeStudyAsset,
     NotebookOut,
     NotebookUpdate,
     PageCreate,
@@ -74,19 +87,104 @@ def extract_plain_text(content_json: dict) -> str:
     return "\n".join(parts)
 
 
-def _get_page_or_404(db: Session, page_id: str, workspace_id: str) -> NotebookPage:
+def _get_page_or_404(
+    db: Session,
+    page_id: str,
+    workspace_id: str,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+) -> NotebookPage:
     """Fetch a page and verify workspace ownership through its notebook."""
     page = db.query(NotebookPage).filter(NotebookPage.id == page_id).first()
     if not page:
         raise ApiError("not_found", "Page not found", status_code=404)
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == page.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
-    )
-    if not notebook:
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if not notebook or not _can_read_notebook(
+        notebook,
+        workspace_id=workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+    ):
         raise ApiError("not_found", "Page not found", status_code=404)
     return page
+
+
+def _get_workspace_role(db: Session, *, workspace_id: str, user_id: str) -> str:
+    membership = (
+        db.query(Membership)
+        .filter(
+            Membership.workspace_id == workspace_id,
+            Membership.user_id == user_id,
+        )
+        .first()
+    )
+    if membership is None:
+        raise ApiError("forbidden", "Workspace access denied", status_code=403)
+    return membership.role or "owner"
+
+
+def _filter_readable_notebooks(
+    query,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+):
+    if is_workspace_privileged_role(workspace_role):
+        return query
+    return query.filter(
+        or_(
+            Notebook.visibility != "private",
+            Notebook.created_by == current_user_id,
+        )
+    )
+
+
+def _can_read_notebook(
+    notebook: Notebook,
+    *,
+    workspace_id: str,
+    current_user_id: str,
+    workspace_role: str,
+) -> bool:
+    if str(notebook.workspace_id) != str(workspace_id):
+        return False
+    if (notebook.visibility or "private") != "private":
+        return True
+    return is_workspace_privileged_role(workspace_role) or str(notebook.created_by) == str(current_user_id)
+
+
+def _get_notebook_or_404(
+    db: Session,
+    *,
+    notebook_id: str,
+    workspace_id: str,
+    current_user_id: str,
+    workspace_role: str,
+) -> Notebook:
+    query = db.query(Notebook).filter(
+        Notebook.id == notebook_id,
+        Notebook.workspace_id == workspace_id,
+    )
+    notebook = _filter_readable_notebooks(
+        query,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+    ).first()
+    if notebook is None:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+    return notebook
+
+
+def _filter_ai_actions_for_viewer(
+    query,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+):
+    if is_workspace_privileged_role(workspace_role):
+        return query
+    return query.filter(AIActionLog.user_id == current_user_id)
 
 
 def _tiptap_json_to_markdown(content_json: dict, title: str = "") -> str:
@@ -189,15 +287,309 @@ def list_notebooks(
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PaginatedNotebooks:
-    _ = current_user
+    workspace_role = _get_workspace_role(
+        db,
+        workspace_id=workspace_id,
+        user_id=str(current_user.id),
+    )
     query = db.query(Notebook).filter(
         Notebook.workspace_id == workspace_id,
         Notebook.archived_at.is_(None),
     )
-    items = query.order_by(Notebook.created_at.desc()).all()
+    items = _filter_readable_notebooks(
+        query,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    ).order_by(Notebook.created_at.desc()).all()
     return PaginatedNotebooks(
         items=[NotebookOut.model_validate(item, from_attributes=True) for item in items],
         total=len(items),
+    )
+
+
+@router.get("/home", response_model=NotebookHomeOut)
+def get_notebook_home(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+) -> NotebookHomeOut:
+    workspace_role = _get_workspace_role(
+        db,
+        workspace_id=workspace_id,
+        user_id=str(current_user.id),
+    )
+    notebooks = (
+        _filter_readable_notebooks(
+            db.query(Notebook).filter(
+                Notebook.workspace_id == workspace_id,
+                Notebook.archived_at.is_(None),
+            ),
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
+        .order_by(Notebook.updated_at.desc())
+        .all()
+    )
+    if not notebooks:
+        return NotebookHomeOut(
+            notebooks=[],
+            recent_pages=[],
+            continue_writing=[],
+            recent_study_assets=[],
+            ai_today=NotebookHomeAISummary(actions_today=0),
+            work_themes=[],
+            long_term_focus=[],
+            recommended_pages=[],
+        )
+
+    notebook_ids = [notebook.id for notebook in notebooks]
+    notebook_titles = {notebook.id: notebook.title for notebook in notebooks}
+
+    page_counts = {
+        notebook_id: int(count)
+        for notebook_id, count in (
+            db.query(NotebookPage.notebook_id, func.count(NotebookPage.id))
+            .filter(
+                NotebookPage.notebook_id.in_(notebook_ids),
+                NotebookPage.is_archived.is_(False),
+            )
+            .group_by(NotebookPage.notebook_id)
+            .all()
+        )
+    }
+    study_asset_counts = {
+        notebook_id: int(count)
+        for notebook_id, count in (
+            db.query(StudyAsset.notebook_id, func.count(StudyAsset.id))
+            .filter(
+                StudyAsset.notebook_id.in_(notebook_ids),
+                StudyAsset.status != "deleted",
+            )
+            .group_by(StudyAsset.notebook_id)
+            .all()
+        )
+    }
+    ai_action_counts = {
+        notebook_id: int(count)
+        for notebook_id, count in (
+            _filter_ai_actions_for_viewer(
+                db.query(AIActionLog.notebook_id, func.count(AIActionLog.id)),
+                current_user_id=str(current_user.id),
+                workspace_role=workspace_role,
+            )
+            .filter(
+                AIActionLog.workspace_id == workspace_id,
+                AIActionLog.notebook_id.in_(notebook_ids),
+            )
+            .group_by(AIActionLog.notebook_id)
+            .all()
+        )
+        if notebook_id
+    }
+
+    notebook_cards = [
+        NotebookHomeNotebook(
+            id=notebook.id,
+            title=notebook.title,
+            description=notebook.description,
+            notebook_type=notebook.notebook_type,
+            updated_at=notebook.updated_at,
+            page_count=page_counts.get(notebook.id, 0),
+            study_asset_count=study_asset_counts.get(notebook.id, 0),
+            ai_action_count=ai_action_counts.get(notebook.id, 0),
+        )
+        for notebook in notebooks
+    ]
+
+    page_rows = (
+        db.query(NotebookPage)
+        .filter(
+            NotebookPage.notebook_id.in_(notebook_ids),
+            NotebookPage.is_archived.is_(False),
+        )
+        .all()
+    )
+    page_rows.sort(
+        key=lambda page: page.last_edited_at or page.updated_at or page.created_at,
+        reverse=True,
+    )
+    recent_pages = [
+        NotebookHomePage(
+            id=page.id,
+            notebook_id=page.notebook_id,
+            notebook_title=notebook_titles.get(page.notebook_id, ""),
+            title=page.title,
+            updated_at=page.updated_at,
+            last_edited_at=page.last_edited_at,
+            plain_text_preview=(page.plain_text or "")[:180],
+        )
+        for page in page_rows[:8]
+    ]
+
+    study_rows = (
+        db.query(StudyAsset)
+        .filter(
+            StudyAsset.notebook_id.in_(notebook_ids),
+            StudyAsset.status != "deleted",
+        )
+        .order_by(StudyAsset.created_at.desc())
+        .limit(8)
+        .all()
+    )
+    recent_study_assets = [
+        NotebookHomeStudyAsset(
+            id=asset.id,
+            notebook_id=asset.notebook_id,
+            notebook_title=notebook_titles.get(asset.notebook_id, ""),
+            title=asset.title,
+            status=asset.status,
+            asset_type=asset.asset_type,
+            total_chunks=asset.total_chunks,
+            created_at=asset.created_at,
+        )
+        for asset in study_rows
+    ]
+
+    action_rows = (
+        _filter_ai_actions_for_viewer(
+            db.query(AIActionLog, NotebookPage.title, Notebook.title),
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
+        .outerjoin(NotebookPage, NotebookPage.id == AIActionLog.page_id)
+        .outerjoin(Notebook, Notebook.id == AIActionLog.notebook_id)
+        .filter(AIActionLog.workspace_id == workspace_id)
+        .filter(
+            (AIActionLog.notebook_id.is_(None))
+            | (AIActionLog.notebook_id.in_(notebook_ids))
+        )
+        .order_by(AIActionLog.created_at.desc())
+        .limit(8)
+        .all()
+    )
+    recent_actions = [
+        NotebookHomeAIAction(
+            id=action.id,
+            notebook_id=action.notebook_id,
+            page_id=action.page_id,
+            notebook_title=notebook_title,
+            page_title=page_title,
+            action_type=action.action_type,
+            output_summary=action.output_summary,
+            created_at=action.created_at,
+        )
+        for action, page_title, notebook_title in action_rows
+    ]
+
+    now = datetime.now(timezone.utc)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    actions_today = int(
+        _filter_ai_actions_for_viewer(
+            db.query(func.count(AIActionLog.id)),
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
+        .filter(
+            AIActionLog.workspace_id == workspace_id,
+            AIActionLog.created_at >= start_of_day,
+        )
+        .scalar()
+        or 0
+    )
+    top_action_types = [
+        {"action_type": action_type, "count": int(count)}
+        for action_type, count in (
+            _filter_ai_actions_for_viewer(
+                db.query(AIActionLog.action_type, func.count(AIActionLog.id)),
+                current_user_id=str(current_user.id),
+                workspace_role=workspace_role,
+            )
+            .filter(
+                AIActionLog.workspace_id == workspace_id,
+                AIActionLog.created_at >= start_of_day,
+            )
+            .group_by(AIActionLog.action_type)
+            .order_by(func.count(AIActionLog.id).desc())
+            .limit(3)
+            .all()
+        )
+    ]
+
+    ranked_notebooks = sorted(
+        notebook_cards,
+        key=lambda notebook: (
+            notebook.study_asset_count * 4
+            + notebook.ai_action_count * 3
+            + notebook.page_count * 2,
+            notebook.updated_at,
+        ),
+        reverse=True,
+    )
+    work_themes = [
+        NotebookHomeFocusItem(
+            notebook_id=notebook.id,
+            notebook_title=notebook.title,
+            page_count=notebook.page_count,
+            study_asset_count=notebook.study_asset_count,
+            ai_action_count=notebook.ai_action_count,
+        )
+        for notebook in ranked_notebooks[:3]
+    ]
+    long_term_focus = [
+        NotebookHomeFocusItem(
+            notebook_id=notebook.id,
+            notebook_title=notebook.title,
+            page_count=notebook.page_count,
+            study_asset_count=notebook.study_asset_count,
+            ai_action_count=notebook.ai_action_count,
+        )
+        for notebook in sorted(
+            notebook_cards,
+            key=lambda notebook: (
+                notebook.study_asset_count * 5 + notebook.page_count,
+                notebook.updated_at,
+            ),
+            reverse=True,
+        )[:3]
+    ]
+
+    recommended_pages: list[NotebookHomePage] = []
+    seen_page_ids: set[str] = set()
+    for page in recent_pages:
+        notebook = next((item for item in notebook_cards if item.id == page.notebook_id), None)
+        if notebook is None:
+            continue
+        if notebook.page_count == 0 and notebook.study_asset_count == 0 and notebook.ai_action_count == 0:
+            continue
+        if page.id in seen_page_ids:
+            continue
+        recommended_pages.append(page)
+        seen_page_ids.add(page.id)
+        if len(recommended_pages) == 3:
+            break
+
+    if len(recommended_pages) < 3:
+        for page in recent_pages:
+            if page.id in seen_page_ids:
+                continue
+            recommended_pages.append(page)
+            seen_page_ids.add(page.id)
+            if len(recommended_pages) == 3:
+                break
+
+    return NotebookHomeOut(
+        notebooks=notebook_cards,
+        recent_pages=recent_pages,
+        continue_writing=recent_pages[:3],
+        recent_study_assets=recent_study_assets,
+        ai_today=NotebookHomeAISummary(
+            actions_today=actions_today,
+            top_action_types=top_action_types,
+            recent_actions=recent_actions,
+        ),
+        work_themes=work_themes,
+        long_term_focus=long_term_focus,
+        recommended_pages=recommended_pages,
     )
 
 
@@ -255,14 +647,17 @@ def get_notebook(
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> NotebookOut:
-    _ = current_user
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    notebook = _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
     return NotebookOut.model_validate(notebook, from_attributes=True)
 
 
@@ -276,13 +671,17 @@ def update_notebook(
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
 ) -> NotebookOut:
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    notebook = _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
 
     if payload.title is not None:
         notebook.title = payload.title
@@ -323,13 +722,17 @@ def delete_notebook(
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
 ) -> dict:
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    notebook = _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
 
     notebook.archived_at = datetime.now(timezone.utc)
     notebook.updated_at = datetime.now(timezone.utc)
@@ -358,14 +761,17 @@ def list_pages(
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PaginatedPages:
-    _ = current_user
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
 
     items = (
         db.query(NotebookPage)
@@ -390,13 +796,17 @@ def create_page(
     _: None = Depends(require_csrf_protection),
     _quota: None = Depends(require_entitlement("pages.max", counter=count_pages)),
 ) -> PageOut:
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
 
     page = NotebookPage(
         notebook_id=notebook_id,
@@ -441,12 +851,18 @@ def create_page_from_conversation(
     if not conversation_id:
         raise ApiError("invalid_input", "conversation_id is required", status_code=400)
 
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id, Notebook.archived_at.is_(None))
-        .first()
+    notebook = _get_notebook_or_404(
+        db,
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
+    if notebook.archived_at is not None:
         raise ApiError("not_found", "Notebook not found", status_code=404)
 
     conversation = (
@@ -517,12 +933,29 @@ def search_pages(
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PaginatedPages:
     """Search pages by plain_text content within workspace notebooks."""
-    _ = current_user
-    query = (
+    workspace_role = _get_workspace_role(
+        db,
+        workspace_id=workspace_id,
+        user_id=str(current_user.id),
+    )
+    query = _filter_readable_notebooks(
         db.query(NotebookPage)
         .join(Notebook, Notebook.id == NotebookPage.notebook_id)
-        .filter(Notebook.workspace_id == workspace_id, Notebook.archived_at.is_(None))
-    )
+        .filter(
+            Notebook.workspace_id == workspace_id,
+            Notebook.archived_at.is_(None),
+        ),
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    ).filter(NotebookPage.is_archived.is_(False))
+    if notebook_id:
+        _get_notebook_or_404(
+            db,
+            notebook_id=notebook_id,
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
     if notebook_id:
         query = query.filter(NotebookPage.notebook_id == notebook_id)
     if q.strip():
@@ -542,18 +975,17 @@ def get_page(
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PageOut:
-    _ = current_user
-    page = db.query(NotebookPage).filter(NotebookPage.id == page_id).first()
-    if not page:
-        raise ApiError("not_found", "Page not found", status_code=404)
-    # Verify workspace ownership through notebook
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == page.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Page not found", status_code=404)
     return PageOut.model_validate(page, from_attributes=True)
 
 
@@ -567,16 +999,17 @@ def update_page(
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
 ) -> PageOut:
-    page = db.query(NotebookPage).filter(NotebookPage.id == page_id).first()
-    if not page:
-        raise ApiError("not_found", "Page not found", status_code=404)
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == page.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Page not found", status_code=404)
 
     if payload.title is not None:
         page.title = payload.title
@@ -619,16 +1052,17 @@ def delete_page(
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
 ) -> dict:
-    page = db.query(NotebookPage).filter(NotebookPage.id == page_id).first()
-    if not page:
-        raise ApiError("not_found", "Page not found", status_code=404)
-    notebook = (
-        db.query(Notebook)
-        .filter(Notebook.id == page.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
     )
-    if not notebook:
-        raise ApiError("not_found", "Page not found", status_code=404)
 
     write_audit_log(
         db,
@@ -687,8 +1121,17 @@ async def upload_page_attachment(
 ) -> dict[str, Any]:
     """Upload a file as an attachment of the page. Stores the binary in
     the S2 attachments bucket and returns the new NotebookAttachment row."""
-    _ = current_user
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
 
     body = await file.read()
     size = len(body)
@@ -750,7 +1193,17 @@ def create_page_snapshot(
     _csrf: None = Depends(require_csrf_protection),
 ) -> PageVersionOut:
     """Create a manual snapshot of the current page content."""
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
 
     # Get next version number
     latest_version = (
@@ -783,8 +1236,17 @@ def list_page_versions(
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> list[PageVersionOut]:
     """List all snapshots for a page."""
-    _ = current_user
-    _get_page_or_404(db, page_id, workspace_id)
+    _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
     versions = (
         db.query(NotebookPageVersion)
         .filter(NotebookPageVersion.page_id == page_id)
@@ -808,8 +1270,17 @@ def export_page(
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> PlainTextResponse:
     """Export page content as Markdown."""
-    _ = current_user
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
 
     if format == "markdown":
         md = _tiptap_json_to_markdown(page.content_json, page.title)
@@ -838,7 +1309,17 @@ async def extract_page_memories(
     Uses the full UnifiedMemoryPipeline (12-stage pipeline).
     Pass ``?background=true`` to run asynchronously via Celery.
     """
-    _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
 
     if background:
         from app.tasks.worker_tasks import extract_notebook_page_memories
@@ -854,7 +1335,7 @@ async def extract_page_memories(
     db.commit()
     if extraction.graph_changed:
         from app.services.memory_graph_events import bump_project_memory_graph_revision
-        notebook = db.query(Notebook).filter(Notebook.id == _get_page_or_404(db, page_id, workspace_id).notebook_id).first()
+        notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
         if notebook and notebook.project_id:
             bump_project_memory_graph_revision(workspace_id=str(workspace_id), project_id=str(notebook.project_id))
     return {
@@ -872,8 +1353,17 @@ def get_page_memory_links(
     workspace_id: str = Depends(get_current_workspace_id),
 ) -> dict:
     """Get memory candidates extracted from this page."""
-    _ = current_user
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
     _ = page
 
     # Find write runs for this page
@@ -926,7 +1416,17 @@ async def confirm_memory_candidate(
     Creates a real Memory node with embedding and evidence, not just a
     decision flag change.
     """
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
     item_id = payload.get("item_id", "")
     from app.models import MemoryWriteItem, MemoryWriteRun
     item = (
@@ -974,8 +1474,17 @@ def reject_memory_candidate(
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict:
     """Reject a memory extraction candidate."""
-    _ = current_user
-    _get_page_or_404(db, page_id, workspace_id)
+    _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
     item_id = payload.get("item_id", "")
     reason = str(payload.get("reason", "")).strip() or None
     from app.models import Memory, MemoryWriteItem, MemoryWriteRun
@@ -1019,6 +1528,157 @@ def reject_memory_candidate(
     return {"ok": True}
 
 
+@pages_router.get("/{page_id}/memory/trace")
+def get_page_memory_trace(
+    page_id: str,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+) -> dict:
+    """Full memory trace for a page: evidence → memory → subject → playbook."""
+    _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
+
+    from app.models import (
+        Memory,
+        MemoryEvidence,
+        MemoryView,
+        MemoryWriteItem,
+        MemoryWriteRun,
+    )
+
+    runs = (
+        db.query(MemoryWriteRun)
+        .filter(MemoryWriteRun.metadata_json["source_type"].as_string() == "notebook_page")
+        .filter(MemoryWriteRun.metadata_json["source_id"].as_string() == page_id)
+        .order_by(MemoryWriteRun.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    run_ids = [r.id for r in runs]
+    if not run_ids:
+        return {"page_id": page_id, "memories": []}
+
+    items = (
+        db.query(MemoryWriteItem)
+        .filter(MemoryWriteItem.run_id.in_(run_ids))
+        .filter(MemoryWriteItem.target_memory_id.isnot(None))
+        .order_by(MemoryWriteItem.created_at.desc())
+        .all()
+    )
+
+    memory_ids = [i.target_memory_id for i in items if i.target_memory_id]
+    memories = {
+        m.id: m
+        for m in db.query(Memory)
+        .filter(Memory.id.in_(memory_ids), Memory.workspace_id == workspace_id)
+        .all()
+    } if memory_ids else {}
+
+    evidence_by_memory: dict[str, list] = {}
+    if memory_ids:
+        for ev in (
+            db.query(MemoryEvidence)
+            .filter(MemoryEvidence.memory_id.in_(memory_ids))
+            .order_by(MemoryEvidence.created_at.desc())
+            .limit(200)
+            .all()
+        ):
+            meta = ev.metadata_json if isinstance(ev.metadata_json, dict) else {}
+            source_ref = (
+                ev.chunk_id
+                or ev.message_id
+                or ev.data_item_id
+                or meta.get("page_id")
+                or meta.get("source_id")
+            )
+            evidence_by_memory.setdefault(str(ev.memory_id), []).append({
+                "id": str(ev.id),
+                "source_type": ev.source_type,
+                "source_id": source_ref,
+                "excerpt": (ev.quote_text or "")[:200],
+                "created_at": ev.created_at.isoformat() if ev.created_at else None,
+            })
+
+    playbooks_by_memory: dict[str, list] = {}
+    if memory_ids:
+        # Playbooks link to memories via MemoryView.source_subject_id (the
+        # subject a playbook is about). We surface playbooks whose subject
+        # is either the memory itself or its parent subject.
+        subject_ids = {
+            str(m.subject_memory_id) for m in memories.values() if m.subject_memory_id
+        }
+        anchor_ids = set(str(mid) for mid in memory_ids) | subject_ids
+        if anchor_ids:
+            views = (
+                db.query(MemoryView)
+                .filter(MemoryView.source_subject_id.in_(anchor_ids))
+                .filter(MemoryView.view_type == "playbook")
+                .all()
+            )
+            for view in views:
+                key = str(view.source_subject_id)
+                playbooks_by_memory.setdefault(key, []).append({
+                    "view_id": str(view.id),
+                    "view_type": view.view_type,
+                    "excerpt": (view.content or "")[:160],
+                })
+
+    # Resolve subject labels when a memory hangs off a subject node
+    subject_ids_needed = {
+        m.subject_memory_id for m in memories.values() if m.subject_memory_id
+    }
+    subject_content: dict[str, str] = {}
+    if subject_ids_needed:
+        for sm in (
+            db.query(Memory)
+            .filter(Memory.id.in_(subject_ids_needed))
+            .all()
+        ):
+            subject_content[str(sm.id)] = sm.content or ""
+
+    trace = []
+    for item in items:
+        mem = memories.get(item.target_memory_id)
+        if not mem:
+            continue
+        pb = list(playbooks_by_memory.get(str(mem.id), []))
+        if mem.subject_memory_id:
+            pb.extend(playbooks_by_memory.get(str(mem.subject_memory_id), []))
+        trace.append({
+            "write_item_id": str(item.id),
+            "memory_id": str(mem.id),
+            "content": (mem.content or "")[:240],
+            "category": mem.category,
+            "node_type": mem.node_type,
+            "confidence": float(mem.confidence or 0.0),
+            "status": mem.node_status,
+            "subject_memory_id": (
+                str(mem.subject_memory_id) if mem.subject_memory_id else None
+            ),
+            "subject_label": (
+                subject_content.get(str(mem.subject_memory_id), "")[:160]
+                if mem.subject_memory_id
+                else ""
+            ),
+            "evidence": evidence_by_memory.get(str(mem.id), []),
+            "playbooks": pb,
+            "decision": item.decision,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        })
+
+    return {"page_id": page_id, "memories": trace}
+
+
 @pages_router.post("/{page_id}/tasks/{block_id}/complete")
 async def complete_task_block(
     page_id: str,
@@ -1035,7 +1695,17 @@ async def complete_task_block(
     No LLM usage is involved — this is a pure audit entry so later
     subsystems (S5 proactive services) can mine it.
     """
-    page = _get_page_or_404(db, page_id, workspace_id)
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
     completed = bool(payload.get("completed", True))
     completed_at = payload.get("completed_at")
 

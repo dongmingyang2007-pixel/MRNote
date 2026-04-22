@@ -7,6 +7,7 @@ import { gsap } from "@/lib/gsap-register";
 
 import { MagneticButton } from "@/components/MagneticButton";
 import { apiPost } from "@/lib/api";
+import { getLocalizedAuthError } from "@/lib/auth-errors";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -61,7 +62,7 @@ export default function ForgotPasswordPage() {
       setCountdown(60);
       setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("reset.error"));
+      setError(getLocalizedAuthError(err, t, "reset.error"));
     } finally {
       setCodeSending(false);
     }
@@ -79,7 +80,7 @@ export default function ForgotPasswordPage() {
       await apiPost("/api/v1/auth/reset-password", { email, password, code });
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("reset.error"));
+      setError(getLocalizedAuthError(err, t, "reset.error"));
     }
   };
 
@@ -134,6 +135,7 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               <button
+                type="submit"
                 className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={codeSending}
               >
@@ -216,6 +218,7 @@ export default function ForgotPasswordPage() {
                 </div>
               </div>
               <MagneticButton
+                type="submit"
                 className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90"
                 strength={0.15}
               >

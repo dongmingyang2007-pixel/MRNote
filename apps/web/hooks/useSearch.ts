@@ -5,12 +5,18 @@ import { apiGet } from "@/lib/api";
 
 export interface Hit {
   id?: string;
+  action_log_id?: string;
+  attachment_id?: string;
+  data_item_id?: string;
   asset_id?: string;
   chunk_id?: string | null;
   page_id?: string;
   memory_view_id?: string;
   notebook_id?: string;
+  notebook_title?: string;
   project_id?: string;
+  mime_type?: string;
+  action_type?: string;
   title?: string;
   snippet?: string;
   score: number;
@@ -21,8 +27,10 @@ export interface SearchResults {
   pages: Hit[];
   blocks: Hit[];
   study_assets: Hit[];
+  files: Hit[];
   memory: Hit[];
   playbooks: Hit[];
+  ai_actions: Hit[];
 }
 
 export interface SearchResponse {
@@ -31,18 +39,26 @@ export interface SearchResponse {
   results: SearchResults;
 }
 
+const EMPTY_RESULTS: SearchResults = {
+  pages: [],
+  blocks: [],
+  study_assets: [],
+  files: [],
+  memory: [],
+  playbooks: [],
+  ai_actions: [],
+};
+
 export function useSearch(notebookId?: string) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults>({
-    pages: [], blocks: [], study_assets: [], memory: [], playbooks: [],
-  });
+  const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const doSearch = useCallback(async (q: string) => {
     abortRef.current?.abort();
     if (q.trim().length < 2) {
-      setResults({ pages: [], blocks: [], study_assets: [], memory: [], playbooks: [] });
+      setResults(EMPTY_RESULTS);
       setLoading(false);
       return;
     }
@@ -54,7 +70,12 @@ export function useSearch(notebookId?: string) {
         ? `/api/v1/notebooks/${notebookId}/search?q=${encodeURIComponent(q)}`
         : `/api/v1/search/global?q=${encodeURIComponent(q)}`;
       const data = await apiGet<SearchResponse>(path, { signal: ac.signal });
-      if (!ac.signal.aborted) setResults(data.results);
+      if (!ac.signal.aborted) {
+        setResults({
+          ...EMPTY_RESULTS,
+          ...(data.results || {}),
+        });
+      }
     } catch {
       /* swallow */
     } finally {

@@ -6,8 +6,6 @@ import { notFound } from "next/navigation";
 
 import { Providers } from "@/components/providers";
 import { routing } from "@/i18n/routing";
-import "@/styles/globals.css";
-import "@/styles/chat-workbench.css";
 
 // Noto Sans SC is loaded via system fonts (PingFang SC / Noto Sans SC)
 // in the CSS font-stack rather than next/font to avoid 7MB+ download at build time.

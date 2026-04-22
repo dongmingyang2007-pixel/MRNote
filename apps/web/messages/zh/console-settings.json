@@ -17,6 +17,7 @@
     "subscription": "订阅与套餐",
     "subscriptionDesc": "当前版本不产生真实账单。套餐结构和配额规则会在控制台正式开放前补齐。",
     "freePlan": "免费版",
+    "manageBilling": "管理订阅与账单",
     "quotasKicker": "未来额度",
     "quota1": "训练并发与保留天数",
     "quota2": "对象存储额度与带宽",

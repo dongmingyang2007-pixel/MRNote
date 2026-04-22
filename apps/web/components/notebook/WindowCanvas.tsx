@@ -38,6 +38,8 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
       return (
         <FileWindow
           url={windowState.meta.url}
+          previewUrl={windowState.meta.previewUrl}
+          downloadUrl={windowState.meta.downloadUrl}
           mimeType={windowState.meta.mimeType}
           filename={windowState.meta.filename}
         />
@@ -55,12 +57,17 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
       return (
         <MemoryGraphWindow
           notebookId={windowState.meta.notebookId || ""}
+          initialSelectedId={windowState.meta.memoryId}
+          initialMemoryViewId={windowState.meta.memoryViewId}
         />
       );
 
     case "study":
       return (
-        <StudyWindow notebookId={windowState.meta.notebookId || ""} />
+        <StudyWindow
+          notebookId={windowState.meta.notebookId || ""}
+          initialAssetId={windowState.meta.assetId}
+        />
       );
 
     case "digest":

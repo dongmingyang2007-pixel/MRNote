@@ -54,16 +54,18 @@ function FileBlockView(props: NodeViewProps) {
 
   const handleOpenInWindow = useCallback(() => {
     if (!url) return;
+    const isImage = attrs.mime_type.startsWith("image/");
     openWindow({
       type: "file",
       title: attrs.filename || t("block.file.defaultWindowTitle"),
       meta: {
-        url,
+        previewUrl: isImage ? url : "",
+        downloadUrl: url,
         mimeType: attrs.mime_type,
         filename: attrs.filename,
       },
     });
-  }, [openWindow, url, attrs.filename, attrs.mime_type]);
+  }, [openWindow, url, attrs.filename, attrs.mime_type, t]);
 
   const handleFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {

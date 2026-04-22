@@ -145,6 +145,23 @@ def test_authorize_rejects_unsafe_next(client: TestClient, oauth_enabled):
     assert captured["mode"] == "signin"
 
 
+def test_authorize_requires_same_site_origin(client: TestClient, oauth_enabled):
+    resp = client.get(
+        "/api/v1/auth/google/authorize?next=/app",
+        follow_redirects=False,
+    )
+    assert resp.status_code == 403
+
+
+def test_authorize_rejects_cross_site_referer(client: TestClient, oauth_enabled):
+    resp = client.get(
+        "/api/v1/auth/google/authorize?next=/app",
+        headers={"referer": "https://evil.example/phish"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 403
+
+
 def test_authorize_connect_mode_without_login_redirects_to_login(
     client: TestClient, oauth_enabled
 ):
@@ -170,7 +187,9 @@ def _stub_callback(client: TestClient, id_claims: dict, session_overrides: dict)
     1. Hit ``/authorize`` with a patched ``authorize_redirect`` that stashes
        our desired session state; the signed session cookie stays on the
        TestClient for step 2.
-    2. Hit ``/callback`` with patched token-exchange + id-token parsing.
+    2. Hit ``/callback`` with patched token-exchange. Authlib ≥1.0 auto-parses
+       the id_token and puts claims in ``token["userinfo"]``, so we just
+       include the claims there and the callback reads them directly.
     """
     from starlette.responses import Response as StarletteResponse
 
@@ -180,10 +199,11 @@ def _stub_callback(client: TestClient, id_claims: dict, session_overrides: dict)
         return StarletteResponse(status_code=204)
 
     async def fake_token(request, **kwargs):
-        return {"access_token": "at", "id_token": "it"}
-
-    async def fake_parse(request, token, **kwargs):
-        return id_claims
+        return {
+            "access_token": "at",
+            "id_token": "it",
+            "userinfo": id_claims,
+        }
 
     previous = settings.google_oauth_enabled
     settings.google_oauth_enabled = True
@@ -200,9 +220,6 @@ def _stub_callback(client: TestClient, id_claims: dict, session_overrides: dict)
         with patch(
             "app.routers.auth.oauth.google.authorize_access_token",
             new=AsyncMock(side_effect=fake_token),
-        ), patch(
-            "app.routers.auth.oauth.google.parse_id_token",
-            new=AsyncMock(side_effect=fake_parse),
         ):
             return client.get(
                 "/api/v1/auth/google/callback?code=X&state=Y",

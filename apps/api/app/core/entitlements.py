@@ -3,20 +3,42 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_workspace_id, get_db_session
 from app.core.errors import ApiError
-from app.models import Entitlement, Subscription
+from app.models import Entitlement, Subscription, Workspace
 from app.services.plan_entitlements import (
     ENTITLEMENT_KEYS, get_plan_entitlements,
 )
 
 
 _ACTIVE_STATUSES = {"active", "past_due", "trialing", "manual"}
+
+
+def _coerce_entitlement_value(value: Any) -> tuple[int | None, bool | None]:
+    if isinstance(value, bool):
+        return None, value
+    if isinstance(value, int):
+        return value, None
+    return None, None
+
+
+def _humanize_entitlement_key(key: str) -> str:
+    labels = {
+        "notebooks.max": "notebooks",
+        "pages.max": "pages",
+        "study_assets.max": "study materials",
+        "ai.actions.monthly": "monthly AI actions",
+        "book_upload.enabled": "study uploads",
+        "daily_digest.enabled": "daily digests",
+        "voice.enabled": "voice capture",
+        "advanced_memory_insights.enabled": "advanced memory insights",
+    }
+    return labels.get(key, key.replace(".", " "))
 
 
 def get_active_plan(db: Session, *, workspace_id: str) -> str:
@@ -84,6 +106,8 @@ def resolve_entitlement(
     db: Session, *, workspace_id: str, key: str,
 ) -> int | bool | None:
     """Return the resolved entitlement value, or None if missing."""
+    plan = get_active_plan(db, workspace_id=workspace_id)
+    plan_value = get_plan_entitlements(plan).get(key)
     ent = (
         db.query(Entitlement)
         .filter(Entitlement.workspace_id == workspace_id)
@@ -92,8 +116,20 @@ def resolve_entitlement(
     )
     if ent is None:
         # Lazy fallback: read plan default without writing to DB.
-        plan = get_active_plan(db, workspace_id=workspace_id)
-        return get_plan_entitlements(plan).get(key)
+        return plan_value
+    if ent.source != "admin_override":
+        expected_int, expected_bool = _coerce_entitlement_value(plan_value)
+        if (
+            ent.source != "plan"
+            or ent.value_int != expected_int
+            or ent.value_bool != expected_bool
+        ):
+            ent.source = "plan"
+            ent.value_int = expected_int
+            ent.value_bool = expected_bool
+            db.add(ent)
+            db.commit()
+        return plan_value
     if ent.value_int is not None:
         return ent.value_int
     return ent.value_bool
@@ -117,9 +153,10 @@ def require_entitlement(
         value = resolve_entitlement(db, workspace_id=workspace_id, key=key)
         if isinstance(value, bool):
             if value is False:
+                feature = _humanize_entitlement_key(key)
                 raise ApiError(
                     "plan_required",
-                    f"Your plan doesn't include {key}",
+                    f"Your plan doesn't include {feature}",
                     status_code=402,
                     details={"key": key},
                 )
@@ -129,11 +166,26 @@ def require_entitlement(
                 return
             if counter is None:
                 return
+            # Serialize concurrent counted-quota checks for this workspace
+            # by acquiring a row-level lock on the Workspace row. The lock
+            # is held by the request's transaction until its eventual
+            # commit (after the resource insert), so competing creators
+            # block here and re-read the counter after the winner commits.
+            # On SQLite with_for_update is a no-op, but SQLite's global
+            # write lock already serializes writers.
+            (
+                db.query(Workspace)
+                .filter(Workspace.id == workspace_id)
+                .with_for_update()
+                .first()
+            )
             current = counter(db, workspace_id)
             if current >= value:
+                feature = _humanize_entitlement_key(key)
+                feature_title = feature[:1].upper() + feature[1:]
                 raise ApiError(
                     "plan_limit_reached",
-                    f"{key} limit reached ({current}/{value})",
+                    f"{feature_title} limit reached ({current}/{value})",
                     status_code=402,
                     details={"key": key, "current": current, "limit": value},
                 )

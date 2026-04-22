@@ -21,9 +21,12 @@ from app.core.deps import (
     require_workspace_write_access,
     require_csrf_protection,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import Conversation, Memory, Message, Project, User
 from app.schemas.conversation import ConversationCreate, ConversationOut, MessageCreate, MessageOut
+from app.services.ai_action_logger import action_log_context
+from app.services.quota_counters import count_ai_actions_this_month
 from app.schemas.memory import (
     MessageMemoryLearningOut,
     MessageMemoryWriteOut,
@@ -72,6 +75,12 @@ _MODEL_API_UNCONFIGURED_MESSAGE = (
 )
 
 _MEMORY_EXTRACTION_STATUS_PENDING = "pending"
+
+
+def _estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, len(text) // 4)
 
 
 def _normalize_inference_result(result: str | dict) -> tuple[str, str | None, dict[str, object]]:
@@ -651,6 +660,9 @@ async def send_message(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> MessageOut:
     enforce_rate_limit(
         request,
@@ -685,22 +697,36 @@ async def send_message(
         .all()
     )
     recent_msgs = [{"role": m.role, "content": m.content} for m in reversed(recent)]
-    # Real inference
-    try:
-        inference_result = await orchestrate_inference(
-            db,
-            workspace_id=workspace_id,
-            project_id=conversation.project_id,
-            conversation_id=conversation_id,
-            user_message=payload.content,
-            recent_messages=recent_msgs,
-            enable_thinking=payload.enable_thinking,
-            enable_search=payload.enable_search,
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="chat.message",
+        scope="project",
+    ) as log:
+        log.set_input({"content": payload.content[:500]})
+        try:
+            inference_result = await orchestrate_inference(
+                db,
+                workspace_id=workspace_id,
+                project_id=conversation.project_id,
+                conversation_id=conversation_id,
+                user_message=payload.content,
+                recent_messages=recent_msgs,
+                enable_thinking=payload.enable_thinking,
+                enable_search=payload.enable_search,
+            )
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            _raise_inference_api_error(exc)
+        ai_response_text, ai_reasoning_content, ai_metadata_json = _normalize_inference_result(inference_result)
+        log.set_output(ai_response_text[:500] if ai_response_text else "")
+        log.record_usage(
+            event_type="chat.message",
+            prompt_tokens=_estimate_tokens(payload.content),
+            completion_tokens=_estimate_tokens(ai_response_text),
+            count_source="estimated",
         )
-    except Exception as exc:  # noqa: BLE001
-        db.rollback()
-        _raise_inference_api_error(exc)
-    ai_response_text, ai_reasoning_content, ai_metadata_json = _normalize_inference_result(inference_result)
     if settings.dashscope_api_key:
         ai_metadata_json = _apply_pending_memory_extraction_metadata(ai_metadata_json)
 
@@ -757,6 +783,9 @@ async def stream_message(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> StreamingResponse:
     """Stream the AI response as Server-Sent Events.
 
@@ -804,42 +833,58 @@ async def stream_message(
         full_metadata_json: dict[str, object] = {}
         final_event_data: dict[str, object] | None = None
 
-        try:
-            async for event in orchestrate_inference_stream(
-                db,
-                workspace_id=workspace_id,
-                project_id=conversation.project_id,
-                conversation_id=conversation_id,
-                user_message=payload.content,
-                recent_messages=recent_msgs,
-                enable_thinking=payload.enable_thinking,
-                enable_search=payload.enable_search,
-                user_id=current_user.id,
-            ):
-                event_type = event["event"]
-                data = event["data"]
+        async with action_log_context(
+            db,
+            workspace_id=str(workspace_id),
+            user_id=str(current_user.id),
+            action_type="chat.stream",
+            scope="project",
+        ) as log:
+            log.set_input({"content": payload.content[:500]})
+            try:
+                async for event in orchestrate_inference_stream(
+                    db,
+                    workspace_id=workspace_id,
+                    project_id=conversation.project_id,
+                    conversation_id=conversation_id,
+                    user_message=payload.content,
+                    recent_messages=recent_msgs,
+                    enable_thinking=payload.enable_thinking,
+                    enable_search=payload.enable_search,
+                    user_id=current_user.id,
+                ):
+                    event_type = event["event"]
+                    data = event["data"]
 
-                # Track accumulated content from the final event
-                if event_type == "message_done":
-                    full_content = data.get("content", "")
-                    full_reasoning = data.get("reasoning_content")
-                    raw_sources = data.get("sources")
-                    if isinstance(raw_sources, list):
-                        sources = [source for source in raw_sources if isinstance(source, dict)]
-                        full_metadata_json = {"sources": sources} if sources else {}
-                    retrieval_trace = data.get("retrieval_trace")
-                    if isinstance(retrieval_trace, dict) and retrieval_trace:
-                        full_metadata_json["retrieval_trace"] = retrieval_trace
-                    final_event_data = dict(data)
-                    continue
+                    # Track accumulated content from the final event
+                    if event_type == "message_done":
+                        full_content = data.get("content", "")
+                        full_reasoning = data.get("reasoning_content")
+                        raw_sources = data.get("sources")
+                        if isinstance(raw_sources, list):
+                            sources = [source for source in raw_sources if isinstance(source, dict)]
+                            full_metadata_json = {"sources": sources} if sources else {}
+                        retrieval_trace = data.get("retrieval_trace")
+                        if isinstance(retrieval_trace, dict) and retrieval_trace:
+                            full_metadata_json["retrieval_trace"] = retrieval_trace
+                        final_event_data = dict(data)
+                        continue
 
-                yield f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                    yield f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("SSE stream error")
-            error_data = json.dumps({"message": str(exc)}, ensure_ascii=False)
-            yield f"event: error\ndata: {error_data}\n\n"
-            return
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("SSE stream error")
+                error_data = json.dumps({"message": str(exc)}, ensure_ascii=False)
+                yield f"event: error\ndata: {error_data}\n\n"
+                return
+
+            log.set_output(full_content[:500] if full_content else "")
+            log.record_usage(
+                event_type="chat.stream",
+                prompt_tokens=_estimate_tokens(payload.content),
+                completion_tokens=_estimate_tokens(full_content),
+                count_source="estimated",
+            )
 
         if final_event_data is None and not (full_content or full_reasoning or full_metadata_json):
             return
@@ -1079,6 +1124,10 @@ async def send_voice_message(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _voice_gate: None = Depends(require_entitlement("voice.enabled")),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> dict:
     """Accept an audio file, run ASR → LLM (with memory/RAG) → TTS, return
     the AI text response plus optional base64-encoded audio."""
@@ -1094,19 +1143,36 @@ async def send_voice_message(
 
     audio_bytes = await _read_validated_upload(audio, kind="audio")
 
-    # Run full voice pipeline
-    try:
-        result = await orchestrate_voice_inference(
-            db,
-            workspace_id=workspace_id,
-            project_id=conversation.project_id,
-            conversation_id=conversation_id,
-            audio_bytes=audio_bytes,
-            audio_filename=audio.filename or "recording.webm",
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="chat.voice",
+        scope="project",
+    ) as log:
+        log.set_input({"audio_bytes": len(audio_bytes)})
+        try:
+            result = await orchestrate_voice_inference(
+                db,
+                workspace_id=workspace_id,
+                project_id=conversation.project_id,
+                conversation_id=conversation_id,
+                audio_bytes=audio_bytes,
+                audio_filename=audio.filename or "recording.webm",
+            )
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            _raise_inference_api_error(exc)
+        text_in = result.get("text_input") or ""
+        text_out = result.get("text_response") or ""
+        log.set_output(text_out[:500])
+        log.record_usage(
+            event_type="chat.voice",
+            prompt_tokens=_estimate_tokens(text_in),
+            completion_tokens=_estimate_tokens(text_out),
+            file_count=1,
+            count_source="estimated",
         )
-    except Exception as exc:  # noqa: BLE001
-        db.rollback()
-        _raise_inference_api_error(exc)
 
     # Persist messages
     ai_msg = _save_pipeline_messages(db, conversation, result)
@@ -1132,6 +1198,10 @@ async def dictate_voice_input(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _voice_gate: None = Depends(require_entitlement("voice.enabled")),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> dict:
     """Transcribe a recorded utterance into text without sending it to the model."""
     enforce_rate_limit(
@@ -1146,16 +1216,31 @@ async def dictate_voice_input(
 
     audio_bytes = await _read_validated_upload(audio, kind="audio")
 
-    try:
-        text_input = await transcribe_audio_input_for_project(
-            db,
-            project_id=conversation.project_id,
-            audio_bytes=audio_bytes,
-            filename=audio.filename or "recording.webm",
-            content_type=_normalize_media_type(audio.content_type) or None,
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="chat.dictate",
+        scope="project",
+    ) as log:
+        log.set_input({"audio_bytes": len(audio_bytes)})
+        try:
+            text_input = await transcribe_audio_input_for_project(
+                db,
+                project_id=conversation.project_id,
+                audio_bytes=audio_bytes,
+                filename=audio.filename or "recording.webm",
+                content_type=_normalize_media_type(audio.content_type) or None,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _raise_inference_api_error(exc)
+        log.set_output(text_input[:500])
+        log.record_usage(
+            event_type="chat.dictate",
+            completion_tokens=_estimate_tokens(text_input),
+            file_count=1,
+            count_source="estimated",
         )
-    except Exception as exc:  # noqa: BLE001
-        _raise_inference_api_error(exc)
 
     return {"text_input": text_input.strip()}
 
@@ -1171,6 +1256,10 @@ async def synthesize_message_audio(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _voice_gate: None = Depends(require_entitlement("voice.enabled")),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> dict:
     """Synthesize a text message into audio without creating new chat messages."""
     enforce_rate_limit(
@@ -1187,14 +1276,29 @@ async def synthesize_message_audio(
     if not text:
         raise ApiError("bad_request", "Text is required", status_code=400)
 
-    try:
-        audio_response = await synthesize_speech_for_project(
-            db,
-            project_id=conversation.project_id,
-            text=text,
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="chat.speech",
+        scope="project",
+    ) as log:
+        log.set_input({"text_len": len(text)})
+        try:
+            audio_response = await synthesize_speech_for_project(
+                db,
+                project_id=conversation.project_id,
+                text=text,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _raise_inference_api_error(exc)
+        log.set_output({"audio_bytes": len(audio_response)})
+        log.record_usage(
+            event_type="chat.speech",
+            prompt_tokens=_estimate_tokens(text),
+            file_count=1,
+            count_source="estimated",
         )
-    except Exception as exc:  # noqa: BLE001
-        _raise_inference_api_error(exc)
 
     return {
         "audio_response": base64.b64encode(audio_response).decode(),
@@ -1216,6 +1320,9 @@ async def send_image_message(
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf_guard: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)
+    ),
 ) -> dict:
     """Accept an image (+ optional audio), run the multimodal pipeline:
     (optional ASR) + Vision/LLM → TTS, return text + optional audio."""
@@ -1234,24 +1341,45 @@ async def send_image_message(
     prompt_text = (prompt or "").strip()
     effective_prompt = prompt_text if (prompt_text and not audio_bytes) else ("请描述这张图片" if not audio_bytes else None)
 
-    # Run full pipeline with image (and optional voice input)
-    try:
-        result = await orchestrate_voice_inference(
-            db,
-            workspace_id=workspace_id,
-            project_id=conversation.project_id,
-            conversation_id=conversation_id,
-            audio_bytes=audio_bytes,
-            audio_filename=audio.filename if audio else None,
-            image_bytes=image_bytes,
-            image_mime_type=_normalize_media_type(image.content_type) or "image/jpeg",
-            text_input=effective_prompt,
-            enable_thinking=enable_thinking,
-            enable_search=enable_search,
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="chat.image",
+        scope="project",
+    ) as log:
+        log.set_input({
+            "image_bytes": len(image_bytes),
+            "audio_bytes": len(audio_bytes) if audio_bytes else 0,
+            "prompt": prompt_text[:500],
+        })
+        try:
+            result = await orchestrate_voice_inference(
+                db,
+                workspace_id=workspace_id,
+                project_id=conversation.project_id,
+                conversation_id=conversation_id,
+                audio_bytes=audio_bytes,
+                audio_filename=audio.filename if audio else None,
+                image_bytes=image_bytes,
+                image_mime_type=_normalize_media_type(image.content_type) or "image/jpeg",
+                text_input=effective_prompt,
+                enable_thinking=enable_thinking,
+                enable_search=enable_search,
+            )
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            _raise_inference_api_error(exc)
+        text_in = result.get("text_input") or ""
+        text_out = result.get("text_response") or ""
+        log.set_output(text_out[:500])
+        log.record_usage(
+            event_type="chat.image",
+            prompt_tokens=_estimate_tokens(text_in),
+            completion_tokens=_estimate_tokens(text_out),
+            file_count=1 + (1 if audio_bytes else 0),
+            count_source="estimated",
         )
-    except Exception as exc:  # noqa: BLE001
-        db.rollback()
-        _raise_inference_api_error(exc)
 
     # Persist messages
     ai_msg = _save_pipeline_messages(db, conversation, result)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -24,6 +25,7 @@ class StudyAssetOut(BaseModel):
     asset_type: str
     status: str
     total_chunks: int
+    metadata_json: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -50,3 +52,73 @@ class StudyChunkOut(BaseModel):
 class PaginatedStudyChunks(BaseModel):
     items: list[StudyChunkOut]
     total: int
+
+
+# ---------------------------------------------------------------------------
+# Study Insights
+# ---------------------------------------------------------------------------
+
+
+class StudyInsightsTotalsOut(BaseModel):
+    assets: int
+    indexed_assets: int
+    generated_pages: int
+    chunks: int
+    decks: int
+    cards: int
+    new_cards: int
+    due_cards: int
+    weak_cards: int
+    reviewed_this_week: int
+    ai_actions_this_week: int
+    confusions_logged: int
+
+
+class StudyInsightsActionCountOut(BaseModel):
+    action_type: str
+    count: int
+
+
+class StudyInsightsDayOut(BaseModel):
+    date: str
+    review_count: int
+    ai_action_count: int
+
+
+class StudyInsightsDeckPressureOut(BaseModel):
+    deck_id: str
+    deck_name: str
+    total_cards: int
+    due_cards: int
+    last_review_at: datetime | None = None
+    next_due_at: datetime | None = None
+
+
+class StudyInsightsWeakCardOut(BaseModel):
+    card_id: str
+    deck_id: str
+    deck_name: str
+    front: str
+    review_count: int
+    lapse_count: int
+    consecutive_failures: int
+    next_review_at: datetime | None = None
+
+
+class StudyInsightsRecentActionOut(BaseModel):
+    id: str
+    action_type: str
+    summary: str
+    created_at: datetime
+
+
+class StudyInsightsOut(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    active_days: int
+    totals: StudyInsightsTotalsOut
+    action_counts: list[StudyInsightsActionCountOut]
+    daily_activity: list[StudyInsightsDayOut]
+    deck_pressure: list[StudyInsightsDeckPressureOut]
+    weak_cards: list[StudyInsightsWeakCardOut]
+    recent_actions: list[StudyInsightsRecentActionOut]

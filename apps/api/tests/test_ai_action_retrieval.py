@@ -162,10 +162,10 @@ def test_list_cross_workspace_isolation() -> None:
     assert len(b_only["items"]) == 2
 
     # Cross-request: workspace B asks for workspace A's page → empty list,
-    # not workspace A's data.
-    cross = client_b.get(f"/api/v1/pages/{fx_a['page_id']}/ai-actions").json()
-    assert cross["items"] == []
-    assert cross["next_cursor"] is None
+    # not workspace A's data. The tightened notebook visibility guard now
+    # hides the page itself.
+    cross = client_b.get(f"/api/v1/pages/{fx_a['page_id']}/ai-actions")
+    assert cross.status_code == 404
 
 
 def test_detail_returns_full_payload() -> None:
@@ -220,6 +220,72 @@ def test_detail_403_for_other_user_non_owner() -> None:
 
     resp = member_client.get(f"/api/v1/ai-actions/{log_id}")
     assert resp.status_code == 403
+
+
+def test_page_list_hides_other_users_logs_from_non_owner_member() -> None:
+    _owner_client, owner_auth = _register_client(email="owner-list@x.co")
+    ws_id = owner_auth["ws_id"]
+    owner_id = owner_auth["user_id"]
+
+    member_client, member_auth = _register_client(email="member-list@x.co")
+    member_id = member_auth["user_id"]
+
+    with SessionLocal() as db:
+        pr = Project(workspace_id=ws_id, name="P")
+        db.add(pr); db.commit(); db.refresh(pr)
+        nb = Notebook(
+            workspace_id=ws_id,
+            project_id=pr.id,
+            created_by=owner_id,
+            title="Shared NB",
+            slug="shared-nb",
+            visibility="public",
+        )
+        db.add(nb); db.commit(); db.refresh(nb)
+        page = NotebookPage(
+            notebook_id=nb.id,
+            created_by=owner_id,
+            title="T",
+            slug="t",
+            plain_text="x",
+        )
+        db.add(page); db.commit(); db.refresh(page)
+        db.add(Membership(workspace_id=ws_id, user_id=member_id, role="member"))
+        db.commit()
+
+        owner_log = AIActionLog(
+            workspace_id=ws_id,
+            user_id=owner_id,
+            notebook_id=nb.id,
+            page_id=page.id,
+            action_type="selection.rewrite",
+            scope="selection",
+            status="completed",
+            output_summary="owner only",
+            trace_metadata={},
+        )
+        member_log = AIActionLog(
+            workspace_id=ws_id,
+            user_id=member_id,
+            notebook_id=nb.id,
+            page_id=page.id,
+            action_type="selection.rewrite",
+            scope="selection",
+            status="completed",
+            output_summary="member visible",
+            trace_metadata={},
+        )
+        db.add(owner_log)
+        db.add(member_log)
+        db.commit()
+        page_id = page.id
+
+    member_client.headers["x-workspace-id"] = ws_id
+    resp = member_client.get(f"/api/v1/pages/{page_id}/ai-actions")
+    assert resp.status_code == 200, resp.text
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["output_summary"] == "member visible"
 
 
 def test_detail_dereferences_minio_overflow() -> None:

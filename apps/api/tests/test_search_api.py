@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from app.db.base import Base
 import app.db.session as _s
 from app.models import (
-    Memory, Notebook, NotebookBlock, NotebookPage, Project, StudyAsset,
+    AIActionLog, DataItem, Dataset, Memory, Membership, Notebook, NotebookBlock, NotebookPage, Project, StudyAsset,
 )
 
 
@@ -159,3 +159,99 @@ def test_cross_workspace_global_search_isolated() -> None:
     assert resp.status_code == 200
     # Workspace B is empty — no pages should leak from A.
     assert resp.json()["results"]["pages"] == []
+
+
+def test_global_search_files_includes_study_documents() -> None:
+    client, auth = _register_client("files@x.co")
+    with SessionLocal() as db:
+        project = Project(workspace_id=auth["ws_id"], name="P")
+        db.add(project); db.commit(); db.refresh(project)
+        notebook = Notebook(
+            workspace_id=auth["ws_id"],
+            project_id=project.id,
+            created_by=auth["user_id"],
+            title="NB",
+            slug="nb",
+        )
+        db.add(notebook); db.commit(); db.refresh(notebook)
+        dataset = Dataset(project_id=project.id, name="Docs", type="docs")
+        db.add(dataset); db.commit(); db.refresh(dataset)
+        item = DataItem(
+            dataset_id=dataset.id,
+            object_key="workspaces/ws/docs/auth-handbook.pdf",
+            filename="auth-handbook.pdf",
+            media_type="application/pdf",
+            size_bytes=123,
+        )
+        db.add(item); db.commit(); db.refresh(item)
+        asset = StudyAsset(
+            notebook_id=notebook.id,
+            data_item_id=item.id,
+            created_by=auth["user_id"],
+            title="Auth handbook",
+            asset_type="pdf",
+            status="ready",
+        )
+        db.add(asset); db.commit()
+        asset_id = asset.id
+
+    resp = client.get("/api/v1/search/global?q=handbook&scope=files")
+    assert resp.status_code == 200, resp.text
+    files = resp.json()["results"]["files"]
+    assert any(hit.get("asset_id") == asset_id for hit in files)
+
+
+def test_search_hides_private_notebook_pages_and_ai_actions_from_members() -> None:
+    _owner_client, owner_auth = _register_client("search-owner@x.co")
+    member_client, member_auth = _register_client("search-member@x.co")
+
+    with SessionLocal() as db:
+        project = Project(workspace_id=owner_auth["ws_id"], name="P")
+        db.add(project); db.commit(); db.refresh(project)
+        private_notebook = Notebook(
+            workspace_id=owner_auth["ws_id"],
+            project_id=project.id,
+            created_by=owner_auth["user_id"],
+            title="Private",
+            slug="private",
+            visibility="private",
+        )
+        db.add(private_notebook); db.commit(); db.refresh(private_notebook)
+        page = NotebookPage(
+            notebook_id=private_notebook.id,
+            created_by=owner_auth["user_id"],
+            title="Secret page",
+            slug="secret-page",
+            plain_text="owner secret page content",
+        )
+        db.add(page); db.commit(); db.refresh(page)
+        db.add(Membership(
+            workspace_id=owner_auth["ws_id"],
+            user_id=member_auth["user_id"],
+            role="member",
+        ))
+        db.add(AIActionLog(
+            workspace_id=owner_auth["ws_id"],
+            user_id=owner_auth["user_id"],
+            notebook_id=private_notebook.id,
+            page_id=page.id,
+            action_type="selection.rewrite",
+            scope="selection",
+            status="completed",
+            output_summary="owner secret summary",
+            trace_metadata={},
+        ))
+        db.commit()
+        private_notebook_id = private_notebook.id
+
+    member_client.headers["x-workspace-id"] = owner_auth["ws_id"]
+
+    global_resp = member_client.get("/api/v1/search/global?q=secret")
+    assert global_resp.status_code == 200, global_resp.text
+    assert global_resp.json()["results"]["pages"] == []
+    assert global_resp.json()["results"]["ai_actions"] == []
+
+    notebook_resp = member_client.get(
+        f"/api/v1/notebooks/{private_notebook_id}/search?q=secret"
+    )
+    assert notebook_resp.status_code == 404

@@ -16,8 +16,15 @@ function setupFetch(onCall: (url: string) => void) {
       ok: true, status: 200,
       json: async () => ({
         query: "q", duration_ms: 1,
-        results: { pages: [], blocks: [], study_assets: [],
-                   memory: [], playbooks: [] },
+        results: {
+          pages: [],
+          blocks: [],
+          study_assets: [],
+          files: [],
+          memory: [],
+          playbooks: [],
+          ai_actions: [],
+        },
       }),
     } as Response;
   }) as typeof fetch;

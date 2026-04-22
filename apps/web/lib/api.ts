@@ -256,7 +256,9 @@ async function apiRequest<T>(
     }
     throw toApiRequestError(error, apiBaseUrl);
   }
-  return parseResponse<T>(res, { suppressUnauthorizedHandling: options.suppressUnauthorizedHandling });
+  return parseResponse<T>(res, {
+    suppressUnauthorizedHandling: options.suppressUnauthorizedHandling ?? isPublicMutation(path),
+  });
 }
 
 /**
@@ -378,6 +380,10 @@ export function clearWorkspaceId(): void {
 }
 
 export async function logout(): Promise<boolean> {
+  // Treat the server-side logout as best-effort. Whether it succeeds or fails,
+  // we must clear local auth state and redirect — otherwise the user clicks
+  // "Sign out" and sees nothing happen when the network is flaky.
+  let serverOk = true;
   try {
     await apiRequest<void>(
       "/api/v1/auth/logout",
@@ -385,13 +391,13 @@ export async function logout(): Promise<boolean> {
       { requireCsrf: true, suppressUnauthorizedHandling: true },
     );
   } catch {
-    return false;
+    serverOk = false;
   }
   clearAuthState();
   clearWorkspaceId();
   clearCachedSecurityState();
   window.location.href = getLocaleAwareLoginPath();
-  return true;
+  return serverOk;
 }
 
 export async function apiPostFormData<T>(path: string, formData: FormData, init?: RequestInit): Promise<T> {

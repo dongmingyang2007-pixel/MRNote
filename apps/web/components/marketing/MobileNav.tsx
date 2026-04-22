@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { logout } from "@/lib/api";
 
 interface MobileNavProps {
   openLabel: string;
@@ -11,6 +12,10 @@ interface MobileNavProps {
   pricingLabel: string;
   loginLabel: string;
   startLabel: string;
+  loggedIn?: boolean;
+  openWorkspaceLabel?: string;
+  settingsLabel?: string;
+  logoutLabel?: string;
 }
 
 export default function MobileNav({
@@ -20,6 +25,10 @@ export default function MobileNav({
   pricingLabel,
   loginLabel,
   startLabel,
+  loggedIn = false,
+  openWorkspaceLabel,
+  settingsLabel,
+  logoutLabel,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
 
@@ -56,17 +65,46 @@ export default function MobileNav({
           <Link href="/pricing" className="marketing-mobile-panel__link" onClick={close}>
             {pricingLabel}
           </Link>
-          <Link href="/login" className="marketing-mobile-panel__link" onClick={close}>
-            {loginLabel}
-          </Link>
-          <Link
-            href="/register"
-            className="marketing-btn marketing-btn--primary marketing-btn--lg"
-            style={{ marginTop: 16 }}
-            onClick={close}
-          >
-            {startLabel}
-          </Link>
+          {loggedIn ? (
+            <>
+              <Link href="/app/settings" className="marketing-mobile-panel__link" onClick={close}>
+                {settingsLabel}
+              </Link>
+              <button
+                type="button"
+                className="marketing-mobile-panel__link"
+                style={{ background: "none", border: "none", textAlign: "left", cursor: "pointer", width: "100%" }}
+                onClick={() => {
+                  close();
+                  void logout();
+                }}
+              >
+                {logoutLabel}
+              </button>
+              <Link
+                href="/app"
+                className="marketing-btn marketing-btn--primary marketing-btn--lg"
+                style={{ marginTop: 16 }}
+                onClick={close}
+              >
+                {openWorkspaceLabel}
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="marketing-mobile-panel__link" onClick={close}>
+                {loginLabel}
+              </Link>
+              <Link
+                href="/register"
+                className="marketing-btn marketing-btn--primary marketing-btn--lg"
+                style={{ marginTop: 16 }}
+                onClick={close}
+              >
+                {startLabel}
+              </Link>
+            </>
+          )}
         </div>
       )}
     </>

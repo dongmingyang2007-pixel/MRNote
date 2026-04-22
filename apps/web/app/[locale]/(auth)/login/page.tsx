@@ -6,14 +6,15 @@ import { useTranslations } from "next-intl";
 import { gsap } from "@/lib/gsap-register";
 
 import { apiPost, persistWorkspaceId } from "@/lib/api";
+import { getLocalizedAuthError } from "@/lib/auth-errors";
 import { getSafeNavigationPath } from "@/lib/security";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
-    return "/en/app";
+    return "/en/app/notebooks";
   }
-  return "/app";
+  return "/app/notebooks";
 }
 
 export default function LoginPage() {
@@ -71,7 +72,7 @@ export default function LoginPage() {
               );
               window.location.replace(nextPath || getDefaultConsolePath());
             } catch (err) {
-              setError(err instanceof Error ? err.message : t("login.error"));
+              setError(getLocalizedAuthError(err, t, "login.error"));
             } finally {
               setLoading(false);
             }

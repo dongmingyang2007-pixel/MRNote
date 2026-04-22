@@ -43,7 +43,14 @@ export default function DigestDetail({ digestId, notebookId, onBack }: Props) {
 
   const handleDismiss = useCallback(async () => {
     if (!detail) return;
-    await apiPost(`/api/v1/digests/${detail.id}/dismiss`, {});
+    try {
+      await apiPost(`/api/v1/digests/${detail.id}/dismiss`, {});
+    } catch (err) {
+      // Keep the detail open so the user sees the failure state rather than
+      // silently accepting a no-op dismiss.
+      console.error("digest dismiss failed", err);
+      return;
+    }
     onBack();
   }, [detail, onBack]);
 

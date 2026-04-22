@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { tickOnce, seedCircle, shouldStop } from "@/components/console/graph/memory-graph/useForceSim";
+import {
+  buildForceSimSignature,
+  tickOnce,
+  seedCircle,
+  shouldStop,
+} from "@/components/console/graph/memory-graph/useForceSim";
 import { FORCE_PARAMS } from "@/components/console/graph/memory-graph/constants";
 import type { GraphNode, GraphEdge, Position } from "@/components/console/graph/memory-graph/types";
 
@@ -34,6 +39,19 @@ describe("seedCircle", () => {
       expect(p.y).toBeGreaterThanOrEqual(0);
       expect(p.y).toBeLessThanOrEqual(300);
     }
+  });
+});
+
+describe("buildForceSimSignature", () => {
+  it("changes when node ids change even if counts stay the same", () => {
+    const firstNodes = [makeGNode("a"), makeGNode("b")];
+    const secondNodes = [makeGNode("x"), makeGNode("y")];
+    const firstEdges: GraphEdge[] = [{ a: "a", b: "b", rel: "related", w: 1 }];
+    const secondEdges: GraphEdge[] = [{ a: "x", b: "y", rel: "related", w: 1 }];
+
+    expect(buildForceSimSignature(firstNodes, firstEdges, 400, 300)).not.toBe(
+      buildForceSimSignature(secondNodes, secondEdges, 400, 300),
+    );
   });
 });
 

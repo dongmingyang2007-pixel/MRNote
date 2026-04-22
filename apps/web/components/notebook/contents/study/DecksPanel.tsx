@@ -26,6 +26,7 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
   const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -43,6 +44,7 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
   const handleCreate = useCallback(async () => {
     if (!newName.trim() || creating) return;
     setCreating(true);
+    setErrorMessage(null);
     try {
       await apiPost<Deck>(`/api/v1/notebooks/${notebookId}/decks`, {
         name: newName.trim(),
@@ -50,17 +52,28 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
       });
       setNewName("");
       await load();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : t("study.decks.createFailed"),
+      );
     } finally {
       setCreating(false);
     }
-  }, [newName, creating, notebookId, load]);
+  }, [newName, creating, notebookId, load, t]);
 
   const handleArchive = useCallback(
     async (deckId: string) => {
-      await apiPatch(`/api/v1/decks/${deckId}`, { archived: true });
-      await load();
+      setErrorMessage(null);
+      try {
+        await apiPatch(`/api/v1/decks/${deckId}`, { archived: true });
+        await load();
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : t("study.decks.archiveFailed"),
+        );
+      }
     },
-    [load],
+    [load, t],
   );
 
   if (activeDeckId) {
@@ -76,6 +89,22 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
 
   return (
     <div className="decks-panel" data-testid="decks-panel" style={{ padding: 12 }}>
+      {errorMessage && (
+        <div
+          role="alert"
+          style={{
+            padding: "6px 10px",
+            marginBottom: 10,
+            borderRadius: 6,
+            background: "rgba(220, 38, 38, 0.06)",
+            border: "1px solid rgba(220, 38, 38, 0.2)",
+            color: "#b91c1c",
+            fontSize: 12,
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         <input
           type="text"

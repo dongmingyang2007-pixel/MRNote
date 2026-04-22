@@ -29,7 +29,7 @@ def test_free_plan_disables_premium_features() -> None:
     free = PLAN_ENTITLEMENTS["free"]
     assert free["voice.enabled"] is False
     assert free["daily_digest.enabled"] is False
-    assert free["book_upload.enabled"] is False
+    assert free["book_upload.enabled"] is True
     assert free["advanced_memory_insights.enabled"] is False
 
 

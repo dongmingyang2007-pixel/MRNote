@@ -22,6 +22,23 @@ export function seedCircle(nodes: GraphNode[], width: number, height: number): M
   return out;
 }
 
+export function buildForceSimSignature(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  width: number,
+  height: number,
+): string {
+  const nodeSig = nodes.map((node) => node.id).sort().join("|");
+  const edgeSig = edges
+    .map((edge) => {
+      const [a, b] = edge.a < edge.b ? [edge.a, edge.b] : [edge.b, edge.a];
+      return `${a}~${b}~${edge.rel}~${edge.w ?? 1}`;
+    })
+    .sort()
+    .join("|");
+  return `${width}:${height}:${nodeSig}:${edgeSig}`;
+}
+
 interface TickInput {
   positions: Map<string, Position>;
   nodes: GraphNode[];
@@ -154,20 +171,11 @@ export interface ForceSimHandle {
 
 export function useForceSim(opts: UseForceSimOptions): ForceSimHandle {
   const params = opts.params ?? FORCE_PARAMS;
-  const positionsRef = useRef<Map<string, Position>>(new Map());
+  const [initialPositions] = useState(() => seedCircle(opts.nodes, opts.width, opts.height));
+  const positionsRef = useRef<Map<string, Position>>(initialPositions);
   const alphaRef = useRef<number>(params.alphaInit);
   const rafRef = useRef<number | null>(null);
-  const sigRef = useRef<string>("");
   const [, forceRender] = useState(0);
-
-  // Eager seed during render when structural signature changes (nodes/edges count or viewport size).
-  // Running synchronously in the render path ensures the first paint of GraphCanvas has positions.
-  const sig = `${opts.nodes.length}:${opts.edges.length}:${opts.width}:${opts.height}`;
-  if (sigRef.current !== sig) {
-    positionsRef.current = seedCircle(opts.nodes, opts.width, opts.height);
-    alphaRef.current = params.alphaInit;
-    sigRef.current = sig;
-  }
 
   // RAF loop
   useEffect(() => {

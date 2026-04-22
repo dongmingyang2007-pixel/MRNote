@@ -11,7 +11,7 @@ PLAN_ENTITLEMENTS: dict[str, dict[str, Any]] = {
         "pages.max": 50,
         "study_assets.max": 1,
         "ai.actions.monthly": 50,
-        "book_upload.enabled": False,
+        "book_upload.enabled": True,
         "daily_digest.enabled": False,
         "voice.enabled": False,
         "advanced_memory_insights.enabled": False,

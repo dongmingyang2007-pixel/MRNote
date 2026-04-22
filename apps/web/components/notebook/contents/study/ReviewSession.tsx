@@ -24,6 +24,7 @@ export default function ReviewSession({ deckId, onExit }: Props) {
   const [revealed, setRevealed] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [reviewed, setReviewed] = useState(0);
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
   const RATINGS: { label: string; value: 1 | 2 | 3 | 4 }[] = [
     { label: t("study.review.again"), value: 1 },
@@ -57,22 +58,38 @@ export default function ReviewSession({ deckId, onExit }: Props) {
   const handleRate = useCallback(
     async (rating: 1 | 2 | 3 | 4) => {
       if (!card) return;
-      await apiPost(`/api/v1/cards/${card.id}/review`, { rating });
+      setRatingError(null);
+      try {
+        await apiPost(`/api/v1/cards/${card.id}/review`, { rating });
+      } catch (err) {
+        setRatingError(
+          err instanceof Error ? err.message : t("study.review.saveFailed"),
+        );
+        return; // Do NOT advance if save failed — user's rating was lost.
+      }
       setReviewed((n) => n + 1);
       await fetchNext();
     },
-    [card, fetchNext],
+    [card, fetchNext, t],
   );
 
   const handleMarkConfused = useCallback(async () => {
     if (!card) return;
-    await apiPost(`/api/v1/cards/${card.id}/review`, {
-      rating: 1,
-      marked_confused: true,
-    });
+    setRatingError(null);
+    try {
+      await apiPost(`/api/v1/cards/${card.id}/review`, {
+        rating: 1,
+        marked_confused: true,
+      });
+    } catch (err) {
+      setRatingError(
+        err instanceof Error ? err.message : t("study.review.saveFailed"),
+      );
+      return;
+    }
     setReviewed((n) => n + 1);
     await fetchNext();
-  }, [card, fetchNext]);
+  }, [card, fetchNext, t]);
 
   if (empty) {
     return (
@@ -100,6 +117,22 @@ export default function ReviewSession({ deckId, onExit }: Props) {
 
   return (
     <div className="review-session" data-testid="review-session" style={{ padding: 16 }}>
+      {ratingError && (
+        <div
+          role="alert"
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "rgba(220, 38, 38, 0.06)",
+            border: "1px solid rgba(220, 38, 38, 0.2)",
+            color: "#b91c1c",
+            fontSize: 12,
+          }}
+        >
+          {ratingError}
+        </div>
+      )}
       <div
         style={{
           minHeight: 120,

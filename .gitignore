@@ -43,3 +43,7 @@ tmp/
 
 # Git worktrees
 .worktrees/
+
+# Secrets (SSH keys, certificates — NEVER commit)
+*.pem
+*.key

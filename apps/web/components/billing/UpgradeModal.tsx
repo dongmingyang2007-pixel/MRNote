@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 
 interface PlanRequiredDetail {
   code?: string;
@@ -9,8 +10,31 @@ interface PlanRequiredDetail {
   details?: { key?: string; current?: number; limit?: number };
 }
 
+type TranslationFn = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
+function getFeatureLabel(
+  key: string | undefined,
+  t: TranslationFn,
+): string | null {
+  const labels: Record<string, string> = {
+    "notebooks.max": t("upgrade.feature.notebooks"),
+    "pages.max": t("upgrade.feature.pages"),
+    "study_assets.max": t("upgrade.feature.studyAssets"),
+    "ai.actions.monthly": t("upgrade.feature.aiActions"),
+    "book_upload.enabled": t("upgrade.feature.bookUpload"),
+    "daily_digest.enabled": t("upgrade.feature.dailyDigest"),
+    "voice.enabled": t("upgrade.feature.voice"),
+    "advanced_memory_insights.enabled": t("upgrade.feature.insights"),
+  };
+  return key ? labels[key] || null : null;
+}
+
 export default function UpgradeModal() {
   const t = useTranslations("billing");
+  const router = useRouter();
   const [detail, setDetail] = useState<PlanRequiredDetail | null>(null);
 
   useEffect(() => {
@@ -24,8 +48,24 @@ export default function UpgradeModal() {
 
   if (!detail) return null;
 
+  const featureLabel = getFeatureLabel(detail.details?.key, t);
+  const body =
+    detail.code === "plan_limit_reached" &&
+    featureLabel &&
+    detail.details?.current !== undefined &&
+    detail.details?.limit !== undefined
+      ? t("upgrade.required.limitBody", {
+          feature: featureLabel,
+          current: detail.details.current,
+          limit: detail.details.limit,
+        })
+      : featureLabel
+        ? t("upgrade.required.featureBody", { feature: featureLabel })
+        : detail.message || t("upgrade.required.body");
+
   const handleUpgrade = () => {
-    window.location.href = "/workspace/settings/billing";
+    setDetail(null);
+    router.push("/app/settings/billing");
   };
 
   return (
@@ -41,18 +81,21 @@ export default function UpgradeModal() {
         maxWidth: 420, width: "90%",
       }}>
         <h2 style={{ marginTop: 0 }}>{t("upgrade.required.title")}</h2>
-        <p>{detail.message || t("upgrade.required.body")}</p>
-        {detail.details?.key && (
+        <p>{body}</p>
+        {featureLabel && detail.details?.current !== undefined && detail.details?.limit !== undefined ? (
           <p style={{ fontSize: 12, color: "#6b7280" }}>
-            {detail.details.current !== undefined && detail.details.limit !== undefined
-              ? t("upgrade.limit.label", {
-                  key: detail.details.key,
-                  current: detail.details.current,
-                  limit: detail.details.limit,
-                })
-              : `Limit: ${detail.details.key}`}
+            {t("upgrade.limit.label", {
+              feature: featureLabel,
+              current: detail.details.current,
+              limit: detail.details.limit,
+            })}
           </p>
-        )}
+        ) : null}
+        {featureLabel && (!detail.details || detail.details.limit === undefined) ? (
+          <p style={{ fontSize: 12, color: "#6b7280" }}>
+            {t("upgrade.limit.featureOnly", { feature: featureLabel })}
+          </p>
+        ) : null}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
           <button
             type="button"

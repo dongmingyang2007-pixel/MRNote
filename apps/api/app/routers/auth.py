@@ -1,7 +1,12 @@
+import logging
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Request, Response
+from authlib.integrations.base_client.errors import (
+    MismatchingStateError,
+    OAuthError,
+)
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
@@ -48,8 +53,14 @@ from app.schemas.oauth import (
     SetPasswordResponse,
 )
 from app.services.audit import write_audit_log
-from app.services.email import send_verification_email, store_verification_code, verify_code
+from app.services.email import (
+    send_verification_email_safe,
+    store_verification_code,
+    verify_code,
+)
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -58,6 +69,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 def send_code(
     payload: SendCodeRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, bool]:
     """Send a verification code to the given email address."""
     require_allowed_origin(request)
@@ -78,7 +90,12 @@ def send_code(
     )
 
     code = store_verification_code(payload.email, payload.purpose)
-    send_verification_email(payload.email, code, payload.purpose)
+    background_tasks.add_task(
+        send_verification_email_safe,
+        payload.email,
+        code,
+        payload.purpose,
+    )
     return {"ok": True}
 
 
@@ -336,6 +353,7 @@ async def google_authorize(
     """
     if not settings.google_oauth_enabled:
         raise ApiError("not_found", "OAuth is disabled", status_code=404)
+    require_allowed_origin(request)
 
     client_ip = get_client_ip(request)
     enforce_rate_limit(
@@ -398,12 +416,27 @@ async def google_callback(
 
     try:
         token = await oauth.google.authorize_access_token(request)
-    except Exception:  # noqa: BLE001 — Authlib raises a variety of errors on state/code mismatch
+    except MismatchingStateError:
+        logger.warning(
+            "OAuth state mismatch — session cookie missing/stale. "
+            "Likely cause in dev: browser on 127.0.0.1 while redirect_base is localhost."
+        )
         return RedirectResponse(url="/login?error=oauth_state_mismatch", status_code=302)
+    except OAuthError as exc:
+        logger.exception("OAuth provider error during token exchange: %s", exc)
+        return RedirectResponse(url="/login?error=oauth_exchange_failed", status_code=302)
+    except Exception:  # noqa: BLE001 — id_token parse, JWKS fetch, network, etc.
+        logger.exception("Unexpected error during OAuth token exchange")
+        return RedirectResponse(url="/login?error=oauth_callback_failed", status_code=302)
 
-    try:
-        id_claims = await oauth.google.parse_id_token(request, token)
-    except Exception:  # noqa: BLE001
+    # Authlib ≥1.0 auto-parses the id_token during authorize_access_token
+    # and puts the claims in token["userinfo"]. No separate parse call needed.
+    id_claims = token.get("userinfo") if token else None
+    if not id_claims:
+        logger.warning(
+            "OAuth callback: token has no userinfo; keys=%s",
+            list(token.keys()) if token else None,
+        )
         return RedirectResponse(url="/login?error=oauth_invalid_id_token", status_code=302)
 
     sub = id_claims.get("sub") if id_claims else None

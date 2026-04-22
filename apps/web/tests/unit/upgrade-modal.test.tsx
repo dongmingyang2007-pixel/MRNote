@@ -2,6 +2,14 @@ import { render, screen, act, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import UpgradeModal from "@/components/billing/UpgradeModal";
 
+vi.mock("@/i18n/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("UpgradeModal", () => {
@@ -19,6 +27,7 @@ describe("UpgradeModal", () => {
       }));
     });
     expect(screen.getByTestId("upgrade-modal")).toBeTruthy();
-    expect(screen.getByText(/Notebooks limit reached/)).toBeTruthy();
+    expect(screen.getByText("upgrade.required.limitBody")).toBeTruthy();
+    expect(screen.queryByText(/notebooks\.max/)).toBeNull();
   });
 });

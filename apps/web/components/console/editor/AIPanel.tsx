@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send, X, Sparkles, Loader2 } from "lucide-react";
 import { apiStream } from "@/lib/api-stream";
+import MarkdownContent from "../chat/MarkdownContent";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,6 +105,14 @@ export default function AIPanel({
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  // Abort in-flight stream when the panel unmounts to avoid setState on
+  // unmounted component + dangling network.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -249,7 +258,14 @@ export default function AIPanel({
 
         {messages.map((msg, i) => (
           <div key={i} className={`ai-panel-msg ai-panel-msg-${msg.role}`}>
-            <div className="ai-panel-msg-content">{msg.content}</div>
+            {msg.role === "assistant" ? (
+              <MarkdownContent
+                text={msg.content}
+                className="ai-panel-msg-content chat-markdown"
+              />
+            ) : (
+              <div className="ai-panel-msg-content">{msg.content}</div>
+            )}
             {msg.role === "assistant" && renderSources(msg.sources || [])}
             {msg.role === "assistant" && onInsertToEditor && (
               <button
@@ -279,7 +295,7 @@ export default function AIPanel({
                   })
                 }
               >
-                Insert as AI block
+                {t("ai.insertAIBlock")}
               </button>
             )}
           </div>
@@ -287,7 +303,11 @@ export default function AIPanel({
 
         {streaming && streamContent && (
           <div className="ai-panel-msg ai-panel-msg-assistant">
-            <div className="ai-panel-msg-content">{streamContent}</div>
+            <MarkdownContent
+              text={streamContent}
+              streaming
+              className="ai-panel-msg-content chat-markdown"
+            />
             {renderSources(streamSources)}
           </div>
         )}

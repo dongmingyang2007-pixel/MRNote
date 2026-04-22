@@ -30,6 +30,7 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
   const [newBack, setNewBack] = useState("");
   const [showGen, setShowGen] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -46,21 +47,51 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
 
   const handleCreate = useCallback(async () => {
     if (!newFront.trim() || !newBack.trim()) return;
-    await apiPost(`/api/v1/decks/${deckId}/cards`, {
-      front: newFront.trim(),
-      back: newBack.trim(),
-    });
-    setNewFront(""); setNewBack("");
-    await load();
-  }, [newFront, newBack, deckId, load]);
+    setErrorMessage(null);
+    try {
+      await apiPost(`/api/v1/decks/${deckId}/cards`, {
+        front: newFront.trim(),
+        back: newBack.trim(),
+      });
+      setNewFront(""); setNewBack("");
+      await load();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : t("study.cards.createFailed"),
+      );
+    }
+  }, [newFront, newBack, deckId, load, t]);
 
   const handleDelete = useCallback(async (cardId: string) => {
-    await apiDelete(`/api/v1/cards/${cardId}`);
-    await load();
-  }, [load]);
+    setErrorMessage(null);
+    try {
+      await apiDelete(`/api/v1/cards/${cardId}`);
+      await load();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : t("study.cards.deleteFailed"),
+      );
+    }
+  }, [load, t]);
 
   return (
     <div className="cards-panel" data-testid="cards-panel" style={{ padding: 12 }}>
+      {errorMessage && (
+        <div
+          role="alert"
+          style={{
+            padding: "6px 10px",
+            marginBottom: 10,
+            borderRadius: 6,
+            background: "rgba(220, 38, 38, 0.06)",
+            border: "1px solid rgba(220, 38, 38, 0.2)",
+            color: "#b91c1c",
+            fontSize: 12,
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
         <button
           type="button"

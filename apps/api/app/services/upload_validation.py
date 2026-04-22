@@ -19,7 +19,20 @@ from app.services.storage import (
 UPLOAD_SIGNATURE_READ_BYTES = 8192
 UPLOAD_SPOOL_MAX_MEMORY_BYTES = 1024 * 1024
 _DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-_TEXTUAL_MEDIA_TYPES = {"text/plain", "text/markdown"}
+_PPTX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_TEXTUAL_MEDIA_TYPES = {
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/html",
+    "text/css",
+    "text/javascript",
+    "text/xml",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/x-javascript",
+}
 _PREVIEWABLE_IMAGE_MEDIA_TYPES = {
     "image/jpeg",
     "image/png",
@@ -27,6 +40,13 @@ _PREVIEWABLE_IMAGE_MEDIA_TYPES = {
     "image/gif",
     "image/bmp",
     "image/tiff",
+}
+_DISALLOWED_UPLOAD_EXTENSIONS = {
+    ".svg",
+    ".svgz",
+}
+_DISALLOWED_UPLOAD_MEDIA_TYPES = {
+    "image/svg+xml",
 }
 _WORKSPACE_UPLOAD_MEDIA_TYPES_BY_EXTENSION: dict[str, set[str]] = {
     ".jpg": {"image/jpeg", "application/octet-stream"},
@@ -41,6 +61,69 @@ _WORKSPACE_UPLOAD_MEDIA_TYPES_BY_EXTENSION: dict[str, set[str]] = {
     ".txt": {"text/plain", "application/octet-stream"},
     ".md": {"text/markdown", "text/plain", "application/octet-stream"},
     ".docx": {_DOCX_MEDIA_TYPE, "application/octet-stream"},
+    ".pptx": {_PPTX_MEDIA_TYPE, "application/octet-stream"},
+}
+_GENERIC_TEXTUAL_EXTENSIONS: set[str] = {
+    ".csv",
+    ".tsv",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".env",
+    ".log",
+    ".rst",
+    ".tex",
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".java",
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".go",
+    ".rs",
+    ".rb",
+    ".php",
+    ".swift",
+    ".kt",
+    ".kts",
+    ".scala",
+    ".r",
+    ".sql",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".fish",
+    ".ps1",
+    ".vue",
+    ".svelte",
+    ".ipynb",
+    ".xml",
+    ".html",
+    ".htm",
+    ".css",
+}
+_GENERIC_TEXTUAL_MEDIA_TYPES = {
+    "application/octet-stream",
+    "text/x-python",
+    "text/x-java-source",
+    "text/x-c",
+    "text/x-c++src",
+    "text/x-c++hdr",
+    "text/x-csrc",
+    "text/x-script.python",
+    "application/x-sh",
+    "application/x-httpd-php",
+    "application/x-yaml",
 }
 _CANONICAL_MEDIA_TYPE_BY_EXTENSION = {
     ".jpg": "image/jpeg",
@@ -55,6 +138,54 @@ _CANONICAL_MEDIA_TYPE_BY_EXTENSION = {
     ".txt": "text/plain",
     ".md": "text/markdown",
     ".docx": _DOCX_MEDIA_TYPE,
+    ".pptx": _PPTX_MEDIA_TYPE,
+    ".csv": "text/csv",
+    ".tsv": "text/plain",
+    ".json": "application/json",
+    ".yaml": "text/plain",
+    ".yml": "text/plain",
+    ".toml": "text/plain",
+    ".ini": "text/plain",
+    ".cfg": "text/plain",
+    ".env": "text/plain",
+    ".log": "text/plain",
+    ".rst": "text/plain",
+    ".tex": "text/plain",
+    ".py": "text/plain",
+    ".js": "text/javascript",
+    ".jsx": "text/javascript",
+    ".ts": "text/plain",
+    ".tsx": "text/plain",
+    ".java": "text/plain",
+    ".c": "text/plain",
+    ".cc": "text/plain",
+    ".cpp": "text/plain",
+    ".cxx": "text/plain",
+    ".h": "text/plain",
+    ".hpp": "text/plain",
+    ".cs": "text/plain",
+    ".go": "text/plain",
+    ".rs": "text/plain",
+    ".rb": "text/plain",
+    ".php": "text/plain",
+    ".swift": "text/plain",
+    ".kt": "text/plain",
+    ".kts": "text/plain",
+    ".scala": "text/plain",
+    ".r": "text/plain",
+    ".sql": "text/plain",
+    ".sh": "text/plain",
+    ".bash": "text/plain",
+    ".zsh": "text/plain",
+    ".fish": "text/plain",
+    ".ps1": "text/plain",
+    ".vue": "text/plain",
+    ".svelte": "text/plain",
+    ".ipynb": "application/json",
+    ".xml": "application/xml",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".css": "text/css",
 }
 
 
@@ -83,19 +214,32 @@ def is_safe_preview_media_type(media_type: str) -> bool:
     return normalize_media_type(media_type) in _PREVIEWABLE_IMAGE_MEDIA_TYPES
 
 
+def _is_generic_textual_media_type(media_type: str) -> bool:
+    return media_type.startswith("text/") or media_type in _TEXTUAL_MEDIA_TYPES or media_type in _GENERIC_TEXTUAL_MEDIA_TYPES
+
+
 def validate_workspace_upload_declaration(filename: str, media_type: str) -> str:
     extension = _normalized_extension(filename)
     allowed_media_types = _WORKSPACE_UPLOAD_MEDIA_TYPES_BY_EXTENSION.get(extension)
-    if not allowed_media_types:
-        raise ApiError("unsupported_media_type", "Unsupported upload file type", status_code=415)
-
     normalized_media_type = normalize_media_type(media_type or "application/octet-stream")
-    if normalized_media_type not in allowed_media_types:
+
+    if extension in _DISALLOWED_UPLOAD_EXTENSIONS or normalized_media_type in _DISALLOWED_UPLOAD_MEDIA_TYPES:
         raise ApiError("unsupported_media_type", "Unsupported upload file type", status_code=415)
 
-    if normalized_media_type == "application/octet-stream":
+    if allowed_media_types:
+        if normalized_media_type not in allowed_media_types:
+            raise ApiError("unsupported_media_type", "Unsupported upload file type", status_code=415)
+
+        if normalized_media_type == "application/octet-stream":
+            return _CANONICAL_MEDIA_TYPE_BY_EXTENSION[extension]
+        return normalized_media_type
+
+    if extension in _GENERIC_TEXTUAL_EXTENSIONS:
+        if not _is_generic_textual_media_type(normalized_media_type):
+            raise ApiError("unsupported_media_type", "Unsupported upload file type", status_code=415)
         return _CANONICAL_MEDIA_TYPE_BY_EXTENSION[extension]
-    return normalized_media_type
+
+    return "application/octet-stream"
 
 
 def _prefix_matches_declared_media_type(prefix: bytes, media_type: str) -> bool:
@@ -115,13 +259,15 @@ def _prefix_matches_declared_media_type(prefix: bytes, media_type: str) -> bool:
         return prefix.startswith(b"%PDF-")
     if media_type == _DOCX_MEDIA_TYPE:
         return prefix.startswith(b"PK\x03\x04")
+    if media_type == _PPTX_MEDIA_TYPE:
+        return prefix.startswith(b"PK\x03\x04")
     if media_type == "video/mp4":
         return len(prefix) >= 12 and prefix[4:8] == b"ftyp"
     if media_type == "video/quicktime":
         return len(prefix) >= 12 and prefix[4:8] == b"ftyp"
     if media_type == "video/webm":
         return prefix.startswith(b"\x1a\x45\xdf\xa3")
-    if media_type in _TEXTUAL_MEDIA_TYPES:
+    if media_type.startswith("text/") or media_type in _TEXTUAL_MEDIA_TYPES:
         return b"\x00" not in prefix
     return True
 

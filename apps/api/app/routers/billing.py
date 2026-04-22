@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import (
-    get_current_user, get_current_workspace_id, get_db_session,
+    get_current_user, get_current_workspace_id, get_current_workspace_role, get_db_session,
+    is_workspace_privileged_role,
     require_csrf_protection,
 )
 from app.core.errors import ApiError
@@ -18,6 +19,12 @@ from app.schemas.billing import (
 from app.services import stripe_client
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
+
+
+def _require_billing_access(workspace_role: str) -> None:
+    if is_workspace_privileged_role(workspace_role):
+        return
+    raise ApiError("forbidden", "Only workspace owners can manage billing", status_code=403)
 
 
 def _ensure_customer(
@@ -55,8 +62,10 @@ def post_checkout(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _: None = Depends(require_csrf_protection),
 ) -> CheckoutResponse:
+    _require_billing_access(workspace_role)
     _require_billing_configured()
     if payload.plan != "team" and payload.seats != 1:
         raise ApiError("invalid_input",
@@ -101,8 +110,10 @@ def post_checkout_onetime(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _: None = Depends(require_csrf_protection),
 ) -> CheckoutResponse:
+    _require_billing_access(workspace_role)
     if payload.plan != "team" and payload.seats != 1:
         raise ApiError("invalid_input",
                        "seats only valid for team plan", status_code=400)
@@ -134,8 +145,10 @@ def post_portal(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),  # noqa: ARG001
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _: None = Depends(require_csrf_protection),
 ) -> PortalResponse:
+    _require_billing_access(workspace_role)
     ca = db.query(CustomerAccount).filter_by(workspace_id=workspace_id).first()
     if ca is None:
         raise ApiError("not_found",

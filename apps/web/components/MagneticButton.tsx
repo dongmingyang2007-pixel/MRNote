@@ -9,12 +9,14 @@ export function MagneticButton({
   className = "",
   strength = 0.2,
   onClick,
+  type = "button",
 }: {
   children: ReactNode;
   href?: string;
   className?: string;
   strength?: number;
   onClick?: () => void;
+  type?: "button" | "submit" | "reset";
 }) {
   const rootRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLSpanElement>(null);
@@ -95,6 +97,7 @@ export function MagneticButton({
     <Tag
       ref={rootRef as never}
       href={href}
+      type={href ? undefined : type}
       className={`magnetic-button ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}

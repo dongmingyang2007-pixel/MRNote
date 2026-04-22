@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Loader2, CheckCircle, AlertCircle, FileText } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BookOpen, Loader2, CheckCircle, AlertCircle, FileText, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { apiGet } from "@/lib/api";
+import { STUDY_UPLOAD_ACCEPT, uploadStudyAssets } from "@/lib/study-upload";
 
 interface StudyAsset {
   id: string;
@@ -40,6 +42,10 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
   const [selectedAsset, setSelectedAsset] = useState<StudyAsset | null>(null);
   const [chunks, setChunks] = useState<StudyChunk[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Status labels use i18n via a lookup inside the component (avoids top-level hook in object literal)
   const statusLabel = (status: string): string => {
@@ -55,11 +61,10 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
 
   const fetchAssets = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/notebooks/${notebookId}/study`);
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data.items || []);
-      }
+      const data = await apiGet<{ items: StudyAsset[] }>(
+        `/api/v1/notebooks/${notebookId}/study`,
+      );
+      setAssets(data.items || []);
     } catch {
       /* ignore */
     } finally {
@@ -73,11 +78,10 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
 
   const fetchChunks = useCallback(async (assetId: string) => {
     try {
-      const res = await fetch(`/api/v1/notebooks/${notebookId}/study/${assetId}/chunks?limit=50`);
-      if (res.ok) {
-        const data = await res.json();
-        setChunks(data.items || []);
-      }
+      const data = await apiGet<{ items: StudyChunk[] }>(
+        `/api/v1/notebooks/${notebookId}/study/${assetId}/chunks?limit=50`,
+      );
+      setChunks(data.items || []);
     } catch {
       /* ignore */
     }
@@ -94,6 +98,34 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
     setSelectedAsset(null);
     setChunks([]);
   }, []);
+
+  const handleOpenUpload = useCallback(() => {
+    setUploadError(null);
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFilesSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (files.length === 0) return;
+      setUploadError(null);
+      setUploading(true);
+      setUploadProgress({ done: 0, total: files.length });
+      try {
+        await uploadStudyAssets(notebookId, files, (done, total) =>
+          setUploadProgress({ done, total }),
+        );
+        await fetchAssets();
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setUploading(false);
+        setUploadProgress(null);
+      }
+    },
+    [notebookId, fetchAssets],
+  );
 
   // Asset detail view
   if (selectedAsset) {
@@ -204,6 +236,7 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        gap: 8,
       }}>
         <span style={{
           fontSize: "0.875rem",
@@ -212,7 +245,62 @@ export default function AssetsPanel({ notebookId }: AssetsPanelProps) {
         }}>
           {t("study.assets.title")}
         </span>
+        <button
+          type="button"
+          data-testid="study-upload-button"
+          onClick={handleOpenUpload}
+          disabled={uploading}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 10px",
+            borderRadius: "var(--console-radius-sm)",
+            border: "1px solid var(--console-border-subtle)",
+            background: uploading ? "var(--console-surface)" : "var(--console-accent)",
+            color: uploading ? "var(--console-text-muted)" : "#fff",
+            fontSize: "0.75rem",
+            cursor: uploading ? "default" : "pointer",
+          }}
+        >
+          {uploading ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              {uploadProgress
+                ? t("study.assets.uploading", {
+                    done: uploadProgress.done,
+                    total: uploadProgress.total,
+                  })
+                : t("study.assets.uploading", { done: 0, total: 1 })}
+            </>
+          ) : (
+            <>
+              <Upload size={12} />
+              {t("study.assets.upload")}
+            </>
+          )}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={STUDY_UPLOAD_ACCEPT}
+          onChange={handleFilesSelected}
+          style={{ display: "none" }}
+          data-testid="study-upload-input"
+        />
       </div>
+      {uploadError && (
+        <div style={{
+          padding: "8px 16px",
+          fontSize: "0.75rem",
+          color: "var(--console-error)",
+          background: "var(--console-surface)",
+          borderBottom: "1px solid var(--console-border-subtle)",
+        }}>
+          {uploadError}
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
         {loading ? (

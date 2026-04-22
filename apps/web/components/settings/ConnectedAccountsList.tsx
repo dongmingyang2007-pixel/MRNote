@@ -86,18 +86,31 @@ export default function ConnectedAccountsList() {
       return;
     }
     setSubmitting(true);
+    // Two-step: set password, then disconnect Google. Report distinct errors
+    // so the user understands which step failed (and the second step, when
+    // it fails, leaves both auth methods active — we surface that).
     try {
       await apiPut("/api/v1/auth/password", { new_password: newPw });
-      await apiPost("/api/v1/auth/google/disconnect", {});
-      setPhase("idle");
-      setNewPw("");
-      setConfirmPw("");
-      await load();
     } catch {
-      setError(t("oauth.error.state_mismatch"));
-    } finally {
+      setError(t("connectedAccounts.setPassword.failed"));
       setSubmitting(false);
+      return;
     }
+    try {
+      await apiPost("/api/v1/auth/google/disconnect", {});
+    } catch {
+      // Password was set. Reload so the new method shows, then flag the
+      // partial failure so the user can retry disconnect.
+      await load();
+      setError(t("connectedAccounts.disconnectPartialFailure"));
+      setSubmitting(false);
+      return;
+    }
+    setPhase("idle");
+    setNewPw("");
+    setConfirmPw("");
+    await load();
+    setSubmitting(false);
   };
 
   if (identities === null) return null;

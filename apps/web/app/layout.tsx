@@ -1,3 +1,6 @@
+import "@/styles/globals.css";
+import "@/styles/chat-workbench.css";
+
 export default function RootLayout({
   children,
 }: {

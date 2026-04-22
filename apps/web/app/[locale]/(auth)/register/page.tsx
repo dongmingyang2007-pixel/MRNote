@@ -7,14 +7,15 @@ import { gsap } from "@/lib/gsap-register";
 
 import { MagneticButton } from "@/components/MagneticButton";
 import { apiPost, persistWorkspaceId } from "@/lib/api";
+import { getLocalizedAuthError } from "@/lib/auth-errors";
 import { getSafeNavigationPath } from "@/lib/security";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
-    return "/en/app";
+    return "/en/app/notebooks";
   }
-  return "/app";
+  return "/app/notebooks";
 }
 
 export default function RegisterPage() {
@@ -73,7 +74,7 @@ export default function RegisterPage() {
       setCountdown(60);
       setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("register.error"));
+      setError(getLocalizedAuthError(err, t, "register.error"));
     } finally {
       setCodeSending(false);
     }
@@ -107,7 +108,7 @@ export default function RegisterPage() {
       );
       window.location.replace(nextPath || getDefaultConsolePath());
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("register.error"));
+      setError(getLocalizedAuthError(err, t, "register.error"));
     }
   };
 
@@ -232,6 +233,7 @@ export default function RegisterPage() {
                 </div>
               </div>
               <button
+                type="submit"
                 className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={codeSending}
               >
@@ -281,6 +283,7 @@ export default function RegisterPage() {
                 />
               </div>
               <MagneticButton
+                type="submit"
                 className="w-full cursor-pointer rounded-[var(--radius-full)] bg-[var(--brand-v2)] py-3 text-sm font-semibold text-white transition-opacity duration-[var(--motion-base)] hover:opacity-90"
                 strength={0.15}
               >

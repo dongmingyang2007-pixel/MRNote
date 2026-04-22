@@ -7,6 +7,10 @@ import "@/styles/onboarding.css";
 
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { apiPost } from "@/lib/api";
+import {
+  dispatchNotebookPagesChanged,
+  dispatchNotebooksChanged,
+} from "@/lib/notebook-events";
 
 import WelcomeStep from "./steps/WelcomeStep";
 import CreateNotebookStep from "./steps/CreateNotebookStep";
@@ -26,6 +30,7 @@ interface PageCreateResponse {
 
 export default function OnboardingWizard() {
   const t = useTranslations("onboarding");
+  const tn = useTranslations("console-notebooks");
   const { completed, markCompleted } = useOnboardingStatus();
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -33,7 +38,9 @@ export default function OnboardingWizard() {
   const [whatTheyDo, setWhatTheyDo] = useState("");
   const [noteText, setNoteText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stepError, setStepError] = useState("");
   const [notebookId, setNotebookId] = useState<string | null>(null);
+  const [pageId, setPageId] = useState<string | null>(null);
 
   // Track direction so children can optionally animate correctly.
   const directionRef = useRef<"forward" | "back">("forward");
@@ -46,18 +53,17 @@ export default function OnboardingWizard() {
   const goNext = async () => {
     if (busy) return;
     directionRef.current = "forward";
+    setStepError("");
 
     // Step-specific side effects before advancing.
     if (currentStep === 1) {
-      // Create notebook when leaving Step 1 (if user entered a name).
-      const title = clientName.trim();
-      if (title.length === 0) {
-        // Let user advance anyway — wizard is guidance, not validation.
+      if (notebookId) {
         setCurrentStep(2);
         return;
       }
       try {
         setBusy(true);
+        const title = clientName.trim();
         const description = whatTheyDo.trim();
         const nb = await apiPost<NotebookCreateResponse>(
           "/api/v1/notebooks",
@@ -69,35 +75,58 @@ export default function OnboardingWizard() {
           },
         );
         setNotebookId(nb.id);
+        dispatchNotebooksChanged();
+        dispatchNotebookPagesChanged(nb.id);
+        setCurrentStep(2);
       } catch {
-        // Non-fatal; continue.
+        setStepError(tn("notebooks.createFailed"));
+        return;
       } finally {
         setBusy(false);
       }
-      setCurrentStep(2);
       return;
     }
 
     if (currentStep === 2) {
-      // Create a page if the note textarea has content and we have a notebook.
-      const text = noteText.trim();
-      if (text.length > 0 && notebookId) {
-        try {
-          setBusy(true);
-          await apiPost<PageCreateResponse>(
-            `/api/v1/notebooks/${notebookId}/pages`,
-            {
-              title: text.slice(0, 60) || t("pasteNote.defaultPageTitle"),
-              plain_text: text,
-            },
-          );
-        } catch {
-          // Non-fatal.
-        } finally {
-          setBusy(false);
-        }
+      if (pageId) {
+        setCurrentStep(3);
+        return;
       }
-      setCurrentStep(3);
+      if (!notebookId) {
+        setStepError(tn("notebooks.createFailed"));
+        return;
+      }
+
+      const text = noteText.trim();
+      try {
+        setBusy(true);
+        const page = await apiPost<PageCreateResponse>(
+          `/api/v1/notebooks/${notebookId}/pages`,
+          {
+            title: text.slice(0, 60) || t("pasteNote.defaultPageTitle"),
+            content_json:
+              text.length > 0
+                ? {
+                    type: "doc",
+                    content: [
+                      {
+                        type: "paragraph",
+                        content: [{ type: "text", text }],
+                      },
+                    ],
+                  }
+                : { type: "doc", content: [] },
+          },
+        );
+        setPageId(page.id);
+        dispatchNotebookPagesChanged(notebookId);
+        setCurrentStep(3);
+      } catch {
+        setStepError(tn("pages.createFailed"));
+        return;
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
@@ -114,6 +143,7 @@ export default function OnboardingWizard() {
   const goBack = () => {
     if (busy) return;
     directionRef.current = "back";
+    setStepError("");
     setCurrentStep((s) => Math.max(0, s - 1));
   };
 
@@ -206,6 +236,26 @@ export default function OnboardingWizard() {
 
         {/* Footer */}
         <div className="onboarding-card__footer">
+          {stepError ? (
+            <div
+              role="alert"
+              aria-live="polite"
+              data-testid="onboarding-error"
+              style={{
+                flexBasis: "100%",
+                marginBottom: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(239, 68, 68, 0.18)",
+                background: "rgba(254, 242, 242, 0.92)",
+                color: "#b91c1c",
+                padding: "10px 12px",
+                fontSize: 13,
+                lineHeight: 1.45,
+              }}
+            >
+              {stepError}
+            </div>
+          ) : null}
           <button
             type="button"
             className="onboarding-btn onboarding-btn--secondary"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { HeaderBar } from "./HeaderBar";
 import { FilterRow } from "./FilterRow";
 import { ViewBar, type MemoryGraphView as ViewId } from "./ViewBar";
@@ -12,18 +12,32 @@ import { NodeDetailDrawer, type DrawerNeighbor } from "./NodeDetailDrawer";
 import { ListView } from "./ListView";
 import { VIEWPORT_DEFAULTS } from "./constants";
 import type { GraphEdge, GraphNode, Role, ViewportState } from "./types";
-import { useForceSim } from "./useForceSim";
+import { buildForceSimSignature, useForceSim, type ForceSimHandle } from "./useForceSim";
 
 interface Props {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  initialSelectedId?: string;
 }
 
 const ALL_ROLES: Role[] = ["fact", "structure", "subject", "concept", "summary"];
 const BOTTOM_SHEET_BREAKPOINT = 960;
 const COMPACT_BREAKPOINT = 720;
 
-export function MemoryGraphView({ nodes, edges }: Props) {
+interface ForceSimBridgeProps {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  width: number;
+  height: number;
+  children: (sim: ForceSimHandle) => ReactNode;
+}
+
+function ForceSimBridge({ nodes, edges, width, height, children }: ForceSimBridgeProps) {
+  const sim = useForceSim({ nodes, edges, width, height });
+  return <>{children(sim)}</>;
+}
+
+export function MemoryGraphView({ nodes, edges, initialSelectedId }: Props) {
   const [search, setSearch] = useState("");
   const [confMin, setConfMin] = useState(0.6);
   const [filters, setFilters] = useState<Record<Role, boolean>>(() =>
@@ -52,6 +66,13 @@ export function MemoryGraphView({ nodes, edges }: Props) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!initialSelectedId) {
+      return;
+    }
+    setSelectedId((current) => current || initialSelectedId);
+  }, [initialSelectedId]);
 
   const counts = useMemo(() => {
     const out = Object.fromEntries(ALL_ROLES.map((r) => [r, 0])) as Record<Role, number>;
@@ -96,22 +117,16 @@ export function MemoryGraphView({ nodes, edges }: Props) {
 
   const canvasWidth = box.w - (isNarrow ? 0 : (selectedId ? 300 : 0));
   const canvasHeight = box.h - 120 - (isNarrow && selectedId ? Math.floor(box.h * 0.55) : 0);
-
-  const sim = useForceSim({
-    nodes: effectiveNodes, edges: effectiveEdges,
-    width: canvasWidth, height: canvasHeight,
-  });
-  const positions = sim.getPositions();
+  const simKey = useMemo(
+    () => buildForceSimSignature(effectiveNodes, effectiveEdges, canvasWidth, canvasHeight),
+    [canvasHeight, canvasWidth, effectiveEdges, effectiveNodes],
+  );
 
   const handleViewport = useCallback((v: ViewportState) => setViewport(v), []);
   const handleFit = useCallback(() => setViewport({ k: 1, tx: 0, ty: 0 }), []);
   const handleZoomIn = useCallback(() => setViewport((v) => ({ ...v, k: nextZoom(v.k, "in") })), []);
   const handleZoomOut = useCallback(() => setViewport((v) => ({ ...v, k: nextZoom(v.k, "out") })), []);
   const toggleFilter = useCallback((role: Role) => setFilters((f) => ({ ...f, [role]: !f[role] })), []);
-  const handleDragStart = useCallback((id: string) => { void id; }, []);
-  const handleDrag = useCallback((id: string, x: number, y: number) => { sim.setFixed(id, x, y); }, [sim]);
-  const handleDragEnd = useCallback((id: string) => { sim.setFixed(id, null, null); sim.reheat(0.3); }, [sim]);
-  const handleRearrange = useCallback(() => { sim.rearrange(); handleFit(); }, [sim, handleFit]);
 
   return (
     <div
@@ -132,23 +147,55 @@ export function MemoryGraphView({ nodes, edges }: Props) {
         <ViewBar view={view} totalCount={effectiveNodes.length} onViewChange={setView} />
         <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
           {view === "graph" && (
-            <>
-              <GraphCanvas
-                nodes={effectiveNodes} edges={effectiveEdges} positions={positions}
-                width={canvasWidth} height={canvasHeight} viewport={viewport}
-                hoverId={hoverId} selectedId={selectedId} searchMatches={searchMatches}
-                filters={filters}
-                onViewportChange={handleViewport}
-                onHover={setHoverId} onSelect={setSelectedId}
-                onDragStart={handleDragStart} onDrag={handleDrag} onDragEnd={handleDragEnd}
-              />
-              <CanvasControls onRearrange={handleRearrange} onFit={handleFit} />
-              <LegendAndZoom
-                zoom={viewport.k}
-                onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onFit={handleFit}
-                showLegend={!compact}
-              />
-            </>
+            <ForceSimBridge
+              key={simKey}
+              nodes={effectiveNodes}
+              edges={effectiveEdges}
+              width={canvasWidth}
+              height={canvasHeight}
+            >
+              {(sim) => (
+                <>
+                  <GraphCanvas
+                    nodes={effectiveNodes}
+                    edges={effectiveEdges}
+                    positions={sim.getPositions()}
+                    width={canvasWidth}
+                    height={canvasHeight}
+                    viewport={viewport}
+                    hoverId={hoverId}
+                    selectedId={selectedId}
+                    searchMatches={searchMatches}
+                    filters={filters}
+                    onViewportChange={handleViewport}
+                    onHover={setHoverId}
+                    onSelect={setSelectedId}
+                    onDragStart={(id) => { void id; }}
+                    onDrag={(id, x, y) => {
+                      sim.setFixed(id, x, y);
+                    }}
+                    onDragEnd={(id) => {
+                      sim.setFixed(id, null, null);
+                      sim.reheat(0.3);
+                    }}
+                  />
+                  <CanvasControls
+                    onRearrange={() => {
+                      sim.rearrange();
+                      handleFit();
+                    }}
+                    onFit={handleFit}
+                  />
+                  <LegendAndZoom
+                    zoom={viewport.k}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onFit={handleFit}
+                    showLegend={!compact}
+                  />
+                </>
+              )}
+            </ForceSimBridge>
           )}
           {view === "3d" && (
             <Memory3D

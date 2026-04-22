@@ -52,6 +52,74 @@ class PaginatedNotebooks(BaseModel):
     total: int
 
 
+class NotebookHomeNotebook(BaseModel):
+    id: str
+    title: str
+    description: str
+    notebook_type: str
+    updated_at: datetime
+    page_count: int = 0
+    study_asset_count: int = 0
+    ai_action_count: int = 0
+
+
+class NotebookHomePage(BaseModel):
+    id: str
+    notebook_id: str
+    notebook_title: str
+    title: str
+    updated_at: datetime
+    last_edited_at: datetime | None = None
+    plain_text_preview: str = ""
+
+
+class NotebookHomeStudyAsset(BaseModel):
+    id: str
+    notebook_id: str
+    notebook_title: str
+    title: str
+    status: str
+    asset_type: str
+    total_chunks: int
+    created_at: datetime
+
+
+class NotebookHomeAIAction(BaseModel):
+    id: str
+    notebook_id: str | None = None
+    page_id: str | None = None
+    notebook_title: str | None = None
+    page_title: str | None = None
+    action_type: str
+    output_summary: str
+    created_at: datetime
+
+
+class NotebookHomeFocusItem(BaseModel):
+    notebook_id: str
+    notebook_title: str
+    page_count: int = 0
+    study_asset_count: int = 0
+    ai_action_count: int = 0
+
+
+class NotebookHomeAISummary(BaseModel):
+    actions_today: int
+    top_action_types: list[dict[str, int | str]] = Field(default_factory=list)
+    recent_actions: list[NotebookHomeAIAction] = Field(default_factory=list)
+
+
+class NotebookHomeOut(BaseModel):
+    notebooks: list[NotebookHomeNotebook]
+    recent_pages: list[NotebookHomePage]
+    continue_writing: list[NotebookHomePage]
+    recent_study_assets: list[NotebookHomeStudyAsset]
+    ai_today: NotebookHomeAISummary
+    work_themes: list[NotebookHomeFocusItem]
+    long_term_focus: list[NotebookHomeFocusItem]
+    recommended_pages: list[NotebookHomePage]
+
+
 # ---------------------------------------------------------------------------
 # Page
 # ---------------------------------------------------------------------------

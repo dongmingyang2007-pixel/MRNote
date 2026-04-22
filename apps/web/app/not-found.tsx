@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import "@/styles/globals.css";
 
 function pickLocale(accept: string): "zh" | "en" {
   return accept.toLowerCase().includes("zh") ? "zh" : "en";

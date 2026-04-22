@@ -17,6 +17,7 @@
     "subscription": "Subscription & Plan",
     "subscriptionDesc": "No real charges in the current version. Plan structures and quota rules will be finalized before the console opens publicly.",
     "freePlan": "Free Plan",
+    "manageBilling": "Manage billing & plan",
     "quotasKicker": "Future Quotas",
     "quota1": "Training concurrency and retention days",
     "quota2": "Object storage quota and bandwidth",

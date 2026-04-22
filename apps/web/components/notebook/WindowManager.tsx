@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from "react";
 import type { ReactNode } from "react";
 import {
@@ -54,7 +55,8 @@ type WindowAction =
   | { kind: "MOVE"; id: string; x: number; y: number }
   | { kind: "RESIZE"; id: string; width: number; height: number }
   | { kind: "RENAME"; id: string; title: string }
-  | { kind: "RENAME_BY_META"; metaKey: string; metaValue: string; title: string };
+  | { kind: "RENAME_BY_META"; metaKey: string; metaValue: string; title: string }
+  | { kind: "HYDRATE"; windows: WindowState[] };
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -201,6 +203,9 @@ function windowReducer(
           : w,
       );
 
+    case "HYDRATE":
+      return action.windows;
+
     default:
       return state;
   }
@@ -240,14 +245,25 @@ export function WindowManagerProvider({
   children: ReactNode;
   notebookId: string;
 }) {
-  const [windows, dispatch] = useReducer(
-    windowReducer,
-    undefined,
-    () => loadPersistedLayout(notebookId),
-  );
+  // Always start with an empty layout so the server-rendered HTML matches
+  // the first client render (localStorage is unavailable on the server).
+  // The persisted layout is then applied in a mount effect via HYDRATE,
+  // which runs after React has finished hydrating the SSR tree.
+  const [windows, dispatch] = useReducer(windowReducer, []);
+  const hydratedRef = useRef(false);
 
-  // Debounced persist on change.
   useEffect(() => {
+    const persisted = loadPersistedLayout(notebookId);
+    if (persisted.length > 0) {
+      dispatch({ kind: "HYDRATE", windows: persisted });
+    }
+    hydratedRef.current = true;
+  }, [notebookId]);
+
+  // Debounced persist on change. Skip the first run so we don't overwrite
+  // localStorage with `[]` before HYDRATE has a chance to load it.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
     const handle = setTimeout(() => {
       savePersistedLayout(notebookId, windows);
     }, 500);

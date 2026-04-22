@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 
 import "@/styles/marketing.css";
@@ -19,12 +18,6 @@ import { ROLE_KEYS, type RoleKey } from "@/lib/marketing/role-content";
 import { ROLE_COOKIE_NAME } from "@/hooks/useRoleSelection";
 import { routing } from "@/i18n/routing";
 
-const AUTH_COOKIE_NAMES = [
-  "auth_state",
-  "mingrun_workspace_id",
-  "qihang_workspace_id",
-] as const;
-
 function readInitialRole(raw: string | undefined): RoleKey | null {
   if (!raw) return null;
   return (ROLE_KEYS as readonly string[]).includes(raw) ? (raw as RoleKey) : null;
@@ -42,9 +35,6 @@ export default async function HomePage({
   }
 
   const cookieStore = await cookies();
-  const isLoggedIn = AUTH_COOKIE_NAMES.some((name) => Boolean(cookieStore.get(name)));
-  if (isLoggedIn) redirect("/app");
-
   const initialRole = readInitialRole(cookieStore.get(ROLE_COOKIE_NAME)?.value);
   const sectionLocale: "zh" | "en" = localeKey === "en" ? "en" : "zh";
 

@@ -237,11 +237,30 @@ export default function SettingsPage() {
                 lineHeight: 1.8,
                 color: "var(--console-text-primary, var(--text-primary))",
                 listStyleType: "disc",
+                marginBottom: 14,
               }}>
                 <li>{t("settings.quota1")}</li>
                 <li>{t("settings.quota2")}</li>
                 <li>{t("settings.quota3")}</li>
               </ul>
+              <Link
+                href="/app/settings/billing"
+                data-testid="settings-manage-billing"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "7px 18px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 9999,
+                  border: "1px solid var(--console-border, var(--border))",
+                  background: "var(--console-surface, rgba(255,255,255,0.06))",
+                  color: "var(--console-text-primary, var(--text-primary))",
+                  textDecoration: "none",
+                }}
+              >
+                {t("settings.manageBilling")}
+              </Link>
             </GlassCard>
 
             {/* Danger Zone */}

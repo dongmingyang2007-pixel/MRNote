@@ -11,10 +11,12 @@ from sqlalchemy.orm import Session
 from app.core.deps import (
     get_current_user,
     get_current_workspace_id,
+    get_current_workspace_role,
     get_db_session,
+    is_workspace_privileged_role,
 )
 from app.core.errors import ApiError
-from app.models import AIActionLog, AIUsageEvent, Membership, User
+from app.models import AIActionLog, AIUsageEvent, Membership, Notebook, NotebookPage, User
 
 pages_router = APIRouter(prefix="/api/v1/pages", tags=["ai-actions"])
 detail_router = APIRouter(prefix="/api/v1/ai-actions", tags=["ai-actions"])
@@ -43,6 +45,42 @@ def _serialize_log(log: AIActionLog, total_tokens: int) -> dict[str, Any]:
     }
 
 
+def _can_read_notebook(
+    notebook: Notebook,
+    *,
+    workspace_id: str,
+    current_user_id: str,
+    workspace_role: str,
+) -> bool:
+    if str(notebook.workspace_id) != str(workspace_id):
+        return False
+    if (notebook.visibility or "private") != "private":
+        return True
+    return is_workspace_privileged_role(workspace_role) or str(notebook.created_by) == str(current_user_id)
+
+
+def _get_page_if_readable(
+    db: Session,
+    *,
+    page_id: str,
+    workspace_id: str,
+    current_user_id: str,
+    workspace_role: str,
+) -> NotebookPage | None:
+    page = db.query(NotebookPage).filter(NotebookPage.id == page_id).first()
+    if page is None:
+        return None
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if notebook is None or not _can_read_notebook(
+        notebook,
+        workspace_id=workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+    ):
+        return None
+    return page
+
+
 @pages_router.get("/{page_id}/ai-actions")
 def list_page_ai_actions(
     page_id: str,
@@ -51,14 +89,25 @@ def list_page_ai_actions(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
 ) -> dict[str, Any]:
-    _ = current_user
+    page = _get_page_if_readable(
+        db,
+        page_id=page_id,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
+    if page is None:
+        raise ApiError("not_found", "Page not found", status_code=404)
     limit = max(1, min(limit, 100))
     q = (
         db.query(AIActionLog)
         .filter(AIActionLog.page_id == page_id)
         .filter(AIActionLog.workspace_id == workspace_id)
     )
+    if not is_workspace_privileged_role(workspace_role):
+        q = q.filter(AIActionLog.user_id == current_user.id)
     cur = _parse_cursor(cursor)
     if cur:
         q = q.filter(AIActionLog.created_at < cur)

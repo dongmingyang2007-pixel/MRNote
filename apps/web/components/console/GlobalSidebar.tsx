@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, BookOpen, Settings } from "lucide-react";
 
@@ -43,8 +42,13 @@ export default function GlobalSidebar() {
         gap: 4,
       }}
     >
-      {/* Logo */}
-      <Link href="/app" className="glass-sidebar-logo" style={{ marginBottom: 16 }}>
+      {/* Logo — click to return to the public landing (still logged in) */}
+      <Link
+        href="/"
+        className="glass-sidebar-logo"
+        aria-label={tCommon("brand.company")}
+        style={{ marginBottom: 16 }}
+      >
         <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{tCommon("brand.glyph")}</span>
       </Link>
 

@@ -1,252 +1,760 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, BookOpen, Trash2, Clock } from "lucide-react";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { useRouter } from "@/i18n/navigation";
+import {
+  BookOpen,
+  Brain,
+  Clock3,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import { NOTEBOOKS_CHANGED_EVENT, dispatchNotebooksChanged } from "@/lib/notebook-events";
 
-interface NotebookItem {
+interface NotebookCard {
   id: string;
   title: string;
   description: string;
   notebook_type: string;
   updated_at: string;
+  page_count: number;
+  study_asset_count: number;
+  ai_action_count: number;
+}
+
+interface HomePageItem {
+  id: string;
+  notebook_id: string;
+  notebook_title: string;
+  title: string;
+  updated_at: string;
+  last_edited_at: string | null;
+  plain_text_preview: string;
+}
+
+interface HomeStudyAsset {
+  id: string;
+  notebook_id: string;
+  notebook_title: string;
+  title: string;
+  status: string;
+  asset_type: string;
+  total_chunks: number;
   created_at: string;
+}
+
+interface HomeAIAction {
+  id: string;
+  notebook_id: string | null;
+  page_id: string | null;
+  notebook_title: string | null;
+  page_title: string | null;
+  action_type: string;
+  output_summary: string;
+  created_at: string;
+}
+
+interface FocusItem {
+  notebook_id: string;
+  notebook_title: string;
+  page_count: number;
+  study_asset_count: number;
+  ai_action_count: number;
+}
+
+interface HomeSummary {
+  notebooks: NotebookCard[];
+  recent_pages: HomePageItem[];
+  continue_writing: HomePageItem[];
+  recent_study_assets: HomeStudyAsset[];
+  ai_today: {
+    actions_today: number;
+    top_action_types: Array<{ action_type: string; count: number }>;
+    recent_actions: HomeAIAction[];
+  };
+  work_themes: FocusItem[];
+  long_term_focus: FocusItem[];
+  recommended_pages: HomePageItem[];
+}
+
+const surfaceStyle: React.CSSProperties = {
+  border: "1px solid var(--console-border-subtle, rgba(15, 23, 42, 0.08))",
+  borderRadius: 20,
+  background: "rgba(255,255,255,0.72)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  boxShadow: "0 20px 60px rgba(15, 23, 42, 0.08)",
+};
+
+function relDate(value: string): string {
+  const date = new Date(value);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function SectionHeader({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        gap: 12,
+        marginBottom: 16,
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: "1rem",
+            fontWeight: 700,
+            color: "var(--console-text-primary, #0f172a)",
+          }}
+        >
+          {title}
+        </h2>
+        {body ? (
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontSize: "0.8125rem",
+              color: "var(--console-text-muted, #64748b)",
+            }}
+          >
+            {body}
+          </p>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
 }
 
 export default function NotebooksPage() {
   const t = useTranslations("console-notebooks");
   const router = useRouter();
-  const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
+  const [home, setHome] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const data = await apiGet<{ items: NotebookItem[]; total: number }>("/api/v1/notebooks");
-        if (!cancelled) {
-          setNotebooks(data.items || []);
-        }
-      } catch {
-        if (!cancelled) {
-          setNotebooks([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+  const loadHome = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<HomeSummary>("/api/v1/notebooks/home");
+      setHome(data);
+    } catch {
+      setHome({
+        notebooks: [],
+        recent_pages: [],
+        continue_writing: [],
+        recent_study_assets: [],
+        ai_today: { actions_today: 0, top_action_types: [], recent_actions: [] },
+        work_themes: [],
+        long_term_focus: [],
+        recommended_pages: [],
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadHome();
+  }, [loadHome]);
+
+  useEffect(() => {
+    const refetch = () => {
+      void loadHome();
+    };
+    window.addEventListener(NOTEBOOKS_CHANGED_EVENT, refetch);
+    return () => window.removeEventListener(NOTEBOOKS_CHANGED_EVENT, refetch);
+  }, [loadHome]);
 
   const handleCreate = useCallback(async () => {
     if (creating) return;
     setCreating(true);
     try {
-      const nb = await apiPost<NotebookItem>("/api/v1/notebooks", {
+      const notebook = await apiPost<{ id: string }>("/api/v1/notebooks", {
         title: "",
         notebook_type: "personal",
       });
-      router.push(`/app/notebooks/${nb.id}`);
-    } catch {
-      // ignore
+      dispatchNotebooksChanged();
+      router.push(`/app/notebooks/${notebook.id}`);
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   }, [creating, router]);
 
-  const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await apiDelete(`/api/v1/notebooks/${id}`);
-      setNotebooks((prev) => prev.filter((n) => n.id !== id));
-    } catch {
-      // ignore
-    }
-  }, []);
+  const handleDelete = useCallback(async (id: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    await apiDelete(`/api/v1/notebooks/${id}`);
+    dispatchNotebooksChanged();
+    void loadHome();
+  }, [loadHome]);
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-
-  const getTypeLabel = (type: string) => {
-    const map: Record<string, string> = {
-      personal: t("notebooks.personal"),
-      work: t("notebooks.work"),
-      study: t("notebooks.study"),
-      scratch: t("notebooks.scratch"),
+  const metrics = useMemo(() => {
+    const notebooks = home?.notebooks ?? [];
+    return {
+      notebooks: notebooks.length,
+      pages: notebooks.reduce((sum, notebook) => sum + notebook.page_count, 0),
+      assets: notebooks.reduce((sum, notebook) => sum + notebook.study_asset_count, 0),
+      ai: home?.ai_today.actions_today ?? 0,
     };
-    return map[type] || type;
-  };
+  }, [home]);
+
+  const openPage = useCallback((page: HomePageItem) => {
+    router.push(`/app/notebooks/${page.notebook_id}?openPage=${page.id}`);
+  }, [router]);
+
+  const openNotebook = useCallback((notebookId: string) => {
+    router.push(`/app/notebooks/${notebookId}`);
+  }, [router]);
+
+  const openAction = useCallback((action: HomeAIAction) => {
+    if (action.notebook_id && action.page_id) {
+      router.push(`/app/notebooks/${action.notebook_id}?openPage=${action.page_id}`);
+      return;
+    }
+    if (action.notebook_id) {
+      router.push(`/app/notebooks/${action.notebook_id}`);
+    }
+  }, [router]);
+
+  const renderFocusSummary = (item: FocusItem) =>
+    t("home.focus.summary", {
+      pages: item.page_count,
+      assets: item.study_asset_count,
+      ai: item.ai_action_count,
+    });
 
   return (
-    <div className="console-page-shell" style={{ padding: "24px 32px" }}>
-      {/* Header */}
-      <div style={{ width: "100%" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <h1 style={{ fontSize: "1.625rem", fontWeight: 700, color: "var(--console-text-primary, #1a1a2e)", fontFamily: "var(--font-sora, var(--font-sans))", marginBottom: 4 }}>
-              {t("notebooks.title")}
-            </h1>
-            <p style={{ fontSize: "0.875rem", color: "var(--console-text-muted, #6b7280)", margin: 0 }}>
-              {notebooks.length > 0 ? `${notebooks.length} ${t("notebooks.title").toLowerCase()}` : ""}
-            </p>
-          </div>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
+    <div style={{ padding: "32px 32px 40px" }}>
+      <div
+        style={{
+          ...surfaceStyle,
+          padding: 28,
+          marginBottom: 24,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 0.9fr)",
+          gap: 24,
+        }}
+      >
+        <div>
+          <div
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              padding: "10px 20px",
-              background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
-              color: "white",
-              border: "none",
-              borderRadius: 12,
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: creating ? "not-allowed" : "pointer",
-              opacity: creating ? 0.6 : 1,
-              boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
-              transition: "all 200ms ease",
+              padding: "6px 12px",
+              borderRadius: 999,
+              background: "rgba(37, 99, 235, 0.08)",
+              color: "var(--console-accent, #2563eb)",
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              marginBottom: 16,
             }}
           >
-            <Plus size={16} />
-            {t("notebooks.create")}
-          </button>
+            <Sparkles size={14} />
+            {t("home.kicker")}
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "2rem",
+              lineHeight: 1.05,
+              fontWeight: 800,
+              color: "var(--console-text-primary, #0f172a)",
+              maxWidth: 720,
+            }}
+          >
+            {t("home.title")}
+          </h1>
+          <p
+            style={{
+              margin: "14px 0 0",
+              fontSize: "0.95rem",
+              color: "var(--console-text-muted, #64748b)",
+              maxWidth: 760,
+              lineHeight: 1.7,
+            }}
+          >
+            {t("home.subtitle")}
+          </p>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-            {[1, 2, 3].map((i) => (
-              <div key={i} style={{
-                height: 180,
-                borderRadius: 16,
-                background: "rgba(255, 255, 255, 0.5)",
-                border: "1px solid rgba(15, 23, 42, 0.06)",
-                animation: "pulse 1.5s ease-in-out infinite",
-              }} />
-            ))}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && notebooks.length === 0 && (
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 400,
-            textAlign: "center",
-          }}>
-            <div style={{
-              width: 80,
-              height: 80,
-              borderRadius: 20,
-              background: "rgba(37, 99, 235, 0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 20,
-            }}>
-              <BookOpen size={36} strokeWidth={1.5} color="#2563EB" />
-            </div>
-            <h3 style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--console-text-primary)", marginBottom: 8 }}>
-              {t("notebooks.title")}
-            </h3>
-            <p style={{ fontSize: "0.875rem", color: "var(--console-text-muted)", maxWidth: 320, marginBottom: 24, lineHeight: 1.6 }}>
-              {t("notebooks.empty")}
-            </p>
-            <button
-              onClick={handleCreate}
-              disabled={creating}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 12,
+            alignContent: "start",
+          }}
+        >
+          {[
+            { key: "notebooks", icon: BookOpen, value: metrics.notebooks },
+            { key: "pages", icon: Clock3, value: metrics.pages },
+            { key: "assets", icon: Brain, value: metrics.assets },
+            { key: "ai", icon: Sparkles, value: metrics.ai },
+          ].map((metric) => (
+            <div
+              key={metric.key}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 20px",
-                background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
-                color: "white",
-                border: "none",
-                borderRadius: 12,
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+                borderRadius: 18,
+                padding: "16px 18px",
+                background: "rgba(248, 250, 252, 0.86)",
+                border: "1px solid rgba(15, 23, 42, 0.08)",
               }}
             >
-              <Plus size={16} />
-              {t("notebooks.create")}
-            </button>
-          </div>
-        )}
-
-        {/* Notebook grid */}
-        {!loading && notebooks.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-            {notebooks.map((nb) => (
               <div
-                key={nb.id}
-                className="notebook-card"
-                onClick={() => router.push(`/app/notebooks/${nb.id}`)}
-                style={{ cursor: "pointer" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                  color: "var(--console-text-muted, #64748b)",
+                }}
               >
-                <div className="notebook-card-header">
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: "rgba(37, 99, 235, 0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}>
-                    <BookOpen size={20} color="var(--console-accent, #2563EB)" />
-                  </div>
-                  <button
-                    type="button"
-                    className="notebook-card-menu"
-                    onClick={(e) => handleDelete(nb.id, e)}
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <h3 className="notebook-card-title">
-                  {nb.title || t("notebooks.untitled")}
-                </h3>
-                <p className="notebook-card-desc">
-                  {nb.description || getTypeLabel(nb.notebook_type)}
-                </p>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-                  <span style={{
-                    fontSize: "0.6875rem",
-                    padding: "2px 8px",
-                    borderRadius: 6,
-                    background: "rgba(37, 99, 235, 0.06)",
-                    color: "var(--console-accent, #2563EB)",
-                    fontWeight: 500,
-                  }}>
-                    {getTypeLabel(nb.notebook_type)}
-                  </span>
-                  <span className="notebook-card-date" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <Clock size={12} />
-                    {formatDate(nb.updated_at)}
-                  </span>
-                </div>
+                <metric.icon size={16} />
+                <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+                  {t(`home.metrics.${metric.key}`)}
+                </span>
               </div>
-            ))}
-          </div>
-        )}
+              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--console-text-primary, #0f172a)" }}>
+                {metric.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.3fr) minmax(320px, 0.9fr)",
+          gap: 24,
+        }}
+      >
+        <div style={{ display: "grid", gap: 24 }}>
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.notebooks")}
+              body={t("home.sections.notebooksBody")}
+              action={(
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={creating}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 16px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
+                    color: "#fff",
+                    fontWeight: 700,
+                    cursor: creating ? "default" : "pointer",
+                    opacity: creating ? 0.65 : 1,
+                  }}
+                >
+                  <Plus size={16} />
+                  {t("notebooks.create")}
+                </button>
+              )}
+            />
+            {loading ? (
+              <div style={{ color: "var(--console-text-muted, #64748b)", fontSize: "0.875rem" }}>
+                {t("common.loading")}
+              </div>
+            ) : home && home.notebooks.length > 0 ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 14,
+                }}
+              >
+                {home.notebooks.map((notebook) => (
+                  <div
+                    key={notebook.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openNotebook(notebook.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openNotebook(notebook.id);
+                      }
+                    }}
+                    data-testid="notebook-card"
+                    style={{
+                      textAlign: "left",
+                      border: "1px solid rgba(15, 23, 42, 0.08)",
+                      borderRadius: 20,
+                      background: "rgba(248, 250, 252, 0.92)",
+                      padding: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                          {notebook.title || t("notebooks.untitled")}
+                        </div>
+                        <div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                          {notebook.description || t("home.notebookFallback")}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => void handleDelete(notebook.id, event)}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "var(--console-text-muted, #94a3b8)",
+                          cursor: "pointer",
+                        }}
+                        aria-label={t("notebooks.delete")}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                        gap: 8,
+                        marginTop: 18,
+                      }}
+                    >
+                      {[
+                        { key: "pages", value: notebook.page_count },
+                        { key: "assets", value: notebook.study_asset_count },
+                        { key: "ai", value: notebook.ai_action_count },
+                      ].map((stat) => (
+                        <div
+                          key={stat.key}
+                          style={{
+                            borderRadius: 14,
+                            padding: "10px 12px",
+                            background: "rgba(255,255,255,0.82)",
+                            border: "1px solid rgba(15, 23, 42, 0.06)",
+                          }}
+                        >
+                          <div style={{ fontSize: "0.6875rem", color: "var(--console-text-muted, #64748b)" }}>
+                            {t(`home.metrics.${stat.key}`)}
+                          </div>
+                          <div style={{ marginTop: 4, fontSize: "1rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                            {stat.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ marginTop: 14, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                      {t("home.updatedAt", { value: relDate(notebook.updated_at) })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: "var(--console-text-muted, #64748b)", fontSize: "0.875rem" }}>
+                {t("notebooks.empty")}
+              </div>
+            )}
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.recentPages")}
+              body={t("home.sections.recentPagesBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.recent_pages ?? []).map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => openPage(page)}
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(255,255,255,0.9)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {page.title || t("pages.untitled")}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {page.notebook_title} · {relDate(page.last_edited_at || page.updated_at)}
+                  </div>
+                  {page.plain_text_preview ? (
+                    <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
+                      {page.plain_text_preview}
+                    </div>
+                  ) : null}
+                </button>
+              ))}
+              {!loading && (home?.recent_pages.length ?? 0) === 0 ? (
+                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
+                  {t("home.empty.pages")}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.continue")}
+              body={t("home.sections.continueBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.continue_writing ?? []).map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => openPage(page)}
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(248, 250, 252, 0.86)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {page.title || t("pages.untitled")}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {page.notebook_title} · {relDate(page.last_edited_at || page.updated_at)}
+                  </div>
+                  {page.plain_text_preview ? (
+                    <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
+                      {page.plain_text_preview}
+                    </div>
+                  ) : null}
+                </button>
+              ))}
+              {!loading && (home?.continue_writing.length ?? 0) === 0 ? (
+                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
+                  {t("home.empty.pages")}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.recommended")}
+              body={t("home.sections.recommendedBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.recommended_pages ?? []).map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => openPage(page)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(255,255,255,0.9)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {page.title || t("pages.untitled")}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {page.notebook_title}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div style={{ display: "grid", gap: 24 }}>
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.study")}
+              body={t("home.sections.studyBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.recent_study_assets ?? []).map((asset) => (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => openNotebook(asset.notebook_id)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(248, 250, 252, 0.86)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {asset.title}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {asset.notebook_title} · {asset.asset_type} · {t("study.assets.chunks", { count: asset.total_chunks })}
+                  </div>
+                </button>
+              ))}
+              {!loading && (home?.recent_study_assets.length ?? 0) === 0 ? (
+                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
+                  {t("home.empty.study")}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.aiToday")}
+              body={t("home.sections.aiTodayBody", { count: home?.ai_today.actions_today ?? 0 })}
+            />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              {(home?.ai_today.top_action_types ?? []).map((item) => (
+                <span
+                  key={item.action_type}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 10px",
+                    borderRadius: 999,
+                    background: "rgba(15, 23, 42, 0.06)",
+                    color: "var(--console-text-primary, #0f172a)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {item.action_type}
+                  <span style={{ color: "var(--console-text-muted, #64748b)" }}>{item.count}</span>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.ai_today.recent_actions ?? []).map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => openAction(action)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(255,255,255,0.9)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {action.page_title || action.action_type}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {action.notebook_title || t("home.noNotebook")} · {relDate(action.created_at)}
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
+                    {action.output_summary || action.action_type}
+                  </div>
+                </button>
+              ))}
+              {!loading && (home?.ai_today.recent_actions.length ?? 0) === 0 ? (
+                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
+                  {t("aiActions.empty")}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.themes")}
+              body={t("home.sections.themesBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.work_themes ?? []).map((item) => (
+                <button
+                  key={item.notebook_id}
+                  type="button"
+                  onClick={() => openNotebook(item.notebook_id)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(248, 250, 252, 0.86)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {item.notebook_title}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {renderFocusSummary(item)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section style={{ ...surfaceStyle, padding: 24 }}>
+            <SectionHeader
+              title={t("home.sections.focus")}
+              body={t("home.sections.focusBody")}
+            />
+            <div style={{ display: "grid", gap: 10 }}>
+              {(home?.long_term_focus ?? []).map((item) => (
+                <button
+                  key={item.notebook_id}
+                  type="button"
+                  onClick={() => openNotebook(item.notebook_id)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "rgba(255,255,255,0.9)",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                    {item.notebook_title}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                    {renderFocusSummary(item)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

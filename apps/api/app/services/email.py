@@ -119,3 +119,21 @@ def send_verification_email(to_email: str, code: str, purpose: str) -> None:
         server.send_message(msg)
 
     logger.info("Verification email sent to %s (purpose=%s)", to_email, purpose)
+
+
+def send_verification_email_safe(to_email: str, code: str, purpose: str) -> None:
+    """Best-effort wrapper for background dispatch.
+
+    Verification-code issuance must stay responsive even when SMTP is slow or
+    temporarily unavailable, so background workers should log and swallow
+    delivery failures instead of aborting the original HTTP request.
+    """
+
+    try:
+        send_verification_email(to_email, code, purpose)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Verification email background dispatch failed for %s (purpose=%s)",
+            to_email,
+            purpose,
+        )

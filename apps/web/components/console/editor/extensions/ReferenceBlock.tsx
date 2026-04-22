@@ -35,6 +35,17 @@ interface ChunkHit {
   content?: string;
 }
 
+interface StudyAssetHit {
+  id: string;
+  title: string;
+}
+
+interface ReferenceSearchHit {
+  id: string;
+  title: string;
+  snippet: string;
+}
+
 function iconFor(target: TargetType | "") {
   if (target === "memory") return <Brain size={14} />;
   if (target === "study_chunk") return <BookOpen size={14} />;
@@ -45,6 +56,47 @@ function extractNotebookId(): string | null {
   if (typeof window === "undefined") return null;
   const m = window.location.pathname.match(/\/notebooks\/([^/?#]+)/);
   return m ? m[1] : null;
+}
+
+export async function searchStudyChunkReferences(
+  notebookId: string,
+  query: string,
+): Promise<ReferenceSearchHit[]> {
+  const assets = await apiGet<{ items: StudyAssetHit[] }>(
+    `/api/v1/notebooks/${notebookId}/study-assets`,
+  );
+  if (!assets.items.length) {
+    return [];
+  }
+
+  const chunkResponses = await Promise.allSettled(
+    assets.items.map(async (asset) => {
+      const chunks = await apiGet<{ items: ChunkHit[] }>(
+        `/api/v1/study-assets/${asset.id}/chunks`,
+      );
+      return { asset, chunks: chunks.items || [] };
+    }),
+  );
+
+  const q = query.trim().toLowerCase();
+  const results: ReferenceSearchHit[] = [];
+  for (const response of chunkResponses) {
+    if (response.status !== "fulfilled") continue;
+    const assetTitle = response.value.asset.title || "Study Asset";
+    for (const chunk of response.value.chunks) {
+      const title = chunk.heading ? `${assetTitle} · ${chunk.heading}` : assetTitle;
+      const snippet = (chunk.content || "").slice(0, 240);
+      const haystack = `${assetTitle}\n${chunk.heading || ""}\n${chunk.content || ""}`.toLowerCase();
+      if (!q || haystack.includes(q)) {
+        results.push({
+          id: chunk.id,
+          title,
+          snippet,
+        });
+      }
+    }
+  }
+  return results;
 }
 
 function ReferencePickerDialog({
@@ -58,7 +110,7 @@ function ReferencePickerDialog({
 }) {
   const [tab, setTab] = useState<TargetType>("page");
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<Array<{ id: string; title: string; snippet: string }>>([]);
+  const [results, setResults] = useState<ReferenceSearchHit[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,28 +150,8 @@ function ReferencePickerDialog({
           )
           .catch(() => setResults([]));
       } else if (tab === "study_chunk") {
-        void apiGet<{ items: Array<{ id: string; title: string }> }>(
-          `/api/v1/notebooks/${notebookId}/study-assets`,
-        )
-          .then(async (r) => {
-            const first = r.items[0];
-            if (!first) {
-              setResults([]);
-              return;
-            }
-            const chunks = await apiGet<{ items: ChunkHit[] }>(
-              `/api/v1/study-assets/${first.id}/chunks`,
-            );
-            setResults(
-              chunks.items
-                .filter((c) => !q || (c.heading || "").toLowerCase().includes(q.toLowerCase()))
-                .map((c) => ({
-                  id: c.id,
-                  title: c.heading || "(chunk)",
-                  snippet: (c.content || "").slice(0, 240),
-                })),
-            );
-          })
+        void searchStudyChunkReferences(notebookId, q)
+          .then((items) => setResults(items))
           .catch(() => setResults([]));
       }
     }, 250);
@@ -204,9 +236,9 @@ function ReferenceBlockView(props: NodeViewProps) {
       });
     } else if (attrs.target_type === "memory") {
       openWindow({
-        type: "memory",
+        type: "memory_graph",
         title: attrs.title || "Memory",
-        meta: { notebookId, pageId: attrs.target_id },
+        meta: { notebookId, memoryId: attrs.target_id },
       });
     } else if (attrs.target_type === "study_chunk") {
       openWindow({

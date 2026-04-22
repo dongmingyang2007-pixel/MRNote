@@ -162,3 +162,29 @@ def test_expired_override_falls_back_to_plan_via_refresh() -> None:
         refresh_workspace_entitlements(db, workspace_id=ws)
         v = resolve_entitlement(db, workspace_id=ws, key="voice.enabled")
     assert v is False
+
+
+def test_resolve_self_heals_stale_plan_row_from_current_mapping() -> None:
+    ws = _ws()
+    with SessionLocal() as db:
+        db.add(Subscription(
+            workspace_id=ws, plan="free", billing_cycle="none",
+            status="active", provider="free",
+        ))
+        db.commit()
+        db.add(Entitlement(
+            workspace_id=ws,
+            key="book_upload.enabled",
+            value_bool=False,
+            source="plan",
+        ))
+        db.commit()
+
+        v = resolve_entitlement(db, workspace_id=ws, key="book_upload.enabled")
+        refreshed = db.query(Entitlement).filter_by(
+            workspace_id=ws, key="book_upload.enabled",
+        ).first()
+
+    assert v is True
+    assert refreshed is not None
+    assert refreshed.value_bool is True

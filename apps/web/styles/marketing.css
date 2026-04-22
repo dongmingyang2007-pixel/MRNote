@@ -467,6 +467,34 @@
   }
 }
 
+.marketing-user-menu__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--motion-base) var(--motion-ease),
+    border-color var(--motion-base) var(--motion-ease);
+}
+
+.marketing-user-menu__avatar:hover {
+  background: var(--bg-base);
+  border-color: var(--text-secondary);
+}
+
+.marketing-user-menu__avatar:focus-visible {
+  outline: 2px solid var(--brand-v2);
+  outline-offset: 2px;
+}
+
 .marketing-header__mobile-toggle {
   display: inline-flex;
   align-items: center;

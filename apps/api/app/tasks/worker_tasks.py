@@ -24,6 +24,7 @@ from app.models import (
     Project,
 )
 from app.services.audit import write_audit_log
+from app.services import dashscope_client
 from app.services.memory_graph_events import (
     bump_project_memory_graph_revision,
     session_has_pending_graph_mutations,
@@ -395,6 +396,7 @@ def index_data_item(
                 data_item_id=data_item_id,
                 content=content,
                 filename=filename,
+                media_type=item.media_type,
             ),
         )
         sync_memory_links_for_data_item(
@@ -429,10 +431,32 @@ import app.services.unified_memory_pipeline as unified_memory_pipeline
 from app.services.unified_memory_pipeline import (
     _build_memory_extraction_summary,
     _build_memory_write_preview,
+    _canonicalize_fact_text_for_storage as _canonicalize_fact_text_for_storage_impl,
     _extract_facts_heuristically,
+    _extract_subject_hint,
+    _is_deictic_subject_reference,
+    _plan_concept_parent,
     _resolve_concept_parent,
+    _upsert_auto_memory_edge,
+    _validate_append_parent,
     triage_memory,
 )
+
+
+def _canonicalize_fact_text_for_storage(
+    *,
+    fact_text: str,
+    user_message: str | None = None,
+    source_text: str | None = None,
+    subject_memory: Memory | None,
+    subject_resolution: str,
+) -> str:
+    return _canonicalize_fact_text_for_storage_impl(
+        fact_text=fact_text,
+        source_text=source_text if source_text is not None else str(user_message or ""),
+        subject_memory=subject_memory,
+        subject_resolution=subject_resolution,
+    )
 
 
 def _merge_memory_extraction_metadata(
@@ -773,6 +797,12 @@ def run_memory_extraction(
         unified_memory_pipeline.triage_memory = triage_memory
         unified_memory_pipeline._resolve_concept_parent = _resolve_concept_parent
         unified_memory_pipeline._extract_facts_heuristically = _extract_facts_heuristically
+        unified_memory_pipeline._plan_concept_parent = _plan_concept_parent
+        unified_memory_pipeline._validate_append_parent = _validate_append_parent
+        unified_memory_pipeline._upsert_auto_memory_edge = _upsert_auto_memory_edge
+        unified_memory_pipeline._extract_subject_hint = _extract_subject_hint
+        unified_memory_pipeline._is_deictic_subject_reference = _is_deictic_subject_reference
+        unified_memory_pipeline._canonicalize_fact_text_for_storage = _canonicalize_fact_text_for_storage
 
         conversation_meta = conversation.metadata_json if isinstance(conversation.metadata_json, dict) else {}
         pipeline_input = PipelineInput(

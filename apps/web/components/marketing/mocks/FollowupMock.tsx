@@ -4,10 +4,9 @@ import { useTranslations } from "next-intl";
 import MockWindow from "./MockWindow";
 
 /**
- * Feature 2 — follow-up reminders. Two due-today items with pulsing
- * brand-blue dots + one 45-day dormant client warning in amber. The
- * pulse is the "nudge" motion; no timer or wall-clock logic — it's
- * purely visual.
+ * Feature 2 — next-step reminders. Two due-today items with pulsing
+ * brand-blue dots + one blocked item in amber. The pulse is the
+ * "nudge" motion; no timer or wall-clock logic — it's purely visual.
  */
 interface FollowupMockProps {
   style?: React.CSSProperties;

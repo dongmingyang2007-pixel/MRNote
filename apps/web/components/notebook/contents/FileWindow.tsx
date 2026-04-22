@@ -1,32 +1,34 @@
 "use client";
 
 import { FileUp } from "lucide-react";
+import { getSafeExternalUrl } from "@/lib/security";
 
 interface FileWindowProps {
   url?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
   mimeType?: string;
   filename?: string;
 }
 
-function isSafeUrl(u: string): boolean {
-  try {
-    const parsed = new URL(u, window.location.origin);
-    return ["https:", "http:", "blob:"].includes(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
+export default function FileWindow({
+  url,
+  previewUrl,
+  downloadUrl,
+  mimeType,
+  filename,
+}: FileWindowProps) {
+  const safePreviewUrl = getSafeExternalUrl(previewUrl || url) || undefined;
+  const safeDownloadUrl = getSafeExternalUrl(downloadUrl || safePreviewUrl || url) || undefined;
 
-export default function FileWindow({ url, mimeType, filename }: FileWindowProps) {
   const isPdf =
-    mimeType === "application/pdf" ||
-    (filename && filename.toLowerCase().endsWith(".pdf"));
+    Boolean(safePreviewUrl) &&
+    (mimeType === "application/pdf" ||
+      (filename && filename.toLowerCase().endsWith(".pdf")));
 
-  const isImage = mimeType?.startsWith("image/");
+  const isImage = Boolean(safePreviewUrl) && mimeType?.startsWith("image/");
 
-  const safeUrl = url && isSafeUrl(url) ? url : undefined;
-
-  if (!safeUrl) {
+  if (!safePreviewUrl && !safeDownloadUrl) {
     return (
       <div
         style={{
@@ -48,7 +50,7 @@ export default function FileWindow({ url, mimeType, filename }: FileWindowProps)
   if (isPdf) {
     return (
       <iframe
-        src={safeUrl}
+        src={safePreviewUrl}
         style={{ width: "100%", height: "100%", border: "none" }}
         title={filename || "PDF viewer"}
       />
@@ -69,7 +71,7 @@ export default function FileWindow({ url, mimeType, filename }: FileWindowProps)
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={safeUrl}
+          src={safePreviewUrl}
           alt={filename || "File preview"}
           style={{ maxWidth: "100%", objectFit: "contain" }}
         />
@@ -100,7 +102,7 @@ export default function FileWindow({ url, mimeType, filename }: FileWindowProps)
         {filename || "File"}
       </span>
       <a
-        href={safeUrl}
+        href={safeDownloadUrl}
         download={filename}
         style={{
           fontSize: "0.8125rem",

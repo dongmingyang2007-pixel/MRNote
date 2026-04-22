@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
@@ -18,11 +17,15 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
 import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
 import { useBillingMe } from "@/hooks/useBillingMe";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
+import {
+  NOTEBOOK_PAGES_CHANGED_EVENT,
+  dispatchNotebookPagesChanged,
+} from "@/lib/notebook-events";
 
 type SideTab = "pages" | "ai_panel" | "memory" | "memory_graph" | "learn" | "digest" | "search" | null;
 
@@ -44,7 +47,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("console");
   const tn = useTranslations("console-notebooks");
-  const [activeTab, setActiveTab] = useState<SideTab>("pages");
+  const [activeTab, setActiveTab] = useState<SideTab>(null);
   const [collapsed, setCollapsed] = useState(false);
 
   // Hydrate collapsed state from localStorage on mount.
@@ -61,14 +64,38 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const [pages, setPages] = useState<
     Array<{ id: string; title: string; page_type: string }>
   >([]);
+  const [creatingPage, setCreatingPage] = useState(false);
+
+  const loadPages = useCallback(async () => {
+    try {
+      const data = await apiGet<{
+        items: Array<{ id: string; title: string; page_type: string }>;
+      }>(`/api/v1/notebooks/${notebookId}/pages`);
+      setPages(data.items || []);
+    } catch {
+      setPages([]);
+    }
+  }, [notebookId]);
 
   useEffect(() => {
-    void apiGet<{
-      items: Array<{ id: string; title: string; page_type: string }>;
-    }>(`/api/v1/notebooks/${notebookId}/pages`)
-      .then((data) => setPages(data.items || []))
-      .catch(() => setPages([]));
-  }, [notebookId]);
+    void loadPages();
+  }, [loadPages]);
+
+  useEffect(() => {
+    const handlePagesChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ notebookId?: string }>).detail;
+      if (!detail?.notebookId || detail.notebookId === notebookId) {
+        void loadPages();
+      }
+    };
+    window.addEventListener(NOTEBOOK_PAGES_CHANGED_EVENT, handlePagesChanged);
+    return () => {
+      window.removeEventListener(
+        NOTEBOOK_PAGES_CHANGED_EVENT,
+        handlePagesChanged,
+      );
+    };
+  }, [loadPages, notebookId]);
 
   const basePath = `/app/notebooks/${notebookId}`;
 
@@ -88,6 +115,28 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
   };
 
   const { openWindow } = useWindowManager();
+
+  const handleCreatePage = useCallback(async () => {
+    if (creatingPage) return;
+    setCreatingPage(true);
+    try {
+      const page = await apiPost<{ id: string; title: string; page_type: string }>(
+        `/api/v1/notebooks/${notebookId}/pages`,
+        { title: "", page_type: "document" },
+      );
+      setPages((prev) => [page, ...prev]);
+      dispatchNotebookPagesChanged(notebookId);
+      openWindow({
+        type: "note",
+        title: page.title || tn("common.untitled"),
+        meta: { notebookId, pageId: page.id },
+      });
+    } catch {
+      /* ignore */
+    } finally {
+      setCreatingPage(false);
+    }
+  }, [creatingPage, notebookId, openWindow, tn]);
   const windows = useWindows();
   const unreadCount = useDigestUnreadCount();
   const billingMe = useBillingMe();
@@ -382,9 +431,11 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
                 {page.title || tn("common.untitled")}
               </button>
             ))}
-            <Link
-              href={basePath}
-              prefetch={false}
+            <button
+              type="button"
+              onClick={handleCreatePage}
+              disabled={creatingPage}
+              data-testid="notebook-sidebar-create-page"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -392,14 +443,19 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
                 padding: "8px 12px",
                 borderRadius: 6,
                 color: "var(--console-accent, #2563EB)",
-                textDecoration: "none",
+                background: "none",
+                border: "none",
+                cursor: creatingPage ? "default" : "pointer",
                 fontSize: "0.8125rem",
                 fontWeight: 500,
                 marginTop: 8,
+                width: "100%",
+                textAlign: "left",
+                opacity: creatingPage ? 0.6 : 1,
               }}
             >
               + {tn("pages.create")}
-            </Link>
+            </button>
           </div>
         </div>
       )}
