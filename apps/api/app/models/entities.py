@@ -694,6 +694,16 @@ class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     total_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Spec §5.1.6 — StudyAsset metadata columns. DB columns were added in
+    # migration 202604220005; these Mapped[] declarations bind them to the
+    # ORM so we can read/write from Python instead of reaching for raw SQL.
+    language: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    author: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    page_id: Mapped[str | None] = mapped_column(
+        ForeignKey("notebook_pages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
 
@@ -704,6 +714,13 @@ class StudyChunk(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     chunk_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     heading: Mapped[str] = mapped_column(Text, default="", nullable=False)
     content: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # Spec §5.1.7 — chunk-level summary + keyword surface so retrieval can
+    # rank by topical keywords and UIs can preview chunks without scanning
+    # the full body. DB columns added by migration 202604230002.
+    summary: Mapped[str] = mapped_column(Text, default="", nullable=False, server_default="")
+    keywords_json: Mapped[list[Any]] = mapped_column(
+        JSON, default=list, nullable=False, server_default=sql_text("'[]'"),
+    )
     page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     embedding_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

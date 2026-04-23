@@ -27,11 +27,22 @@ import {
   Link2,
   CheckCircle2,
   Layers,
+  Lightbulb,
+  BookOpen,
 } from "lucide-react";
+import { apiPost, isApiRequestError } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Command item metadata (i18n keys on console-notebooks namespace)
 // ---------------------------------------------------------------------------
+
+interface SlashCommandContext {
+  /** Optional accessor for the active page id. Commands that call page-scoped
+   * endpoints (AI brainstorm / study Q&A) need this to scope their request.
+   * The suggestion plugin is instantiated outside of the React tree so we can't
+   * rely on PageIdContext — NoteEditor wires it in via `createSuggestionConfig`. */
+  getPageId?: () => string | null;
+}
 
 interface SlashCommandItem {
   id: string;
@@ -40,8 +51,9 @@ interface SlashCommandItem {
   icon: React.ElementType;
   /** When invoked, the TipTap range is already deleted. Use the editor
    * chain to insert the desired block. The translator is passed so
-   * commands that need localized prompts (e.g. image URL) can use it. */
-  run: (editor: Editor, t: (key: string) => string) => void;
+   * commands that need localized prompts (e.g. image URL) can use it.
+   * `ctx` carries host-provided helpers like the current page id. */
+  run: (editor: Editor, t: (key: string) => string, ctx?: SlashCommandContext) => void;
 }
 
 const COMMANDS: SlashCommandItem[] = [
@@ -286,6 +298,144 @@ const COMMANDS: SlashCommandItem[] = [
         })
         .run(),
   },
+  {
+    // Spec §19.1 — "AI brainstorm" block. Calls POST
+    // /api/v1/ai/notebook/brainstorm with the user-supplied topic and
+    // inlines the returned Markdown bullet list as a filled-in ai_output
+    // node (action_type = "brainstorm") so the result is editable / linkable
+    // alongside the rest of the page.
+    id: "aiBrainstorm",
+    titleKey: "slash.aiBrainstorm.title",
+    descKey: "slash.aiBrainstorm.desc",
+    icon: Lightbulb,
+    run: (editor, t, ctx) => {
+      if (typeof window === "undefined") return;
+      const topic = (window.prompt(t("slash.aiBrainstorm.prompt")) || "").trim();
+      if (!topic) return;
+
+      // Insert a placeholder ai_output block immediately so the user sees
+      // something happen. We'll overwrite it once the request returns.
+      const placeholderText = t("slash.aiBrainstorm.loading");
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "ai_output",
+          attrs: {
+            content_markdown: placeholderText,
+            action_type: "brainstorm",
+            action_log_id: "",
+          },
+        })
+        .run();
+
+      const pageId = ctx?.getPageId?.() || null;
+      const body: Record<string, unknown> = { topic };
+      if (pageId) body.page_id = pageId;
+
+      void (async () => {
+        try {
+          const resp = await apiPost<{
+            markdown: string;
+            topic: string;
+            count: number;
+          }>("/api/v1/ai/notebook/brainstorm", body);
+          const markdown = resp?.markdown || "";
+          // Replace the last inserted node (the placeholder we just added) with
+          // the filled-in result. Walk the document and update the most recent
+          // ai_output node whose content_markdown matches the placeholder text.
+          const { state } = editor;
+          const tr = state.tr;
+          let replaced = false;
+          state.doc.descendants((node, pos) => {
+            if (replaced) return false;
+            if (
+              node.type.name === "ai_output" &&
+              node.attrs?.content_markdown === placeholderText &&
+              node.attrs?.action_type === "brainstorm"
+            ) {
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                content_markdown: markdown,
+              });
+              replaced = true;
+              return false;
+            }
+            return true;
+          });
+          if (replaced) editor.view.dispatch(tr);
+        } catch (error) {
+          const msg = isApiRequestError(error)
+            ? error.message || t("slash.aiBrainstorm.error")
+            : t("slash.aiBrainstorm.error");
+          const { state } = editor;
+          const tr = state.tr;
+          let replaced = false;
+          state.doc.descendants((node, pos) => {
+            if (replaced) return false;
+            if (
+              node.type.name === "ai_output" &&
+              node.attrs?.content_markdown === placeholderText &&
+              node.attrs?.action_type === "brainstorm"
+            ) {
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                content_markdown: `**${msg}**`,
+              });
+              replaced = true;
+              return false;
+            }
+            return true;
+          });
+          if (replaced) editor.view.dispatch(tr);
+        }
+      })();
+    },
+  },
+  {
+    // Spec §19.1 — "Study Q&A" block. Minimal viable version: drop a
+    // placeholder ai_output node (action_type = "study_qa") seeded with the
+    // user's question and guide them to finish the ask in the right-hand AI
+    // Panel Study tab. A full in-slash asset picker is a larger UI and can
+    // land once users request it.
+    id: "studyQa",
+    titleKey: "slash.studyQa.title",
+    descKey: "slash.studyQa.desc",
+    icon: BookOpen,
+    run: (editor, t) => {
+      if (typeof window === "undefined") return;
+      const question = (window.prompt(t("slash.studyQa.prompt")) || "").trim();
+      if (!question) return;
+
+      const body = t("slash.studyQa.placeholder").replace("{question}", question);
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "ai_output",
+          attrs: {
+            content_markdown: body,
+            action_type: "study_qa",
+            action_log_id: "",
+          },
+        })
+        .run();
+
+      // Fire a best-effort custom event so any listening host (AI panel
+      // window) can jump to the Study tab. AIPanelWindow doesn't currently
+      // subscribe — the event is harmless if no one listens and makes the
+      // upgrade path painless when it does.
+      try {
+        window.dispatchEvent(
+          new CustomEvent("mrai:open-ai-panel", {
+            detail: { tab: "study", prefill: question },
+          }),
+        );
+      } catch {
+        // non-fatal
+      }
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -421,7 +571,10 @@ const CommandListComponent = ({
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Translator = (key: string) => string;
 
-export function createSuggestionConfig(translate: Translator): Omit<SuggestionOptions, "editor"> {
+export function createSuggestionConfig(
+  translate: Translator,
+  options?: SlashCommandContext,
+): Omit<SuggestionOptions, "editor"> {
   return {
     char: "/",
     // Return the full list; the React component filters by translated title.
@@ -440,7 +593,7 @@ export function createSuggestionConfig(translate: Translator): Omit<SuggestionOp
     }) => {
       // Delete the "/query" text the user typed.
       editor.chain().focus().deleteRange(range).run();
-      props.run(editor, translate);
+      props.run(editor, translate, options);
     },
     render: () => {
       let component: ReactRenderer<CommandListRef> | null = null;

@@ -144,7 +144,10 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       TaskBlock,
       FlashcardBlock,
       SlashCommand.configure({
-        suggestion: createSuggestionConfig((key: string) => t(key)),
+        suggestion: createSuggestionConfig(
+          (key: string) => t(key),
+          { getPageId: () => pageId },
+        ),
       }),
     ],
     editorProps: {
