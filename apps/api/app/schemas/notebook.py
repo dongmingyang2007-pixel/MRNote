@@ -1,9 +1,66 @@
 from __future__ import annotations
 
+import ipaddress
+import urllib.parse
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+# Hostnames used by cloud metadata endpoints — never accepted, even for
+# schemes we allow, since a DNS record could still point here.
+_COVER_IMAGE_BLOCKED_HOSTNAMES: frozenset[str] = frozenset(
+    {
+        "metadata.google.internal",
+        "metadata",
+        "instance-data.ec2.internal",
+        "metadata.azure.com",
+        "169.254.169.254",
+    }
+)
+
+
+def _validate_cover_image_url(value: str | None) -> str | None:
+    """Validate cover_image_url against scheme + SSRF-ish hostname policy.
+
+    Accepted: https://…, /static/…, empty / None.
+    Rejected: http, javascript:, data:, file:, blob: schemes; RFC1918 /
+    loopback / link-local / multicast IPs; cloud metadata hostnames.
+    """
+    if value is None or value == "":
+        return value
+    if not isinstance(value, str):
+        raise ValueError("cover_image_url must be a string")
+    lowered = value.strip()
+    if not lowered:
+        return ""
+    if lowered.startswith("/static/"):
+        return value
+    if not lowered.lower().startswith("https://"):
+        raise ValueError("cover_image_url must use https or /static/ path")
+    parsed = urllib.parse.urlparse(lowered)
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise ValueError("cover_image_url must include a hostname")
+    if hostname in _COVER_IMAGE_BLOCKED_HOSTNAMES:
+        raise ValueError("cover_image_url hostname is not allowed")
+    # If the hostname parses as an IP, block private / loopback /
+    # link-local / multicast ranges.
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return value
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise ValueError("cover_image_url hostname is not allowed")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +85,11 @@ class NotebookUpdate(BaseModel):
     notebook_type: str | None = None
     visibility: str | None = None
     archived_at: datetime | None = None
+
+    @field_validator("cover_image_url")
+    @classmethod
+    def _check_cover_image_url(cls, value: str | None) -> str | None:
+        return _validate_cover_image_url(value)
 
 
 class NotebookOut(BaseModel):

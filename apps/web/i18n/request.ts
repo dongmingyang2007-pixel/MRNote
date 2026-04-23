@@ -102,9 +102,16 @@ function expandDotKeys(messages: MessageObject): MessageObject {
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const requestLocaleValue = await requestLocale;
-  const headerStore = await headers();
-  const headerLocaleValue = headerStore.get("x-app-locale");
-  const localeCandidate = requestLocaleValue ?? headerLocaleValue;
+  let localeCandidate = requestLocaleValue;
+
+  // Avoid touching request headers when the locale is already known from the
+  // route segment. This keeps locale-aware marketing/auth pages eligible for
+  // static rendering instead of forcing dynamic SSR on every request.
+  if (!localeCandidate) {
+    const headerStore = await headers();
+    localeCandidate = headerStore.get("x-app-locale") ?? undefined;
+  }
+
   const localeKey = localeCandidate as (typeof routing.locales)[number] | undefined;
   const locale = localeKey && routing.locales.includes(localeKey)
     ? localeKey

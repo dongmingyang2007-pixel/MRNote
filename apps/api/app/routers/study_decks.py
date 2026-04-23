@@ -12,11 +12,13 @@ from sqlalchemy.orm import Session
 from app.core.deps import (
     get_current_user,
     get_current_workspace_id,
+    get_current_workspace_role,
     get_db_session,
     require_csrf_protection,
     require_workspace_write_access,
 )
 from app.core.errors import ApiError
+from app.core.notebook_access import assert_notebook_readable
 from app.models import Notebook, StudyCard, StudyDeck, User
 from app.schemas.study_decks import (
     CardCreate,
@@ -35,37 +37,66 @@ decks_router = APIRouter(prefix="/api/v1/decks", tags=["study-decks"])
 cards_router = APIRouter(prefix="/api/v1/cards", tags=["study-decks"])
 
 
-def _get_notebook_or_404(db: Session, notebook_id: str, workspace_id: str) -> Notebook:
-    nb = (
-        db.query(Notebook)
-        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+def _get_notebook_or_404(
+    db: Session,
+    notebook_id: str,
+    workspace_id: str,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+) -> Notebook:
+    nb = db.query(Notebook).filter(Notebook.id == notebook_id).first()
+    assert_notebook_readable(
+        nb,
+        workspace_id=workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+        not_found_message="Notebook not found",
     )
-    if nb is None:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
     return nb
 
 
-def _get_deck_or_404(db: Session, deck_id: str, workspace_id: str) -> StudyDeck:
+def _get_deck_or_404(
+    db: Session,
+    deck_id: str,
+    workspace_id: str,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+) -> StudyDeck:
     deck = db.query(StudyDeck).filter(StudyDeck.id == deck_id).first()
     if deck is None:
         raise ApiError("not_found", "Deck not found", status_code=404)
-    nb = (
-        db.query(Notebook)
-        .filter(Notebook.id == deck.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    nb = db.query(Notebook).filter(Notebook.id == deck.notebook_id).first()
+    assert_notebook_readable(
+        nb,
+        workspace_id=workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+        not_found_message="Deck not found",
     )
-    if nb is None:
-        raise ApiError("not_found", "Deck not found", status_code=404)
     return deck
 
 
-def _get_card_or_404(db: Session, card_id: str, workspace_id: str) -> StudyCard:
+def _get_card_or_404(
+    db: Session,
+    card_id: str,
+    workspace_id: str,
+    *,
+    current_user_id: str,
+    workspace_role: str,
+) -> StudyCard:
     card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
     if card is None:
         raise ApiError("not_found", "Card not found", status_code=404)
-    # Verify workspace through deck → notebook
-    _get_deck_or_404(db, card.deck_id, workspace_id)
+    # Visibility-aware: verify workspace + notebook readability through deck -> notebook.
+    _get_deck_or_404(
+        db,
+        card.deck_id,
+        workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+    )
     return card
 
 
@@ -81,9 +112,15 @@ def list_decks(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
 ) -> PaginatedDecks:
-    _ = current_user
-    _get_notebook_or_404(db, notebook_id, workspace_id)
+    _get_notebook_or_404(
+        db,
+        notebook_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     q = db.query(StudyDeck).filter(StudyDeck.notebook_id == notebook_id)
     if not include_archived:
         q = q.filter(StudyDeck.archived_at.is_(None))
@@ -101,10 +138,17 @@ def create_deck(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> DeckOut:
-    _get_notebook_or_404(db, notebook_id, workspace_id)
+    _get_notebook_or_404(
+        db,
+        notebook_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     deck = StudyDeck(
         notebook_id=notebook_id,
         name=payload.name,
@@ -121,9 +165,15 @@ def get_deck(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
 ) -> DeckOut:
-    _ = current_user
-    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    deck = _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     return DeckOut.model_validate(deck, from_attributes=True)
 
 
@@ -134,11 +184,17 @@ def patch_deck(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> DeckOut:
-    _ = current_user
-    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    deck = _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     if payload.name is not None:
         deck.name = payload.name
     if payload.description is not None:
@@ -157,11 +213,17 @@ def delete_deck(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict[str, Any]:
-    _ = current_user
-    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    deck = _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     db.delete(deck); db.commit()
     return {"ok": True}
 
@@ -178,9 +240,15 @@ def list_cards(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
 ) -> dict[str, Any]:
-    _ = current_user
-    _get_deck_or_404(db, deck_id, workspace_id)
+    _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
 
     q = db.query(StudyCard).filter(StudyCard.deck_id == deck_id)
     if due_only:
@@ -211,11 +279,17 @@ def create_card(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> CardOut:
-    _ = current_user
-    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    deck = _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     card = StudyCard(
         deck_id=deck.id,
         front=payload.front,
@@ -243,11 +317,17 @@ def patch_card(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> CardOut:
-    _ = current_user
-    card = _get_card_or_404(db, card_id, workspace_id)
+    card = _get_card_or_404(
+        db,
+        card_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     if payload.front is not None:
         card.front = payload.front
     if payload.back is not None:
@@ -262,11 +342,17 @@ def delete_card(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict[str, Any]:
-    _ = current_user
-    card = _get_card_or_404(db, card_id, workspace_id)
+    card = _get_card_or_404(
+        db,
+        card_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     deck_id_local = card.deck_id
     db.delete(card)
     # Atomic decrement; guarded against going below zero.
@@ -290,12 +376,18 @@ async def review_next(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict[str, Any]:
     """Return the next due card for this deck, or `{card: null, queue_empty: true}`."""
-    _ = current_user
-    deck = _get_deck_or_404(db, deck_id, workspace_id)
+    deck = _get_deck_or_404(
+        db,
+        deck_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
 
     now = datetime.now(timezone.utc)
     q = (
@@ -338,10 +430,17 @@ async def review_card(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
 ) -> ReviewResponse:
-    card = _get_card_or_404(db, card_id, workspace_id)
+    card = _get_card_or_404(
+        db,
+        card_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
     deck = db.query(StudyDeck).filter(StudyDeck.id == card.deck_id).first()
     notebook_id = deck.notebook_id if deck else None
     now = datetime.now(timezone.utc)

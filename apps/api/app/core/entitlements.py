@@ -105,7 +105,16 @@ def refresh_workspace_entitlements(db: Session, *, workspace_id: str) -> None:
 def resolve_entitlement(
     db: Session, *, workspace_id: str, key: str,
 ) -> int | bool | None:
-    """Return the resolved entitlement value, or None if missing."""
+    """Return the resolved entitlement value, or None if missing.
+
+    HIGH-8 (pure read): This function MUST NOT write to the database.
+    Previously it rewrote stale plan rows on the fly which caused
+    unexpected db.commit() side effects inside GET requests and could
+    prematurely flush other pending inserts sharing the same session.
+    Any drift between Entitlement rows and the active plan mapping is
+    now reconciled by refresh_workspace_entitlements (invoked from
+    billing webhooks and admin endpoints only).
+    """
     plan = get_active_plan(db, workspace_id=workspace_id)
     plan_value = get_plan_entitlements(plan).get(key)
     ent = (
@@ -117,22 +126,24 @@ def resolve_entitlement(
     if ent is None:
         # Lazy fallback: read plan default without writing to DB.
         return plan_value
-    if ent.source != "admin_override":
-        expected_int, expected_bool = _coerce_entitlement_value(plan_value)
-        if (
-            ent.source != "plan"
-            or ent.value_int != expected_int
-            or ent.value_bool != expected_bool
-        ):
-            ent.source = "plan"
-            ent.value_int = expected_int
-            ent.value_bool = expected_bool
-            db.add(ent)
-            db.commit()
-        return plan_value
-    if ent.value_int is not None:
-        return ent.value_int
-    return ent.value_bool
+    if ent.source == "admin_override":
+        # HIGH-8: ignore expired overrides instead of serving stale values.
+        # refresh_workspace_entitlements already cleans these up on
+        # subscription events; do the same check on read in case a stale
+        # override lives on between refreshes.
+        exp = ent.expires_at
+        if exp is not None:
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp < datetime.now(timezone.utc):
+                return plan_value
+        if ent.value_int is not None:
+            return ent.value_int
+        return ent.value_bool
+    # Non-override row — always return the current plan mapping. We
+    # intentionally do NOT patch ent here; the periodic refresh owns
+    # reconciliation.
+    return plan_value
 
 
 def require_entitlement(

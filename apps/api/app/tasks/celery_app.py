@@ -27,6 +27,21 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.backfill_notebook_page_embeddings": {"queue": "memory"},
     "app.tasks.worker_tasks.regenerate_notebook_page_embedding": {"queue": "memory"},
     "app.tasks.worker_tasks.expire_one_time_subscriptions": {"queue": "memory"},
+    # Wave 2 A8 — spec §14 alignment
+    "app.tasks.worker_tasks.notebook_page_plaintext_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.notebook_page_summary_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.unified_memory_extract_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.notebook_page_memory_link_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.notebook_page_relevance_refresh_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.whiteboard_memory_extract_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.document_memory_extract_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.study_asset_chunk_task": {"queue": "data"},
+    "app.tasks.worker_tasks.study_asset_auto_pages_task": {"queue": "data"},
+    "app.tasks.worker_tasks.study_asset_deck_generate_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.study_asset_memory_extract_task": {"queue": "inference"},
+    "app.tasks.worker_tasks.study_asset_review_recommendation_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.usage_rollup_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.subscription_sync_repair_task": {"queue": "memory"},
 }
 celery_app.conf.update(
     accept_content=["json"],
@@ -70,5 +85,14 @@ celery_app.conf.beat_schedule = {
     "expire-one-time-subscriptions-daily": {
         "task": "app.tasks.worker_tasks.expire_one_time_subscriptions",
         "schedule": crontab(hour=2, minute=15),
+    },
+    # Wave 2 A8 — spec §14 scheduled tasks
+    "usage-rollup-daily": {
+        "task": "app.tasks.worker_tasks.usage_rollup_task",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "subscription-sync-repair-6h": {
+        "task": "app.tasks.worker_tasks.subscription_sync_repair_task",
+        "schedule": crontab(minute=0, hour="*/6"),
     },
 }

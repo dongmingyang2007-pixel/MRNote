@@ -188,6 +188,45 @@ class PipelineResult:
 
 
 # ---------------------------------------------------------------------------
+# Prompt-injection defenses (audit V4)
+# ---------------------------------------------------------------------------
+#
+# Pre-filter user-origin text before it reaches the extraction LLM. The
+# patterns below catch the most common "ignore all previous instructions"
+# style payloads. Matches are replaced with a sentinel so the LLM still
+# sees the surrounding context but does not see an instruction it might
+# decide to obey. This is best-effort only — the structural defenses in
+# ``context_loader.build_system_prompt`` provide the stronger guarantee.
+
+_INSTRUCTION_OVERRIDE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"忽略(?:之前|上文|前面|所有|任何|系统)[^\n]*?指令", re.IGNORECASE),
+    re.compile(r"ignore\s+(?:all|previous|above|prior|any|the)\s+(?:\w+\s+){0,3}instructions?", re.IGNORECASE),
+    re.compile(r"\[\[?\s*SYSTEM\s*OVERRIDE\s*\]?\]", re.IGNORECASE),
+    re.compile(r"\[\[?\s*PROMPT\s*OVERRIDE\s*\]?\]", re.IGNORECASE),
+    re.compile(r"从现在起(?:你|您)(?:是|应该|必须|要)", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+a", re.IGNORECASE),
+    re.compile(r"act\s+as\s+(?:a\s+)?(?:system|admin|root|developer|jailbroken)", re.IGNORECASE),
+    re.compile(r"disregard\s+(?:all|previous|above|prior|any|the)\s+(?:\w+\s+){0,3}instructions?", re.IGNORECASE),
+)
+
+_FILTER_PLACEHOLDER = "[filtered instruction-like text]"
+
+
+def _pre_filter_prompt_injection_markers(text: str) -> str:
+    """Replace known prompt-injection override patterns with a sentinel.
+
+    Returns the text with injection markers neutralized. Non-matching
+    text is returned unchanged.
+    """
+    if not text:
+        return text
+    filtered = text
+    for pattern in _INSTRUCTION_OVERRIDE_PATTERNS:
+        filtered = pattern.sub(_FILTER_PLACEHOLDER, filtered)
+    return filtered
+
+
+# ---------------------------------------------------------------------------
 # Prompt templates
 # ---------------------------------------------------------------------------
 
@@ -2230,6 +2269,13 @@ async def run_pipeline(db: Session, inp: PipelineInput) -> PipelineResult:
         result.status = "empty"
         result.summary = "empty_source_text"
         return result
+
+    # V4: pre-filter instruction-override payloads before the text is
+    # handed to the extraction LLM or stored as an episode snapshot.
+    # Preserve the raw text only for debugging purposes when the caller
+    # explicitly turns filtering off via ``context.skip_injection_filter``.
+    if not getattr(inp.context, "skip_injection_filter", False):
+        user_message = _pre_filter_prompt_injection_markers(user_message)
 
     # ------------------------------------------------------------------
     # 2. Create tracking records (episode, learning_run, write_run)

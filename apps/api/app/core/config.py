@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     upload_max_mb: int = 50
     upload_put_proxy: bool = False
     upload_session_ttl_seconds: int = 900
+    # HIGH-9 V8: canonical public site URL for server-built URLs so we
+    # don't emit attacker-controlled Host headers in proxy redirects.
+    site_url: str = Field(default="http://localhost:3000", env="SITE_URL")
 
     # ── AI / Model API ──
     dashscope_api_key: str = ""
@@ -92,9 +95,15 @@ class Settings(BaseSettings):
     smtp_from_address: str = ""
     smtp_from_name: str = "铭润科技"
     verification_code_ttl_seconds: int = 600
-    verification_code_length: int = 6
+    verification_code_length: int = 8
     verification_rate_limit_window_seconds: int = 60
     verification_rate_limit_max: int = 3
+    # Per-email daily cap on verification-code emails (anti spam relay).
+    verification_email_daily_cap: int = 10
+    # Invalidate a reset code after this many failed verify attempts
+    # targeting the same email (stops distributed brute-force while the
+    # code's TTL is still alive).
+    reset_code_max_attempts: int = 5
     image_allowed_media_types: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["image/jpeg", "image/png", "image/webp"]
     )

@@ -13,6 +13,7 @@ from app.core.deps import (
     require_csrf_protection,
     require_workspace_write_access,
 )
+from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
 from app.models import DataItem, User
 from app.routers.utils import get_data_item_in_workspace, get_dataset_in_workspace, get_project_in_workspace_or_404
@@ -86,6 +87,7 @@ def presign_upload(
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
+    _upload_gate: None = Depends(require_entitlement("book_upload.enabled")),
     _: None = Depends(require_csrf_protection),
 ) -> UploadPresignResponse:
     enforce_rate_limit(
@@ -122,7 +124,13 @@ def presign_upload(
     fields: dict[str, str] = {}
     upload_method = "PUT"
     if settings.should_use_proxy_uploads():
-        put_url = f"{str(request.base_url).rstrip('/')}/api/v1/uploads/proxy/{upload_id}"
+        # HIGH-9 V8: use the configured site_url rather than
+        # ``request.base_url`` — the latter reflects the client-supplied
+        # Host header, so an attacker could induce us to emit a PUT URL
+        # pointing at an attacker-controlled host (e.g. via a
+        # reverse-proxy misconfig). site_url is server-owned.
+        base = str(settings.site_url).rstrip("/")
+        put_url = f"{base}/api/v1/uploads/proxy/{upload_id}"
         headers = {"Content-Type": normalized_media_type}
     else:
         put_url, fields, headers = create_presigned_post(

@@ -656,6 +656,34 @@ class NotebookAttachment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     meta_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
 
+class NotebookSelectionMemoryLink(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Spec §5.1 / §9.5 — bidirectional link between a page selection and a Memory.
+
+    Populated when a memory candidate extracted from a notebook page is
+    promoted (see `routers/notebooks.py :: confirm_memory_candidate`). Lets
+    the UI show "this span has produced these memories" without re-scanning
+    evidences, and lets memory detail show "this memory came from this page
+    span".
+    """
+
+    __tablename__ = "notebook_selection_memory_links"
+
+    page_id: Mapped[str] = mapped_column(
+        ForeignKey("notebook_pages.id", ondelete="CASCADE"), index=True, nullable=False,
+    )
+    block_id: Mapped[str | None] = mapped_column(
+        ForeignKey("notebook_blocks.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    memory_id: Mapped[str] = mapped_column(
+        ForeignKey("memories.id", ondelete="CASCADE"), index=True, nullable=False,
+    )
+    evidence_id: Mapped[str | None] = mapped_column(
+        ForeignKey("memory_evidences.id", ondelete="SET NULL"), nullable=True, index=True,
+    )
+
+
 class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
     __tablename__ = "study_assets"
 
@@ -958,6 +986,12 @@ class Subscription(
     seats: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     cancel_at_period_end: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False,
+    )
+    # HIGH-5: Track when this workspace last used a trial so we don't grant
+    # a fresh 14-day trial every checkout. Nullable so historical rows
+    # (pre-migration) keep behaving and never-trialed workspaces stay null.
+    trial_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
     )
 
 

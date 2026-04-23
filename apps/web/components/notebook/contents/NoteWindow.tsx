@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import NoteEditor from "@/components/console/editor/NoteEditor";
 import RelatedPagesCard from "./search/RelatedPagesCard";
 import { useWindowManager } from "@/components/notebook/WindowManager";
-import { NOTEBOOK_PAGES_CHANGED_EVENT } from "@/lib/notebook-events";
+import {
+  NOTEBOOK_PAGES_CHANGED_EVENT,
+  dispatchNotebookPagesChanged,
+} from "@/lib/notebook-events";
 
 interface NoteWindowProps {
   pageId: string;
@@ -32,6 +35,9 @@ export default function NoteWindow({ pageId }: NoteWindowProps) {
         clearTimeout(refreshTimerRef.current);
       }
       refreshTimerRef.current = window.setTimeout(() => {
+        // U-05 — also notify listeners (e.g. NoteTitlebarExtras) that the
+        // page changed so the titlebar metadata (updated_at) refreshes.
+        dispatchNotebookPagesChanged();
         window.dispatchEvent(new CustomEvent(NOTEBOOK_PAGES_CHANGED_EVENT));
       }, 250);
     },

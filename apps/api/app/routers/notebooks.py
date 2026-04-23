@@ -33,7 +33,17 @@ from app.models import (
 from app.core.entitlements import require_entitlement
 from app.services import storage as storage_service
 from app.services.ai_action_logger import action_log_context
-from app.services.quota_counters import count_notebooks, count_pages
+from app.services.quota_counters import (
+    count_ai_actions_this_month,
+    count_notebooks,
+    count_pages,
+)
+from app.services.upload_validation import (
+    UPLOAD_SIGNATURE_READ_BYTES,
+    validate_workspace_upload_declaration,
+    validate_workspace_upload_signature,
+)
+from app.schemas.block import PageDuplicatePayload, PageMovePayload
 from app.schemas.notebook import (
     NotebookCreate,
     NotebookHomeAIAction,
@@ -58,6 +68,7 @@ from app.services.audit import write_audit_log
 
 router = APIRouter(prefix="/api/v1/notebooks", tags=["notebooks"])
 pages_router = APIRouter(prefix="/api/v1/pages", tags=["pages"])
+study_assets_router = APIRouter(prefix="/api/v1/study-assets", tags=["study-assets"])
 
 
 # ---------------------------------------------------------------------------
@@ -796,7 +807,7 @@ def create_page(
     _: None = Depends(require_csrf_protection),
     _quota: None = Depends(require_entitlement("pages.max", counter=count_pages)),
 ) -> PageOut:
-    _get_notebook_or_404(
+    notebook = _get_notebook_or_404(
         db,
         notebook_id=notebook_id,
         workspace_id=workspace_id,
@@ -807,6 +818,9 @@ def create_page(
             user_id=str(current_user.id),
         ),
     )
+    # HIGH-7: reject writes under an archived notebook.
+    if notebook.archived_at is not None:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
 
     page = NotebookPage(
         notebook_id=notebook_id,
@@ -1010,6 +1024,15 @@ def update_page(
             user_id=str(current_user.id),
         ),
     )
+    # HIGH-7: block writes to pages inside an archived notebook. Allow the
+    # un-archive path (payload.is_archived explicitly False) to go through so
+    # the UI can recover a mistakenly-deleted page.
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if notebook is not None and notebook.archived_at is not None:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+    if page.is_archived and payload.is_archived is not False:
+        # Only a restore (is_archived=False) may touch an archived page.
+        raise ApiError("not_found", "Page not found", status_code=404)
 
     if payload.title is not None:
         page.title = payload.title
@@ -1052,6 +1075,15 @@ def delete_page(
     _write_guard: None = Depends(require_workspace_write_access),
     _: None = Depends(require_csrf_protection),
 ) -> dict:
+    """Soft-delete a notebook page.
+
+    Spec §26 requires delete operations to preserve the evidence chain.
+    Hard-deleting a page cascades into ``notebook_page_versions`` and
+    ``notebook_blocks`` and breaks every ``MemoryEvidence`` whose
+    ``metadata_json.source_id`` pointed at this page. We therefore flip
+    ``is_archived`` and update ``last_edited_at``; the ``purge_stale_records``
+    background task is responsible for eventually hard-deleting archived rows.
+    """
     page = _get_page_or_404(
         db,
         page_id,
@@ -1064,17 +1096,231 @@ def delete_page(
         ),
     )
 
+    page.is_archived = True
+    page.last_edited_at = datetime.now(timezone.utc)
+    page.updated_at = datetime.now(timezone.utc)
     write_audit_log(
         db,
         workspace_id=workspace_id,
         actor_user_id=current_user.id,
-        action="notebook_page.delete",
+        action="notebook_page.archive",
         target_type="notebook_page",
         target_id=page.id,
     )
-    db.delete(page)
     db.commit()
-    return {"ok": True, "status": "deleted"}
+    return {"ok": True, "status": "archived"}
+
+
+@pages_router.post("/{page_id}/duplicate", response_model=PageOut)
+def duplicate_page(
+    page_id: str,
+    payload: PageDuplicatePayload | None = None,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _: None = Depends(require_csrf_protection),
+) -> PageOut:
+    """Duplicate a page into the same notebook/parent.
+
+    Copies the TipTap doc verbatim (regenerating every ``attrs.block_id`` so
+    the clone has its own stable block identifiers), clones NotebookBlock
+    rows and NotebookAttachment rows. Does not copy page versions — the
+    clone starts a fresh history.
+    """
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
+    # Archived notebook or archived page → 404 to avoid spawning orphan rows.
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if notebook is None or notebook.archived_at is not None:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+    if page.is_archived:
+        raise ApiError("not_found", "Page not found", status_code=404)
+
+    new_title = (payload.title if payload and payload.title else f"{page.title} (copy)")
+    # Clone doc, regenerating every top-level node's block_id
+    from copy import deepcopy
+    new_doc = deepcopy(page.content_json) if isinstance(page.content_json, dict) else {}
+    if isinstance(new_doc.get("content"), list):
+        for node in new_doc["content"]:
+            if isinstance(node, dict):
+                attrs = node.setdefault("attrs", {})
+                attrs["block_id"] = str(uuid4())
+
+    new_page = NotebookPage(
+        notebook_id=page.notebook_id,
+        created_by=current_user.id,
+        parent_page_id=page.parent_page_id,
+        title=new_title,
+        slug=make_slug(new_title),
+        page_type=page.page_type,
+        content_json=new_doc,
+        plain_text=page.plain_text,
+        summary_text=page.summary_text,
+        ai_keywords_json=list(page.ai_keywords_json or []),
+        sort_order=page.sort_order + 1,
+    )
+    db.add(new_page)
+    db.flush()
+
+    # Clone NotebookBlock rows aligned with the regenerated block_ids
+    from app.models import NotebookBlock as _NB
+    old_blocks = db.query(_NB).filter(_NB.page_id == page.id).order_by(_NB.sort_order).all()
+    if isinstance(new_doc.get("content"), list):
+        new_block_ids = [
+            (n.get("attrs") or {}).get("block_id")
+            for n in new_doc["content"] if isinstance(n, dict)
+        ]
+    else:
+        new_block_ids = []
+    for idx, src in enumerate(old_blocks):
+        bid = (
+            new_block_ids[idx]
+            if idx < len(new_block_ids) and new_block_ids[idx]
+            else str(uuid4())
+        )
+        db.add(_NB(
+            id=bid,
+            page_id=new_page.id,
+            block_type=src.block_type,
+            sort_order=src.sort_order,
+            content_json=deepcopy(src.content_json) if isinstance(src.content_json, dict) else {},
+            plain_text=src.plain_text or "",
+            created_by=current_user.id,
+            metadata_json=deepcopy(src.metadata_json) if isinstance(src.metadata_json, dict) else {},
+        ))
+
+    # Clone attachments (keep the S3 object_key — attachments remain shared,
+    # which is acceptable because the object_key is still scoped to the
+    # workspace and deletion is per-attachment row).
+    attachments = (
+        db.query(NotebookAttachment)
+        .filter(NotebookAttachment.page_id == page.id)
+        .all()
+    )
+    for att in attachments:
+        db.add(NotebookAttachment(
+            page_id=new_page.id,
+            data_item_id=att.data_item_id,
+            attachment_type=att.attachment_type,
+            title=att.title,
+            meta_json=dict(att.meta_json or {}),
+        ))
+
+    write_audit_log(
+        db,
+        workspace_id=workspace_id,
+        actor_user_id=current_user.id,
+        action="notebook_page.duplicate",
+        target_type="notebook_page",
+        target_id=new_page.id,
+    )
+    db.commit()
+    db.refresh(new_page)
+    return PageOut.model_validate(new_page, from_attributes=True)
+
+
+@pages_router.post("/{page_id}/move", response_model=PageOut)
+def move_page(
+    page_id: str,
+    payload: PageMovePayload,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _: None = Depends(require_csrf_protection),
+) -> PageOut:
+    """Move a page to a different notebook and/or reparent it in place.
+
+    Target notebook must live in the same workspace and be readable by the
+    caller (visibility + archive checks). Cross-workspace moves are 404
+    (never leak a foreign notebook's existence).
+    """
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
+    source_notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if source_notebook is None or source_notebook.archived_at is not None:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+
+    workspace_role = _get_workspace_role(
+        db,
+        workspace_id=workspace_id,
+        user_id=str(current_user.id),
+    )
+
+    target_notebook = source_notebook
+    if payload.notebook_id and str(payload.notebook_id) != str(page.notebook_id):
+        target_notebook = _get_notebook_or_404(
+            db,
+            notebook_id=str(payload.notebook_id),
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
+        if target_notebook.archived_at is not None:
+            raise ApiError("not_found", "Notebook not found", status_code=404)
+
+    # Parent page (if given) must live in the destination notebook.
+    parent_id = payload.parent_page_id
+    if parent_id:
+        parent = db.query(NotebookPage).filter(NotebookPage.id == parent_id).first()
+        if parent is None or str(parent.notebook_id) != str(target_notebook.id):
+            raise ApiError(
+                "invalid_input",
+                "parent_page_id must reside in the target notebook",
+                status_code=400,
+            )
+        # Prevent moving a page under itself or any of its descendants.
+        visited: set[str] = set()
+        cur = parent
+        while cur is not None and cur.id not in visited:
+            visited.add(cur.id)
+            if str(cur.id) == str(page.id):
+                raise ApiError(
+                    "invalid_input",
+                    "cannot move a page under itself",
+                    status_code=400,
+                )
+            if not cur.parent_page_id:
+                break
+            cur = db.query(NotebookPage).filter(NotebookPage.id == cur.parent_page_id).first()
+
+    page.notebook_id = target_notebook.id
+    page.parent_page_id = parent_id
+    if payload.sort_order is not None:
+        page.sort_order = max(0, int(payload.sort_order))
+    page.last_edited_at = datetime.now(timezone.utc)
+    page.updated_at = datetime.now(timezone.utc)
+
+    write_audit_log(
+        db,
+        workspace_id=workspace_id,
+        actor_user_id=current_user.id,
+        action="notebook_page.move",
+        target_type="notebook_page",
+        target_id=page.id,
+    )
+    db.commit()
+    db.refresh(page)
+    return PageOut.model_validate(page, from_attributes=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1120,7 +1366,18 @@ async def upload_page_attachment(
     _csrf: None = Depends(require_csrf_protection),
 ) -> dict[str, Any]:
     """Upload a file as an attachment of the page. Stores the binary in
-    the S2 attachments bucket and returns the new NotebookAttachment row."""
+    the S2 attachments bucket and returns the new NotebookAttachment row.
+
+    Security (audit V1/V2/V5):
+    - Reject HTML/SVG/XML via extension and MIME blacklist.
+    - Validate declared MIME against extension whitelist.
+    - Check magic bytes (signature) before writing to S3.
+    - Stream-read body with a size cap so oversized uploads are rejected
+      without buffering the full payload into memory.
+    - Force ``Content-Type: application/octet-stream`` on S3 PUT unless the
+      declared MIME is in the attachment whitelist — blocks stored XSS if
+      the MinIO reverse-proxy shares a cookie domain with the app.
+    """
     page = _get_page_or_404(
         db,
         page_id,
@@ -1132,35 +1389,133 @@ async def upload_page_attachment(
             user_id=str(current_user.id),
         ),
     )
+    # HIGH-7: reject attachment writes on archived notebook/page.
+    notebook_for_attach = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if (
+        notebook_for_attach is None
+        or notebook_for_attach.archived_at is not None
+        or page.is_archived
+    ):
+        raise ApiError("not_found", "Page not found", status_code=404)
 
-    body = await file.read()
-    size = len(body)
     max_bytes = settings.notebook_attachment_max_bytes
-    if size > max_bytes:
+
+    # V5: size pre-check via the multipart-part size (or Content-Length
+    # header) before touching the request body. Streaming read below is
+    # the true guard; this is a fast-fail so we never even start reading
+    # an obviously-too-large upload.
+    declared_length: int | None = None
+    part_size = getattr(file, "size", None)
+    if isinstance(part_size, int) and part_size >= 0:
+        declared_length = part_size
+    else:
+        headers = getattr(file, "headers", None)
+        header_length = None
+        if headers is not None:
+            try:
+                header_length = headers.get("content-length")
+            except Exception:  # noqa: BLE001
+                header_length = None
+        if header_length is not None:
+            try:
+                declared_length = int(header_length)
+            except (TypeError, ValueError):
+                declared_length = None
+    if declared_length is not None and declared_length > max_bytes:
         raise ApiError(
             "file_too_large",
             f"Attachment exceeds {max_bytes} bytes",
             status_code=413,
         )
 
-    safe_name = storage_service.sanitize_filename(file.filename or "file")
+    # V1 + V5: streaming read with +1 byte to detect overflow without
+    # buffering arbitrary-size payloads.
+    chunks: list[bytes] = []
+    total = 0
+    chunk_size = 1024 * 1024  # 1 MiB
+    while True:
+        piece = await file.read(chunk_size)
+        if not piece:
+            break
+        total += len(piece)
+        if total > max_bytes:
+            raise ApiError(
+                "file_too_large",
+                f"Attachment exceeds {max_bytes} bytes",
+                status_code=413,
+            )
+        chunks.append(piece)
+    body = b"".join(chunks)
+    size = len(body)
+
+    filename = file.filename or "file"
+    # V1: reject extension blacklist first (fast fail before any S3 I/O).
+    lowered = filename.lower()
+    for bad_ext in storage_service.ATTACHMENT_EXTENSION_BLACKLIST:
+        if lowered.endswith(bad_ext):
+            raise ApiError(
+                "unsupported_media_type",
+                "Uploaded file type is not allowed",
+                status_code=415,
+            )
+
+    declared_mime = (file.content_type or "application/octet-stream").split(";", 1)[0].strip().lower()
+    # V1: reject blacklisted MIME types outright.
+    if declared_mime in storage_service.ATTACHMENT_MIME_BLACKLIST:
+        raise ApiError(
+            "unsupported_media_type",
+            "Uploaded file type is not allowed",
+            status_code=415,
+        )
+
+    # V1: run the shared workspace upload declaration guard when the
+    # extension is recognized. Falls back to a safer coerced media type
+    # for unknown extensions (e.g. .zip, .log). Declaration failures
+    # raise ApiError directly.
+    try:
+        canonical_mime = validate_workspace_upload_declaration(filename, declared_mime)
+    except ApiError:
+        raise
+    except Exception:
+        canonical_mime = "application/octet-stream"
+
+    # V1: magic-bytes / signature check. Only the first ~8KiB is peeked.
+    # For declared MIME types we know how to validate we require a match;
+    # anything unknown silently passes as octet-stream.
+    prefix = body[:UPLOAD_SIGNATURE_READ_BYTES]
+    try:
+        validate_workspace_upload_signature(prefix=prefix, media_type=canonical_mime)
+    except ApiError:
+        raise
+
+    # V2: force application/octet-stream at rest unless the declared
+    # canonical MIME is in the whitelist. This means uploaded .zip files
+    # still render their "real" type only if they came in as the right
+    # MIME + signature.
+    if canonical_mime in storage_service.ATTACHMENT_MIME_WHITELIST:
+        storage_mime = canonical_mime
+    else:
+        storage_mime = "application/octet-stream"
+
+    safe_name = storage_service.sanitize_filename(filename)
     object_key = f"{workspace_id}/{page.id}/{uuid4().hex}/{safe_name}"
 
     storage_service.get_s3_client().put_object(
         Bucket=settings.s3_notebook_attachments_bucket,
         Key=object_key,
         Body=body,
-        ContentType=file.content_type or "application/octet-stream",
+        ContentType=storage_mime,
     )
 
     attachment = NotebookAttachment(
         page_id=page.id,
         data_item_id=None,
-        attachment_type=_classify_attachment(file.content_type),
+        attachment_type=_classify_attachment(canonical_mime),
         title=title or safe_name,
         meta_json={
             "object_key": object_key,
-            "mime_type": file.content_type or "application/octet-stream",
+            "mime_type": storage_mime,
+            "declared_mime_type": canonical_mime,
             "size_bytes": size,
         },
     )
@@ -1171,10 +1526,83 @@ async def upload_page_attachment(
     return {
         "attachment_id": attachment.id,
         "filename": safe_name,
-        "mime_type": file.content_type or "application/octet-stream",
+        "mime_type": storage_mime,
         "size_bytes": size,
         "attachment_type": attachment.attachment_type,
     }
+
+
+@pages_router.delete("/{page_id}/attachments/{attachment_id}")
+def delete_page_attachment(
+    page_id: str,
+    attachment_id: str,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict[str, Any]:
+    """Delete an attachment row and its S3 object (spec §13.4).
+
+    Nested path here (not spec's ``DELETE /api/v1/attachments/{id}``) because
+    ``attachments.py`` already registers a ``GET /{id}/url`` on the flat
+    prefix; we also register ``delete_attachment`` there for the flat shape.
+    This nested variant is the primary path — it keeps workspace resolution
+    cheap (page → notebook → workspace) and matches the upload path's
+    structure.
+    """
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+    )
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    if notebook is None or notebook.archived_at is not None:
+        raise ApiError("not_found", "Page not found", status_code=404)
+
+    att = (
+        db.query(NotebookAttachment)
+        .filter(
+            NotebookAttachment.id == attachment_id,
+            NotebookAttachment.page_id == page.id,
+        )
+        .first()
+    )
+    if att is None:
+        raise ApiError("not_found", "Attachment not found", status_code=404)
+
+    object_key = (att.meta_json or {}).get("object_key")
+    if object_key:
+        try:
+            storage_service.get_s3_client().delete_object(
+                Bucket=settings.s3_notebook_attachments_bucket,
+                Key=object_key,
+            )
+        except Exception:
+            # Best-effort — DB row removal is the authoritative delete.
+            import logging
+            logging.getLogger(__name__).warning(
+                "delete_page_attachment: S3 delete failed for key=%s", object_key,
+                exc_info=True,
+            )
+
+    db.delete(att)
+    write_audit_log(
+        db,
+        workspace_id=workspace_id,
+        actor_user_id=current_user.id,
+        action="notebook_attachment.delete",
+        target_type="notebook_attachment",
+        target_id=str(attachment_id),
+    )
+    db.commit()
+    return {"ok": True, "status": "deleted", "attachment_id": attachment_id}
 
 
 # ---------------------------------------------------------------------------
@@ -1452,6 +1880,34 @@ async def confirm_memory_candidate(
         project_id=project_id,
         user_id=str(current_user.id),
     )
+    # Spec §5.1 / §9.5: record the page-span ↔ memory bridge so the UI can
+    # show "this span produced these memories" without re-scanning evidence.
+    if memory is not None:
+        from app.models import (
+            MemoryEvidence as _Evidence,
+            NotebookSelectionMemoryLink as _Link,
+        )
+        item_meta = item.metadata_json if isinstance(item.metadata_json, dict) else {}
+        start_offset = item_meta.get("start_offset")
+        end_offset = item_meta.get("end_offset")
+        block_id = item_meta.get("block_id") or payload.get("block_id")
+        evidence = (
+            db.query(_Evidence)
+            .filter(
+                _Evidence.memory_id == memory.id,
+                _Evidence.source_type == "notebook_page",
+            )
+            .order_by(_Evidence.created_at.desc())
+            .first()
+        )
+        db.add(_Link(
+            page_id=page.id,
+            block_id=str(block_id) if block_id else None,
+            start_offset=int(start_offset) if isinstance(start_offset, int) else None,
+            end_offset=int(end_offset) if isinstance(end_offset, int) else None,
+            memory_id=memory.id,
+            evidence_id=evidence.id if evidence else None,
+        ))
     db.commit()
     # Bump graph revision AFTER commit so Redis revision is consistent with DB state
     if memory:
@@ -1524,8 +1980,57 @@ def reject_memory_candidate(
             if reason:
                 target_meta["last_rejection_reason"] = reason
             target_memory.metadata_json = target_meta
+
+    # Spec §9.0.3: downrank future same-class candidates by matching the
+    # first 100 chars of raw/candidate text (cheap lexical fingerprint) —
+    # avoids a new DB column while still curbing the "extract the same
+    # sentence 5 times" abuse pattern.
+    fingerprint = (item.candidate_text or "")[:100].strip()
+    rejected_lineage: list[str] = []
+    if fingerprint:
+        # Constrain to runs in the same workspace. `MemoryWriteRun.id in
+        # MemoryWriteItem.run_id` is a straight join (run_id is a FK).
+        similar = (
+            db.query(MemoryWriteItem)
+            .join(MemoryWriteRun, MemoryWriteRun.id == MemoryWriteItem.run_id)
+            .filter(
+                MemoryWriteRun.workspace_id == workspace_id,
+                MemoryWriteItem.id != item.id,
+                MemoryWriteItem.decision == "pending",
+            )
+            .limit(200)
+            .all()
+        )
+        # Short-enough prefix to catch genuine paraphrases, long enough to
+        # avoid false positives across unrelated content.
+        prefix_len = min(len(fingerprint), 30)
+        prefix = fingerprint[:prefix_len]
+        for sibling in similar:
+            sib_text = (sibling.candidate_text or "")[:100].strip()
+            if not sib_text or not sib_text.startswith(prefix):
+                continue
+            # Halve the importance (downrank) on pending look-alikes.
+            sibling.importance = max(0.0, float(sibling.importance or 0.0) * 0.5)
+            sib_meta = (
+                dict(sibling.metadata_json or {})
+                if isinstance(sibling.metadata_json, dict)
+                else {}
+            )
+            sib_meta["downranked_by_rejection_of"] = item.id
+            sib_meta["downranked_at"] = datetime.now(timezone.utc).isoformat()
+            sibling.metadata_json = sib_meta
+            rejected_lineage.append(str(sibling.id))
+
+    if rejected_lineage:
+        # Capture the downrank event on the rejected item's trace so audits
+        # can see what else the rejection touched.
+        trace = dict(meta.get("rejected_lineage") or {}) if isinstance(meta, dict) else {}
+        trace[datetime.now(timezone.utc).isoformat()] = rejected_lineage
+        meta["rejected_lineage"] = trace
+        item.metadata_json = meta
+
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "downranked_count": len(rejected_lineage)}
 
 
 @pages_router.get("/{page_id}/memory/trace")
@@ -1677,6 +2182,122 @@ def get_page_memory_trace(
         })
 
     return {"page_id": page_id, "memories": trace}
+
+
+@study_assets_router.post("/{asset_id}/generate-deck")
+async def generate_deck_from_asset(
+    asset_id: str,
+    payload: dict[str, Any] | None = None,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+    _ai_quota: None = Depends(
+        require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month),
+    ),
+) -> dict[str, Any]:
+    """Spec §13.4 — build a StudyDeck + StudyCards from a study asset.
+
+    Routes through `study_ai.generate_flashcards` at the service layer by
+    directly calling the same LLM helper `_run_llm_json` and deck/card
+    persistence. We keep this endpoint thin so the business logic stays in
+    `study_ai` — on a real study-pipeline refactor this can be inlined to a
+    single service function.
+    """
+    asset = db.query(StudyAsset).filter(StudyAsset.id == asset_id).first()
+    if asset is None:
+        raise ApiError("not_found", "Study asset not found", status_code=404)
+    notebook = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
+    workspace_role = _get_workspace_role(
+        db,
+        workspace_id=workspace_id,
+        user_id=str(current_user.id),
+    )
+    from app.core.notebook_access import assert_notebook_readable
+    assert_notebook_readable(
+        notebook,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+        not_found_message="Study asset not found",
+    )
+
+    body = payload or {}
+    count = int(body.get("count", 10))
+    if count < 1 or count > 20:
+        raise ApiError("invalid_input", "count must be 1-20", status_code=400)
+    deck_name = str(body.get("name") or f"{asset.title or 'Deck'} — Auto")
+    deck_description = str(body.get("description") or "")
+
+    # Pull chunk text (limit to 8k to match flashcards endpoint)
+    from app.models import StudyChunk, StudyCard, StudyDeck
+    chunks = (
+        db.query(StudyChunk)
+        .filter(StudyChunk.asset_id == asset.id)
+        .order_by(StudyChunk.chunk_index)
+        .limit(20)
+        .all()
+    )
+    source_text = "\n\n".join((c.content or "") for c in chunks)[:8000]
+    if not source_text.strip():
+        raise ApiError(
+            "invalid_input",
+            "Study asset has no chunk content yet (run ingest first)",
+            status_code=400,
+        )
+
+    from app.routers.study_ai import _FLASHCARDS_SYSTEM, _run_llm_json
+    prompt = f"Produce exactly {count} flashcards from the following text.\n\n{source_text}"
+
+    import json as _json
+    async with action_log_context(
+        db,
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        action_type="study.generate_deck",
+        scope="study_asset",
+        notebook_id=str(asset.notebook_id),
+    ) as log:
+        log.set_input({"asset_id": asset_id, "count": count})
+        raw = await _run_llm_json(_FLASHCARDS_SYSTEM, prompt)
+        try:
+            parsed = _json.loads(raw)
+            cards = parsed.get("cards") or []
+            if not isinstance(cards, list) or not cards:
+                raise ValueError("cards missing")
+            for c in cards:
+                if not isinstance(c.get("front"), str) or not isinstance(c.get("back"), str):
+                    raise ValueError("bad card shape")
+        except Exception:
+            raise ApiError("llm_bad_output", "LLM returned invalid JSON", status_code=422)
+
+        deck = StudyDeck(
+            notebook_id=asset.notebook_id,
+            name=deck_name[:120],
+            description=deck_description,
+            card_count=len(cards),
+            created_by=current_user.id,
+        )
+        db.add(deck)
+        db.flush()
+        for c in cards:
+            db.add(StudyCard(
+                deck_id=deck.id,
+                front=c["front"],
+                back=c["back"],
+                source_type="study_asset",
+                source_ref=str(asset.id)[:64],
+            ))
+        log.set_output({"deck_id": deck.id, "card_count": len(cards)})
+        log.record_usage(
+            event_type="llm_completion",
+            prompt_tokens=max(1, len(prompt) // 4),
+            completion_tokens=max(1, len(raw) // 4),
+            count_source="estimated",
+        )
+        db.commit()
+        return {"deck_id": deck.id, "card_count": len(cards)}
 
 
 @pages_router.post("/{page_id}/tasks/{block_id}/complete")

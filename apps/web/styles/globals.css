@@ -2596,6 +2596,9 @@
 }
 
 :root {
+  --font-jakarta:
+    "SF Pro Display", "PingFang SC", "Noto Sans SC", -apple-system,
+    BlinkMacSystemFont, sans-serif;
   --font-dm-sans:
     "DM Sans", "SF Pro Display", "PingFang SC", "Noto Sans SC", -apple-system,
     BlinkMacSystemFont, sans-serif;

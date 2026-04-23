@@ -18,6 +18,49 @@ FALLBACK_PREVIEW_SAMPLE_BYTES = 4096
 FALLBACK_PREVIEW_MAX_CHARS = 1200
 FALLBACK_ARCHIVE_MEMBER_LIMIT = 20
 
+# Zip bomb defenses (audit V3). Office files (docx / pptx) are zip
+# archives and attackers can craft 10-50MB archives that expand to
+# 10-50GB of XML. Enforce per-member and per-archive caps.
+_ZIP_MEMBER_DECLARED_MAX_BYTES = 128 * 1024 * 1024     # 128 MB per member (pre-decl)
+_ZIP_MEMBER_DECOMPRESSED_MAX_BYTES = 64 * 1024 * 1024  # 64 MB per member (actual)
+_ZIP_ARCHIVE_DECOMPRESSED_MAX_BYTES = 256 * 1024 * 1024  # 256 MB whole archive
+_ZIP_DECOMPRESS_CHUNK_BYTES = 1024 * 1024              # 1 MB streaming chunks
+
+
+class _ZipBombError(Exception):
+    """Raised when a zip member or archive exceeds the decompression cap."""
+
+
+def _safe_read_zip_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo, *, already_consumed: int) -> tuple[bytes, int]:
+    """Stream-decompress a single zip member with both per-member and
+    per-archive byte caps. Raises ``_ZipBombError`` if either cap trips.
+    Returns ``(data, bytes_added_to_archive_total)``.
+    """
+    # Predeclared size sanity check (attacker-controlled, so only a
+    # coarse upper bound). Rejects obvious "50 MB compressed expands to
+    # 20 GB" payloads when the header is honest.
+    if info.file_size and info.file_size > _ZIP_MEMBER_DECLARED_MAX_BYTES:
+        raise _ZipBombError("member pre-declared size too large")
+
+    remaining_archive = _ZIP_ARCHIVE_DECOMPRESSED_MAX_BYTES - already_consumed
+    if remaining_archive <= 0:
+        raise _ZipBombError("archive decompression budget exhausted")
+
+    buf = bytearray()
+    consumed = 0
+    with zf.open(info, "r") as fp:
+        while True:
+            chunk = fp.read(_ZIP_DECOMPRESS_CHUNK_BYTES)
+            if not chunk:
+                break
+            consumed += len(chunk)
+            if consumed > _ZIP_MEMBER_DECOMPRESSED_MAX_BYTES:
+                raise _ZipBombError("member decompressed size exceeds per-member cap")
+            if consumed > remaining_archive:
+                raise _ZipBombError("archive decompressed size exceeds cap")
+            buf.extend(chunk)
+    return bytes(buf), consumed
+
 
 def _decode_text(content: bytes) -> str:
     return content.decode("utf-8", errors="ignore").replace("\ufeff", "")
@@ -70,19 +113,43 @@ def _extract_office_xml_text(content: bytes, member_names: list[str]) -> str:
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as z:
             parts: list[str] = []
-            for member_name in member_names:
-                with z.open(member_name) as f:
-                    xml_content = f.read().decode("utf-8", errors="ignore")
-                    text = re.sub(r"<[^>]+>", " ", xml_content)
-                    cleaned = re.sub(r"\s+", " ", text).strip()
-                    if cleaned:
-                        parts.append(cleaned)
+            archive_consumed = 0
+            names = set(member_names)
+            # Walk the infolist so file_size (pre-declared) is inspected
+            # before we ever read any compressed data.
+            for info in z.infolist():
+                if info.filename not in names:
+                    continue
+                try:
+                    raw, consumed = _safe_read_zip_member(
+                        z, info, already_consumed=archive_consumed,
+                    )
+                except _ZipBombError:
+                    logger.warning(
+                        "Zip bomb guard tripped while reading member %s", info.filename
+                    )
+                    # Bail out of the whole archive — returning partial
+                    # text after a cap trip would be noise.
+                    return ""
+                archive_consumed += consumed
+                xml_content = raw.decode("utf-8", errors="ignore")
+                text = re.sub(r"<[^>]+>", " ", xml_content)
+                cleaned = re.sub(r"\s+", " ", text).strip()
+                if cleaned:
+                    parts.append(cleaned)
             return "\n".join(parts)
+    except _ZipBombError:
+        return ""
     except Exception:  # noqa: BLE001
         return ""
 
 
 def _extract_markup_text(content: bytes) -> str:
+    # Regex tag-stripping is deliberate. Do NOT replace with
+    # ``lxml.etree.fromstring`` / ``BeautifulSoup(..., "xml")`` —
+    # those pull in external DTDs / entities and re-introduce XXE.
+    # If a more accurate parser is ever needed, route it through
+    # ``defusedxml`` with resolve_entities=False.
     raw = _decode_text(content)
     without_tags = re.sub(r"<[^>]+>", " ", raw)
     return re.sub(r"\s+", " ", without_tags).strip()
@@ -143,13 +210,27 @@ def _extract_readable_preview(content: bytes) -> str:
 
 
 def _list_archive_members(content: bytes) -> list[str]:
+    # Listing is metadata-only — no decompression happens here. But we
+    # still reject archives whose pre-declared member sizes are
+    # unreasonable, since the caller may subsequently read them.
     try:
+        names: list[str] = []
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
-            return [
-                name
-                for name in archive.namelist()
-                if name and not name.endswith("/")
-            ][:FALLBACK_ARCHIVE_MEMBER_LIMIT]
+            for info in archive.infolist():
+                if info.file_size and info.file_size > _ZIP_MEMBER_DECLARED_MAX_BYTES:
+                    logger.warning(
+                        "Archive member %s pre-declared size %d exceeds cap; listing aborted",
+                        info.filename,
+                        info.file_size,
+                    )
+                    return []
+                name = info.filename
+                if not name or name.endswith("/"):
+                    continue
+                names.append(name)
+                if len(names) >= FALLBACK_ARCHIVE_MEMBER_LIMIT:
+                    break
+        return names
     except Exception:  # noqa: BLE001
         return []
 
@@ -229,11 +310,18 @@ def extract_text_from_content(content: bytes, filename: str) -> str:
     if ext == "pptx":
         try:
             with zipfile.ZipFile(io.BytesIO(content)) as z:
-                slide_names = sorted(
-                    name
-                    for name in z.namelist()
-                    if name.startswith("ppt/slides/slide") and name.endswith(".xml")
-                )
+                slide_names: list[str] = []
+                for info in z.infolist():
+                    if info.file_size and info.file_size > _ZIP_MEMBER_DECLARED_MAX_BYTES:
+                        logger.warning(
+                            "pptx slide %s pre-declared size %d exceeds cap",
+                            info.filename,
+                            info.file_size,
+                        )
+                        return ""
+                    if info.filename.startswith("ppt/slides/slide") and info.filename.endswith(".xml"):
+                        slide_names.append(info.filename)
+                slide_names.sort()
         except Exception:  # noqa: BLE001
             return ""
         return _extract_office_xml_text(content, slide_names)

@@ -717,7 +717,6 @@ start_local_web() {
     "$ROOT_DIR/apps/web" \
     "$ROOT_DIR/apps/web/node_modules/.bin/next" \
     dev \
-    --webpack \
     -H 127.0.0.1 \
     -p 3000
 }

@@ -38,17 +38,37 @@ importlib.reload(main_module)
 from fastapi.testclient import TestClient
 
 import app.core.entitlements as entitlements_module
+import app.db.session as _s
 import app.routers.chat as chat_router
+import app.routers.realtime as realtime_router
 from app.db.base import Base
-from app.db.session import SessionLocal, engine
-from app.models import AIActionLog, AIUsageEvent, Subscription, User
+from app.models import (
+    AIActionLog,
+    AIUsageEvent,
+    Conversation,
+    Project,
+    Subscription,
+    User,
+)
 from app.services.runtime_state import runtime_state
 
 
 def setup_function() -> None:
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    # Resolve engine/SessionLocal dynamically — other test files may have
+    # reloaded app.db.session after import time, rebinding these on the
+    # module object. Looking them up via `_s.` picks the current bindings
+    # so setup and the FastAPI app hit the same DB.
+    Base.metadata.drop_all(bind=_s.engine)
+    Base.metadata.create_all(bind=_s.engine)
     runtime_state._memory = runtime_state._memory.__class__()
+    # `realtime.py` and `chat.py` did `from app.db.session import SessionLocal`
+    # at their own import time. Subsequent reloads of `app.db.session` by
+    # other test modules leave those local bindings pointing at a stale
+    # engine (no tables). Reload the routers here so every test sees the
+    # current SessionLocal.
+    importlib.reload(chat_router)
+    importlib.reload(realtime_router)
+    importlib.reload(main_module)
 
 
 def _public() -> dict[str, str]:
@@ -87,7 +107,7 @@ def _register(email: str = "u@x.co") -> tuple[TestClient, str]:
 def _upgrade(workspace_id: str, plan: str = "pro") -> None:
     """Give the workspace an active Pro (or higher) subscription."""
     from app.core.entitlements import refresh_workspace_entitlements
-    with SessionLocal() as db:
+    with _s.SessionLocal() as db:
         db.add(Subscription(
             workspace_id=workspace_id,
             plan=plan, status="active",
@@ -113,7 +133,7 @@ def _fill_ai_quota(workspace_id: str, n: int) -> None:
     """Insert n AIUsageEvent rows in the current calendar month so
     count_ai_actions_this_month() returns >= n."""
     now = datetime.now(timezone.utc)
-    with SessionLocal() as db:
+    with _s.SessionLocal() as db:
         user_id = db.query(User.id).first()[0]
         log = AIActionLog(
             workspace_id=workspace_id,
@@ -288,7 +308,7 @@ def test_chat_messages_writes_ai_usage_event_on_success(monkeypatch) -> None:
 
 
 def _ai_usage_count(workspace_id: str) -> int:
-    with SessionLocal() as db:
+    with _s.SessionLocal() as db:
         return db.query(AIUsageEvent).filter(
             AIUsageEvent.workspace_id == workspace_id
         ).count()
@@ -338,3 +358,147 @@ def test_free_notebook_cap_still_enforced() -> None:
     assert r2.status_code == 402, r2.text
     code = r2.json().get("error", {}).get("code")
     assert code == "plan_limit_reached"
+
+
+# ---------------------------------------------------------------------------
+# C2: realtime WebSocket voice.enabled gate
+#
+# Each ws endpoint previously authenticated via access-token cookie alone,
+# leaving voice.enabled only on the HTTP /ws-ticket route — so a client
+# that skipped the ticket flow (just opened wss with its cookie) got the
+# full realtime voice pipeline regardless of plan.
+# ---------------------------------------------------------------------------
+
+def _create_project_and_conversation(workspace_id: str, user_id: str) -> tuple[str, str]:
+    """Insert project+conversation rows directly (bypassing billing gates
+    that aren't under test). Project has no created_by column."""
+    with _s.SessionLocal() as db:
+        project = Project(
+            workspace_id=workspace_id,
+            name="Realtime Proj",
+            description="x",
+        )
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+        conv = Conversation(
+            workspace_id=workspace_id,
+            project_id=project.id,
+            title="T",
+            created_by=user_id,
+        )
+        db.add(conv)
+        db.commit()
+        db.refresh(conv)
+        return project.id, conv.id
+
+
+def _user_id_for_workspace(workspace_id: str) -> str:
+    from app.models import Membership
+    with _s.SessionLocal() as db:
+        return db.query(Membership.user_id).filter(
+            Membership.workspace_id == workspace_id
+        ).first()[0]
+
+
+def test_realtime_voice_ws_blocked_on_free_plan(monkeypatch) -> None:
+    """Free workspace can authenticate the WebSocket but must be told
+    plan_required and disconnected before any upstream resource opens."""
+    monkeypatch.setattr(realtime_router.settings, "dashscope_api_key", "test-key")
+    client, ws_id = _register("c2-voice@x.co")
+    uid = _user_id_for_workspace(ws_id)
+    project_id, conv_id = _create_project_and_conversation(ws_id, uid)
+
+    with client.websocket_connect(
+        "/api/v1/realtime/voice", headers=_public()
+    ) as websocket:
+        websocket.send_json({
+            "type": "session.start",
+            "conversation_id": conv_id,
+            "project_id": project_id,
+        })
+        msg = websocket.receive_json()
+        assert msg["type"] == "error", msg
+        assert msg["code"] == "plan_required", msg
+
+
+def test_realtime_composed_voice_ws_blocked_on_free_plan(monkeypatch) -> None:
+    monkeypatch.setattr(realtime_router.settings, "dashscope_api_key", "test-key")
+    client, ws_id = _register("c2-composed@x.co")
+    uid = _user_id_for_workspace(ws_id)
+    project_id, conv_id = _create_project_and_conversation(ws_id, uid)
+
+    with client.websocket_connect(
+        "/api/v1/realtime/composed-voice", headers=_public()
+    ) as websocket:
+        websocket.send_json({
+            "type": "session.start",
+            "conversation_id": conv_id,
+            "project_id": project_id,
+        })
+        msg = websocket.receive_json()
+        assert msg["type"] == "error", msg
+        assert msg["code"] == "plan_required", msg
+
+
+def test_realtime_dictate_ws_blocked_on_free_plan(monkeypatch) -> None:
+    """/dictate had the gate before this audit but regress-test it so it
+    stays enforced."""
+    monkeypatch.setattr(realtime_router.settings, "dashscope_api_key", "test-key")
+    client, ws_id = _register("c2-dictate@x.co")
+    uid = _user_id_for_workspace(ws_id)
+    project_id, conv_id = _create_project_and_conversation(ws_id, uid)
+
+    with client.websocket_connect(
+        "/api/v1/realtime/dictate", headers=_public()
+    ) as websocket:
+        websocket.send_json({
+            "type": "session.start",
+            "conversation_id": conv_id,
+            "project_id": project_id,
+        })
+        msg = websocket.receive_json()
+        assert msg["type"] == "error", msg
+        assert msg["code"] == "plan_required", msg
+
+
+def test_realtime_voice_ws_passes_on_pro_plan(monkeypatch) -> None:
+    """Sanity: Pro workspaces clear the voice gate and reach session.ready.
+    We stub the upstream realtime WS so the test doesn't actually dial out.
+    """
+    monkeypatch.setattr(realtime_router.settings, "dashscope_api_key", "test-key")
+
+    # Stub upstream connection so RealtimeSession.connect_upstream /
+    # send_initial_session_update don't try to hit dashscope.
+    from app.services.realtime_bridge import SessionState
+
+    async def _fake_connect(self):
+        self._upstream_ws = object()  # placeholder — we end before using it
+    async def _fake_update(self, _system_prompt):
+        self.state = SessionState.READY
+    monkeypatch.setattr(
+        "app.services.realtime_bridge.RealtimeSession.connect_upstream",
+        _fake_connect,
+    )
+    monkeypatch.setattr(
+        "app.services.realtime_bridge.RealtimeSession.send_initial_session_update",
+        _fake_update,
+    )
+
+    client, ws_id = _register("c2-voice-pro@x.co")
+    _upgrade(ws_id, "pro")
+    uid = _user_id_for_workspace(ws_id)
+    project_id, conv_id = _create_project_and_conversation(ws_id, uid)
+
+    with client.websocket_connect(
+        "/api/v1/realtime/voice", headers=_public()
+    ) as websocket:
+        websocket.send_json({
+            "type": "session.start",
+            "conversation_id": conv_id,
+            "project_id": project_id,
+        })
+        msg = websocket.receive_json()
+        # Must not be the plan gate — gate cleared.
+        assert not (msg.get("type") == "error" and msg.get("code") == "plan_required"), msg
+        websocket.send_json({"type": "session.end"})

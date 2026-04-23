@@ -4,15 +4,14 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Settings, Save } from "lucide-react";
-import { apiGet, apiPatch } from "@/lib/api";
+import {
+  notebookSDK,
+  type NotebookInfo,
+  type NotebookType,
+} from "@/lib/notebook-sdk";
+import { toast } from "@/hooks/use-toast";
 
-interface NotebookInfo {
-  id: string;
-  title: string;
-  description: string;
-  notebook_type: string;
-  project_id: string | null;
-}
+const NOTEBOOK_TYPES: NotebookType[] = ["personal", "work", "study", "scratch"];
 
 export default function NotebookSettingsPage() {
   const params = useParams<{ notebookId: string }>();
@@ -21,15 +20,23 @@ export default function NotebookSettingsPage() {
   const [notebook, setNotebook] = useState<NotebookInfo | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [notebookType, setNotebookType] = useState<NotebookType>("personal");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void apiGet<NotebookInfo>(`/api/v1/notebooks/${params.notebookId}`)
+    void notebookSDK
+      .get(params.notebookId)
       .then((data) => {
         setNotebook(data);
         setTitle(data.title || "");
         setDescription(data.description || "");
+        if (
+          data.notebook_type &&
+          (NOTEBOOK_TYPES as readonly string[]).includes(data.notebook_type)
+        ) {
+          setNotebookType(data.notebook_type as NotebookType);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -39,16 +46,24 @@ export default function NotebookSettingsPage() {
     if (saving) return;
     setSaving(true);
     try {
-      const updated = await apiPatch<NotebookInfo>(`/api/v1/notebooks/${params.notebookId}`, {
+      const updated = await notebookSDK.patch(params.notebookId, {
         title,
         description,
+        notebook_type: notebookType,
       });
       setNotebook(updated);
-    } catch {
-      // ignore
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : tn("pages.error.update_failed");
+      toast({
+        title: tn("pages.error.update_failed"),
+        description: message,
+      });
     }
     setSaving(false);
-  }, [params.notebookId, title, description, saving]);
+  }, [params.notebookId, title, description, notebookType, saving, tn]);
 
   if (loading) {
     return (
@@ -112,6 +127,60 @@ export default function NotebookSettingsPage() {
             }}
           />
         </div>
+
+        {/* Notebook type */}
+        <fieldset
+          style={{
+            marginBottom: 24,
+            padding: 0,
+            border: "none",
+            display: "grid",
+            gap: 8,
+          }}
+          data-testid="notebook-settings-type"
+        >
+          <legend style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--console-text-secondary)", padding: 0 }}>
+            {tn("pages.create_dialog.notebook_type.heading")}
+          </legend>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+            {NOTEBOOK_TYPES.map((kind) => {
+              const selected = notebookType === kind;
+              return (
+                <label
+                  key={kind}
+                  data-testid={`notebook-settings-type-${kind}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    padding: "10px 12px",
+                    border: `1px solid ${selected ? "#2563eb" : "rgba(15,23,42,0.12)"}`,
+                    borderRadius: 10,
+                    background: selected ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.6)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="notebook-settings-type"
+                    value={kind}
+                    checked={selected}
+                    onChange={() => setNotebookType(kind)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <div>
+                    <div style={{ fontSize: "0.8125rem", fontWeight: 600 }}>
+                      {tn(`pages.create_dialog.notebook_type.${kind}`)}
+                    </div>
+                    <div style={{ marginTop: 2, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
+                      {tn(`pages.create_dialog.notebook_type.${kind}_hint`)}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
         {/* Info */}
         {notebook?.project_id && (

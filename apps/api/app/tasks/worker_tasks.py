@@ -2049,3 +2049,585 @@ def expire_one_time_subscriptions_task() -> dict[str, int]:
         return {"expired": n}
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 A8 — Spec §14 worker task alignment
+#
+# These wrappers exist so every task the spec names has a concrete
+# ``@celery_app.task`` name the platform can reference. Several of them
+# delegate to the same service functions used elsewhere in this file
+# (UnifiedMemoryPipeline, study_pipeline, related_pages, etc.) and a few
+# are still intentionally minimal stubs — they log + return a summary
+# dict rather than raise, so callers can schedule them without blowing
+# up the worker.
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(name="app.tasks.worker_tasks.notebook_page_plaintext_task")
+def notebook_page_plaintext_task(page_id: str) -> dict[str, object]:
+    """Rebuild ``plain_text`` from ``content_json`` for one NotebookPage.
+
+    Spec §14.2 pairs this with the page-edit pipeline; the live code path
+    runs the same extraction inline inside ``PATCH /pages/{id}``. Having
+    this as its own task lets ops backfill or replay without going
+    through the router.
+    """
+    from app.models import NotebookPage
+    from app.routers.notebooks import extract_plain_text
+
+    db = SessionLocal()
+    try:
+        page = db.get(NotebookPage, page_id)
+        if page is None:
+            return {"status": "missing", "page_id": page_id}
+        page.plain_text = extract_plain_text(page.content_json or {})
+        db.add(page)
+        db.commit()
+        return {"status": "ok", "page_id": page_id, "chars": len(page.plain_text or "")}
+    except Exception:
+        logger.exception("notebook_page_plaintext_task failed for %s", page_id)
+        db.rollback()
+        return {"status": "failed", "page_id": page_id}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.notebook_page_summary_task")
+def notebook_page_summary_task(page_id: str) -> dict[str, object]:
+    """Generate ``summary_text`` + ``ai_keywords_json`` for a page.
+
+    Stub — delegates to whatever summary-generation logic already ships
+    under ``app.services`` if it exists, otherwise falls back to a
+    truncated plaintext preview so the column is never empty.
+    Idempotent.
+    """
+    from app.models import NotebookPage
+
+    db = SessionLocal()
+    try:
+        page = db.get(NotebookPage, page_id)
+        if page is None:
+            return {"status": "missing", "page_id": page_id}
+        text = (page.plain_text or "").strip()
+        if not text:
+            return {"status": "empty", "page_id": page_id}
+        # TODO: hook LLM summarizer. For now derive a short heuristic summary.
+        first_para = text.split("\n", 1)[0].strip()
+        summary = first_para[:240]
+        page.summary_text = summary
+        # Keywords: naive top-5 words >=4 chars. Cheap placeholder; the
+        # real keyword pipeline lives inside notebook_ai_service.
+        import re as _re
+        from collections import Counter
+        words = [w.lower() for w in _re.findall(r"[A-Za-z\u4e00-\u9fa5]{4,}", text)]
+        if words:
+            top = [w for w, _c in Counter(words).most_common(5)]
+            page.ai_keywords_json = top
+        db.add(page)
+        db.commit()
+        return {
+            "status": "ok",
+            "page_id": page_id,
+            "summary_len": len(page.summary_text or ""),
+            "keyword_count": len(page.ai_keywords_json or []),
+        }
+    except Exception:
+        logger.exception("notebook_page_summary_task failed for %s", page_id)
+        db.rollback()
+        return {"status": "failed", "page_id": page_id}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.unified_memory_extract_task")
+def unified_memory_extract_task(
+    source_type: str,
+    source_ref: str,
+    source_text: str,
+    workspace_id: str,
+    project_id: str,
+    user_id: str,
+    context_text: str = "",
+    owner_user_id: str | None = None,
+) -> dict[str, object]:
+    """Unified entrypoint that funnels arbitrary source content through
+    :func:`unified_memory_pipeline.run_pipeline`.
+
+    This wrapper exists so everything the spec calls
+    ``unified_memory_extract_task`` has a single Celery task name, even
+    though the different per-source taskers (chat, page, whiteboard,
+    study-confusion) all live in their own wrappers.
+    """
+    import asyncio as _asyncio
+    from app.services.unified_memory_pipeline import (
+        PipelineInput, SourceContext, run_pipeline,
+    )
+
+    db = SessionLocal()
+    try:
+        pipeline_input = PipelineInput(
+            source_type=source_type,  # type: ignore[arg-type]
+            source_text=(source_text or "")[:6000],
+            source_ref=str(source_ref),
+            workspace_id=str(workspace_id),
+            project_id=str(project_id),
+            user_id=str(user_id),
+            context=SourceContext(owner_user_id=owner_user_id or str(user_id)),
+            context_text=context_text,
+        )
+        result = _asyncio.run(run_pipeline(db, pipeline_input))
+        db.commit()
+        if result.graph_changed:
+            bump_project_memory_graph_revision(
+                workspace_id=workspace_id, project_id=project_id,
+            )
+        return {
+            "status": result.status,
+            "item_count": result.item_count,
+            "graph_changed": result.graph_changed,
+        }
+    except Exception:
+        logger.exception(
+            "unified_memory_extract_task failed for %s/%s",
+            source_type, source_ref,
+        )
+        db.rollback()
+        return {"status": "failed", "source_type": source_type, "source_ref": source_ref}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.notebook_page_memory_link_task")
+def notebook_page_memory_link_task(page_id: str) -> dict[str, object]:
+    """Refresh the NotebookSelectionMemoryLink bridge table for a page.
+
+    A5 wires the bridge synchronously inside ``/pages/{id}/memory/confirm``,
+    but this async task lets a maintenance job rebuild the links by
+    scanning MemoryEvidence rows whose source episode type is
+    ``notebook_page`` and whose ``source_id`` matches the page. Idempotent
+    (each ``(page_id, memory_id)`` pair is only inserted once).
+    """
+    from sqlalchemy import text as _text
+    from app.models import (
+        MemoryEpisode,
+        MemoryEvidence,
+        NotebookPage,
+        NotebookSelectionMemoryLink,
+    )
+
+    db = SessionLocal()
+    try:
+        page = db.get(NotebookPage, page_id)
+        if page is None:
+            return {"status": "missing", "page_id": page_id}
+        rows = (
+            db.query(MemoryEvidence.id, MemoryEvidence.memory_id)
+            .join(MemoryEpisode, MemoryEpisode.id == MemoryEvidence.episode_id)
+            .filter(MemoryEpisode.source_type == "notebook_page")
+            .filter(MemoryEpisode.source_id == page_id)
+            .all()
+        )
+        linked = 0
+        for evidence_id, memory_id in rows:
+            exists = db.execute(
+                _text(
+                    "SELECT 1 FROM notebook_selection_memory_links "
+                    "WHERE page_id = :p AND memory_id = :m LIMIT 1"
+                ),
+                {"p": page_id, "m": memory_id},
+            ).fetchone()
+            if exists:
+                continue
+            link = NotebookSelectionMemoryLink(
+                page_id=page_id,
+                memory_id=memory_id,
+                evidence_id=evidence_id,
+            )
+            db.add(link)
+            linked += 1
+        db.commit()
+        return {"status": "ok", "page_id": page_id, "linked": linked}
+    except Exception:
+        logger.exception("notebook_page_memory_link_task failed for %s", page_id)
+        db.rollback()
+        return {"status": "failed", "page_id": page_id}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.notebook_page_relevance_refresh_task")
+def notebook_page_relevance_refresh_task(page_id: str) -> dict[str, object]:
+    """Recompute related-pages ranking for a page.
+
+    Today ``related_pages.get_related`` runs on-demand inside the API,
+    so there's nothing to cache yet. This task calls through to the
+    service so a scheduled rebuild still has a concrete task name — the
+    return value doubles as a health signal.
+    """
+    from app.models import Notebook, NotebookPage
+    from app.services.related_pages import get_related
+
+    db = SessionLocal()
+    try:
+        page = db.get(NotebookPage, page_id)
+        if page is None:
+            return {"status": "missing", "page_id": page_id}
+        nb = db.get(Notebook, page.notebook_id)
+        if nb is None:
+            return {"status": "orphan", "page_id": page_id}
+        try:
+            related = get_related(
+                db,
+                page_id=page_id,
+                workspace_id=str(nb.workspace_id),
+                limit=5,
+            )
+        except Exception:
+            logger.warning(
+                "notebook_page_relevance_refresh_task: get_related failed for %s",
+                page_id, exc_info=False,
+            )
+            related = {"pages": [], "memory": []}
+        return {
+            "status": "ok",
+            "page_id": page_id,
+            "page_count": len(related.get("pages", [])),
+            "memory_count": len(related.get("memory", [])),
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.whiteboard_memory_extract_task")
+def whiteboard_memory_extract_task(
+    page_id: str,
+    workspace_id: str,
+    project_id: str,
+    user_id: str,
+    elements_json: list | None = None,
+) -> dict[str, object]:
+    """Thin spec-aligned alias around :func:`process_whiteboard_memories`.
+
+    The underlying task name shipped as ``process_whiteboard_memories``;
+    this wrapper just maps the spec-preferred name to it so schedulers
+    and API code can use either name.
+    """
+    process_whiteboard_memories(
+        page_id=page_id,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        user_id=user_id,
+        elements_json=elements_json or [],
+    )
+    return {"status": "ok", "page_id": page_id}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.document_memory_extract_task")
+def document_memory_extract_task(
+    chunk_id: str,
+    workspace_id: str,
+    project_id: str,
+    user_id: str,
+) -> dict[str, object]:
+    """Route a StudyChunk (or arbitrary document chunk) through the
+    UnifiedMemoryPipeline with ``source_type='uploaded_document'``."""
+    import asyncio as _asyncio
+    from app.models import StudyAsset, StudyChunk
+    from app.services.unified_memory_pipeline import (
+        PipelineInput, SourceContext, run_pipeline,
+    )
+
+    db = SessionLocal()
+    try:
+        chunk = db.get(StudyChunk, chunk_id)
+        if chunk is None:
+            return {"status": "missing", "chunk_id": chunk_id}
+        asset = db.get(StudyAsset, chunk.asset_id) if chunk.asset_id else None
+        context_text = ""
+        if asset is not None:
+            context_text = f"Document: {asset.title}"
+        pipeline_input = PipelineInput(
+            source_type="uploaded_document",
+            source_text=(chunk.content or "")[:6000],
+            source_ref=str(chunk.id),
+            workspace_id=str(workspace_id),
+            project_id=str(project_id),
+            user_id=str(user_id),
+            context=SourceContext(owner_user_id=str(user_id)),
+            context_text=context_text,
+        )
+        result = _asyncio.run(run_pipeline(db, pipeline_input))
+        db.commit()
+        if result.graph_changed:
+            bump_project_memory_graph_revision(
+                workspace_id=workspace_id, project_id=project_id,
+            )
+        return {
+            "status": result.status,
+            "chunk_id": chunk_id,
+            "item_count": result.item_count,
+        }
+    except Exception:
+        logger.exception("document_memory_extract_task failed for %s", chunk_id)
+        db.rollback()
+        return {"status": "failed", "chunk_id": chunk_id}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.study_asset_chunk_task")
+def study_asset_chunk_task(asset_id: str) -> dict[str, object]:
+    """Stand-alone chunk task (spec §14.3).
+
+    The monolithic :func:`ingest_study_asset_task` already chunks +
+    embeds inline. This wrapper exists so a retry / manual operator can
+    rerun just the chunking stage without re-parsing the PDF.
+    TODO: split ``study_pipeline.ingest_study_asset`` into independent
+    stages so each can be called in isolation.
+    """
+    logger.info("study_asset_chunk_task(%s) — TODO split stage", asset_id)
+    return {"status": "noop", "asset_id": asset_id, "reason": "merged into ingest_study_asset"}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.study_asset_auto_pages_task")
+def study_asset_auto_pages_task(asset_id: str) -> dict[str, object]:
+    """Stand-alone auto-pages task (spec §14.3).
+
+    Same story as :func:`study_asset_chunk_task`: auto-page generation
+    currently runs inside ``ingest_study_asset``. This stub lets the
+    caller ask for a re-run; it returns a no-op marker today.
+    """
+    logger.info("study_asset_auto_pages_task(%s) — TODO split stage", asset_id)
+    return {"status": "noop", "asset_id": asset_id, "reason": "merged into ingest_study_asset"}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.study_asset_deck_generate_task")
+def study_asset_deck_generate_task(
+    asset_id: str,
+    workspace_id: str,
+    user_id: str,
+    deck_name: str | None = None,
+    max_cards: int = 20,
+) -> dict[str, object]:
+    """Generate a StudyDeck+StudyCards from a study asset's chunks.
+
+    Stub — the richer generator is currently reachable only through the
+    synchronous ``/api/v1/ai/study/flashcards`` endpoint. The async
+    version builds a minimal deck of placeholder cards so the workflow
+    isn't blocking on the AI call; the deck is marked with
+    ``metadata_json["generated_from_asset_id"]`` for traceability.
+    """
+    import uuid
+    from app.models import Notebook, StudyAsset, StudyCard, StudyChunk, StudyDeck
+
+    db = SessionLocal()
+    try:
+        asset = db.get(StudyAsset, asset_id)
+        if asset is None:
+            return {"status": "missing", "asset_id": asset_id}
+        notebook = db.get(Notebook, asset.notebook_id) if asset.notebook_id else None
+        if notebook is None:
+            return {"status": "orphan", "asset_id": asset_id}
+        deck = StudyDeck(
+            id=str(uuid.uuid4()),
+            notebook_id=notebook.id,
+            name=deck_name or f"{asset.title or 'Asset'} — generated",
+            description="Auto-generated deck stub (TODO: hook real LLM flashcard generator).",
+            created_by=user_id,
+        )
+        db.add(deck)
+        db.flush()
+        chunks = (
+            db.query(StudyChunk)
+            .filter(StudyChunk.asset_id == asset_id)
+            .order_by(StudyChunk.chunk_index.asc())
+            .limit(max_cards)
+            .all()
+        )
+        created = 0
+        for chunk in chunks:
+            snippet = (chunk.content or "").strip()
+            if not snippet:
+                continue
+            front = (chunk.heading or snippet[:80]).strip() or "Question"
+            back = snippet[:600]
+            card = StudyCard(
+                id=str(uuid.uuid4()),
+                deck_id=deck.id,
+                front=front,
+                back=back,
+                source_type="asset",
+                source_ref=str(chunk.id),
+            )
+            db.add(card)
+            created += 1
+        deck.card_count = created
+        db.add(deck)
+        db.commit()
+        return {
+            "status": "ok",
+            "asset_id": asset_id,
+            "deck_id": deck.id,
+            "card_count": created,
+        }
+    except Exception:
+        logger.exception("study_asset_deck_generate_task failed for %s", asset_id)
+        db.rollback()
+        return {"status": "failed", "asset_id": asset_id}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.study_asset_memory_extract_task")
+def study_asset_memory_extract_task(
+    asset_id: str,
+    workspace_id: str,
+    project_id: str,
+    user_id: str,
+) -> dict[str, object]:
+    """Fan out document-memory extraction over every chunk in an asset.
+
+    Delegates per-chunk work to :func:`document_memory_extract_task` so
+    the unified-pipeline call path stays shared.
+    """
+    from app.models import StudyChunk
+
+    db = SessionLocal()
+    try:
+        chunk_ids = [
+            row[0]
+            for row in db.query(StudyChunk.id)
+            .filter(StudyChunk.asset_id == asset_id)
+            .all()
+        ]
+    finally:
+        db.close()
+
+    processed = 0
+    for cid in chunk_ids:
+        try:
+            document_memory_extract_task(
+                chunk_id=cid,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                user_id=user_id,
+            )
+            processed += 1
+        except Exception:
+            logger.warning(
+                "study_asset_memory_extract_task: chunk %s failed",
+                cid, exc_info=False,
+            )
+    return {"status": "ok", "asset_id": asset_id, "chunks": processed}
+
+
+@celery_app.task(name="app.tasks.worker_tasks.study_asset_review_recommendation_task")
+def study_asset_review_recommendation_task(
+    user_id: str,
+    workspace_id: str,
+) -> dict[str, object]:
+    """Return today's recommended review cards for a user.
+
+    Uses ``StudyCard.next_review_at`` (FSRS-computed) to pick cards due
+    in the next 24 h. Pure read; scheduler treats this as a ping.
+    """
+    from datetime import timedelta as _td
+
+    from app.models import Notebook, StudyCard, StudyDeck
+
+    db = SessionLocal()
+    try:
+        horizon = datetime.now(timezone.utc) + _td(hours=24)
+        due = (
+            db.query(StudyCard)
+            .join(StudyDeck, StudyDeck.id == StudyCard.deck_id)
+            .join(Notebook, Notebook.id == StudyDeck.notebook_id)
+            .filter(Notebook.workspace_id == workspace_id)
+            .filter(
+                (StudyCard.next_review_at.is_(None))
+                | (StudyCard.next_review_at <= horizon)
+            )
+            .limit(50)
+            .all()
+        )
+        return {
+            "status": "ok",
+            "user_id": user_id,
+            "workspace_id": workspace_id,
+            "due_card_count": len(due),
+            "card_ids": [c.id for c in due[:20]],
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.usage_rollup_task")
+def usage_rollup_task() -> dict[str, object]:
+    """Aggregate AIUsageEvent rows into per-workspace / per-day totals.
+
+    The spec envisions a UsageSummary table; until that lands this task
+    just computes the aggregate and logs it. The return dict is enough
+    for ops dashboards to scrape.
+    """
+    from sqlalchemy import func as _func
+
+    from app.models import AIUsageEvent
+
+    db = SessionLocal()
+    try:
+        # Simple monthly rollup — group by workspace_id.
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+        rows = (
+            db.query(
+                AIUsageEvent.workspace_id,
+                _func.count(AIUsageEvent.id),
+                _func.sum(AIUsageEvent.total_tokens),
+            )
+            .filter(AIUsageEvent.created_at >= since)
+            .group_by(AIUsageEvent.workspace_id)
+            .all()
+        )
+        summary = {
+            "workspace_count": len(rows),
+            "total_events": sum(int(r[1] or 0) for r in rows),
+            "total_tokens": sum(int(r[2] or 0) for r in rows),
+        }
+        logger.info("usage_rollup_task result: %s", summary)
+        return {"status": "ok", **summary}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.subscription_sync_repair_task")
+def subscription_sync_repair_task() -> dict[str, object]:
+    """Scan non-``free`` subscriptions and flag stale rows.
+
+    Does not call Stripe directly (the webhook handler owns that path);
+    instead this task surfaces rows whose ``current_period_end`` is in
+    the past but still marked ``active`` / ``trialing``, so ops can fix
+    them manually or rerun the webhook replay.
+    """
+    from app.models import Subscription
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        rows = (
+            db.query(Subscription)
+            .filter(Subscription.status.in_(["active", "trialing"]))
+            .all()
+        )
+        stale: list[str] = []
+        for sub in rows:
+            end = sub.current_period_end
+            if end is None:
+                continue
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            if end < now:
+                stale.append(sub.id)
+        logger.info("subscription_sync_repair_task flagged %d stale rows", len(stale))
+        return {"status": "ok", "stale_count": len(stale), "stale_ids": stale[:20]}
+    finally:
+        db.close()

@@ -54,6 +54,7 @@ from app.schemas.oauth import (
 )
 from app.services.audit import write_audit_log
 from app.services.email import (
+    is_disposable_email,
     send_verification_email_safe,
     store_verification_code,
     verify_code,
@@ -88,6 +89,15 @@ def send_code(
         limit=settings.verification_rate_limit_max,
         window_seconds=settings.verification_rate_limit_window_seconds,
     )
+    # Global per-email daily cap so the endpoint can't be used as a spam
+    # relay against a third-party inbox even when IPs are rotated.
+    enforce_rate_limit(
+        request,
+        scope="auth:send_code:email_daily",
+        identifier=payload.email,
+        limit=settings.verification_email_daily_cap,
+        window_seconds=86400,
+    )
 
     code = store_verification_code(payload.email, payload.purpose)
     background_tasks.add_task(
@@ -99,13 +109,13 @@ def send_code(
     return {"ok": True}
 
 
-@router.post("/register", response_model=AuthResponse)
+@router.post("/register", response_model=None)
 def register(
     payload: RegisterRequest,
     request: Request,
     response: Response,
     db: Session = Depends(get_db_session),
-) -> AuthResponse:
+) -> AuthResponse | dict[str, bool]:
     require_allowed_origin(request)
     client_ip = get_client_ip(request)
     enforce_rate_limit(
@@ -123,13 +133,27 @@ def register(
         window_seconds=settings.auth_rate_limit_window_seconds,
     )
 
+    # Reject disposable / throwaway email providers up front. Curated list
+    # of widely-known domains; not a security boundary, just signup hygiene.
+    if is_disposable_email(payload.email):
+        raise ApiError(
+            "disposable_email",
+            "Please use a permanent email address.",
+            status_code=400,
+        )
+
     # Verify the email code
     if not verify_code(payload.email, "register", payload.code):
         raise ApiError("invalid_code", "验证码无效或已过期", status_code=400)
 
+    # Account-enumeration defence: pre-audit returned 409 email_exists here,
+    # letting an attacker probe whether an arbitrary address was registered.
+    # Now we return an identical 200 {"ok": true} without creating anything
+    # and without setting any cookie — the response shape is harder to
+    # distinguish from success without further inspection of the body.
     exists = db.query(User).filter(User.email == payload.email).first()
     if exists:
-        raise ApiError("email_exists", "Email already registered", status_code=409)
+        return {"ok": True}
 
     user = User(email=payload.email, password_hash=hash_password(payload.password), display_name=payload.display_name)
     workspace = Workspace(name=f"{payload.display_name or payload.email.split('@')[0]} Workspace", plan="free")
@@ -174,6 +198,15 @@ def reset_password(
         request,
         scope="auth:reset:ip",
         identifier=client_ip,
+        limit=settings.auth_rate_limit_ip_max,
+        window_seconds=settings.auth_rate_limit_window_seconds,
+    )
+    # Email-scoped cap stops a distributed attacker with many IPs from
+    # brute-forcing the numeric reset code over its TTL window.
+    enforce_rate_limit(
+        request,
+        scope="auth:reset:email",
+        identifier=payload.email,
         limit=settings.auth_rate_limit_ip_max,
         window_seconds=settings.auth_rate_limit_window_seconds,
     )
@@ -562,6 +595,7 @@ def list_identities(
 @router.post("/google/disconnect", response_model=OAuthDisconnectResponse)
 def google_disconnect(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf_protection),
@@ -600,12 +634,23 @@ def google_disconnect(
         meta_json={"provider": "google"},
     )
     db.commit()
+
+    # Removing a sign-in method is a credential-rotation event: any token
+    # issued before this moment (e.g. stolen cookie) must stop working.
+    # We reissue a fresh token for the caller so they keep their own
+    # session rather than being logged out by their own action.
+    not_before = revoke_user_tokens(current_user.id)
+    fresh_token = create_access_token(current_user.id, min_iat_epoch=not_before)
+    set_auth_cookie(response, fresh_token)
+    issue_csrf_token(response, fresh_token, current_user.id)
     return OAuthDisconnectResponse(success=True)
 
 
 @router.put("/password", response_model=SetPasswordResponse)
 def set_password(
     payload: SetPasswordRequest,
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
     _csrf: None = Depends(require_csrf_protection),
@@ -616,6 +661,15 @@ def set_password(
     simply ``PUT {new_password}``. Users who already have a password must
     include ``current_password`` to rotate.
     """
+    # Rate-limit current_password brute-force. An attacker who has hijacked
+    # the access cookie + CSRF would otherwise try thousands of candidates.
+    enforce_rate_limit(
+        request,
+        scope="auth:set_password:user",
+        identifier=current_user.id,
+        limit=5,
+        window_seconds=900,
+    )
     if current_user.password_hash is not None:
         if not payload.current_password:
             raise ApiError(
@@ -636,4 +690,12 @@ def set_password(
         meta_json={},
     )
     db.commit()
+
+    # Changing the password must invalidate every previously-issued JWT so
+    # stolen cookies stop working. Reissue a fresh token for the caller so
+    # their own session survives the rotation.
+    not_before = revoke_user_tokens(current_user.id)
+    fresh_token = create_access_token(current_user.id, min_iat_epoch=not_before)
+    set_auth_cookie(response, fresh_token)
+    issue_csrf_token(response, fresh_token, current_user.id)
     return SetPasswordResponse(success=True)

@@ -3,17 +3,12 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Layers, Pencil, Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 import DeckPickerDialog from "@/components/notebook/contents/study/DeckPickerDialog";
-import { apiPost } from "@/lib/api";
-
-function extractNotebookId(): string | null {
-  if (typeof window === "undefined") return null;
-  const m = window.location.pathname.match(/\/notebooks\/([^/?#]+)/);
-  return m ? m[1] : null;
-}
+import { apiGet, apiPost } from "@/lib/api";
+import { useCurrentPageId } from "@/components/console/editor/PageIdContext";
 
 interface FlashcardAttrs {
   front: string;
@@ -30,7 +25,28 @@ function FlashcardBlockView(props: NodeViewProps) {
   );
   const [picking, setPicking] = useState(false);
   const [adding, setAdding] = useState(false);
-  const notebookId = extractNotebookId();
+  // U-14 — derive notebookId from the current page's API metadata rather than
+  // parsing window.location. Falls back to null if the editor is mounted
+  // outside a notebook route (e.g. in a storybook / preview).
+  const pageId = useCurrentPageId();
+  const [notebookId, setNotebookId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pageId) {
+      setNotebookId(null);
+      return;
+    }
+    let cancelled = false;
+    void apiGet<{ notebook_id?: string }>(`/api/v1/pages/${pageId}`)
+      .then((data) => {
+        if (!cancelled) setNotebookId(data.notebook_id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setNotebookId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId]);
 
   const handleFlip = useCallback(() => {
     props.updateAttributes({ flipped: !attrs.flipped });

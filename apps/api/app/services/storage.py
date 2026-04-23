@@ -17,6 +17,65 @@ from app.core.config import settings
 
 POST_UPLOAD_BODY_OVERHEAD_BYTES = 64 * 1024
 
+# Attachment whitelist — only these MIME types are written to S3 with the
+# declared Content-Type. Anything else is coerced to application/octet-stream
+# to block stored XSS via user-supplied HTML / SVG / XML. See
+# tmp/bug_audit/02_injection_upload_ssrf.md V1/V2.
+ATTACHMENT_MIME_WHITELIST: frozenset[str] = frozenset(
+    {
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/bmp",
+        "image/tiff",
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+        "application/zip",
+        "application/json",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/webm",
+        "audio/mp4",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    }
+)
+
+# MIME types explicitly blocked from being declared / stored. Even if the
+# upload is coerced to application/octet-stream, the filename / extension
+# is inspected by the upload handler so these never reach storage.
+ATTACHMENT_MIME_BLACKLIST: frozenset[str] = frozenset(
+    {
+        "text/html",
+        "application/xhtml+xml",
+        "application/xml+xhtml",
+        "text/xml",
+        "image/svg+xml",
+    }
+)
+
+# Extensions that are rejected outright. These carry high XSS / script
+# payload risk regardless of the declared Content-Type.
+ATTACHMENT_EXTENSION_BLACKLIST: frozenset[str] = frozenset(
+    {
+        ".html",
+        ".htm",
+        ".svg",
+        ".svgz",
+        ".xhtml",
+        ".xml",
+        ".xsl",
+        ".xslt",
+    }
+)
+
 
 @lru_cache(maxsize=1)
 def get_s3_client() -> BaseClient:
@@ -130,10 +189,18 @@ def create_presigned_get(
 ) -> str:
     client = get_s3_presign_client()
     params = {"Bucket": bucket_name, "Key": object_key}
+    # Always force Content-Disposition: attachment so the browser downloads
+    # instead of rendering — critical defense against stored XSS via
+    # user-supplied HTML / SVG / XML (audit V2). ResponseContentType is also
+    # forced to octet-stream to override any stored Content-Type header.
+    safe_name = sanitize_filename(download_name or "attachment")
     if download_name:
-        safe_name = sanitize_filename(download_name)
         params["ResponseContentDisposition"] = (
             f'attachment; filename="{safe_name}"; filename*=UTF-8\'\'{quote(download_name, safe="")}'
+        )
+    else:
+        params["ResponseContentDisposition"] = (
+            f'attachment; filename="{safe_name}"'
         )
     return client.generate_presigned_url(
         ClientMethod="get_object",

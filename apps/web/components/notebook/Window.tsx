@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Rnd } from "react-rnd";
 import {
@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowState, WindowType } from "./WindowManager";
+
+// Spec §6.3 — windows can be dragged partially off-canvas but the titlebar
+// must stay at least this many pixels inside so the user can always grab it
+// and drag the window back. Matches macOS / mission-control behavior.
+const TITLEBAR_MIN_VISIBLE_PX = 80;
 
 // ---------------------------------------------------------------------------
 // Icon map
@@ -114,11 +119,26 @@ export default function Window({
     [maximized, maximizeWindow, restoreWindow, id],
   );
 
+  // U-18 — on very small viewports the default 780px note window overflows
+  // the canvas; squeeze the rendered width down to leave a 20px gutter.
+  // The stored width stays unchanged; this only affects the current render.
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === "undefined" ? 1024 : window.innerWidth,
+  );
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const effectiveWidth =
+    viewportWidth < 640 ? Math.min(width, viewportWidth - 40) : width;
+
   // Compute position and size for maximized vs normal
   const position = maximized ? { x: 0, y: 0 } : { x, y };
   const size = maximized
     ? { width: "100%", height: "100%" }
-    : { width, height };
+    : { width: effectiveWidth, height };
 
   const rndStyle = useMemo(
     () => ({ zIndex, display: "flex" }),
@@ -131,13 +151,29 @@ export default function Window({
       size={size}
       position={position}
       dragHandleClassName="wm-titlebar"
-      bounds="parent"
       minWidth={MIN_SIZES[windowState.type]?.width ?? 200}
       minHeight={MIN_SIZES[windowState.type]?.height ?? 150}
       disableDragging={maximized}
       enableResizing={!maximized}
       onDragStop={(_e, d) => {
-        moveWindow(id, d.x, d.y);
+        // Spec §6.3 — clamp so at least TITLEBAR_MIN_VISIBLE_PX remains
+        // grabbable on every edge. Intentionally looser than bounds="parent"
+        // so users can push a window partially off-canvas.
+        const parent =
+          (_e?.target as HTMLElement | undefined)?.closest?.(".wm-canvas") as
+            | HTMLElement
+            | null;
+        const canvasWidth = parent?.clientWidth ?? window.innerWidth;
+        const canvasHeight = parent?.clientHeight ?? window.innerHeight;
+        const clampedX = Math.max(
+          -width + TITLEBAR_MIN_VISIBLE_PX,
+          Math.min(d.x, canvasWidth - TITLEBAR_MIN_VISIBLE_PX),
+        );
+        const clampedY = Math.max(
+          0,
+          Math.min(d.y, canvasHeight - TITLEBAR_MIN_VISIBLE_PX),
+        );
+        moveWindow(id, clampedX, clampedY);
       }}
       onResizeStop={(_e, _dir, ref, _delta, pos) => {
         resizeWindow(id, ref.offsetWidth, ref.offsetHeight);

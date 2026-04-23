@@ -179,7 +179,7 @@ function WhiteboardBlockView(props: WhiteboardNodeViewProps) {
       className="whiteboard-wrapper"
       data-selected={selected || undefined}
     >
-      <span className="whiteboard-label">白板</span>
+      <span className="whiteboard-label">{t("editor.whiteboard_label")}</span>
       <div ref={wrapperRef}>
         {editing ? (
           <div

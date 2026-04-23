@@ -269,14 +269,20 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
 
         {TABS.map((tab) => {
           const active = isRouteActive(tab.id) || activeTab === tab.id;
+          // U-21 — AI tab tooltip describes multi-open behavior so first-time
+          // users discover they can bind separate panels to separate pages.
+          const tooltip =
+            tab.id === "ai_panel"
+              ? `${t(tab.key)} · ${tn("sidebar.aiPanelHint")}`
+              : t(tab.key);
           return (
             <button
               key={tab.id}
               type="button"
               data-testid={`sidebar-tab-${tab.id}`}
               className={`glass-sidebar-nav-item${active ? " is-active" : ""}`}
-              title={t(tab.key)}
-              aria-label={t(tab.key)}
+              title={tooltip}
+              aria-label={tooltip}
               aria-current={active ? "page" : undefined}
               onClick={() => handleTabClick(tab.id)}
               style={{ position: "relative" }}

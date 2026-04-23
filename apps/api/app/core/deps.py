@@ -82,7 +82,8 @@ def is_safe_redirect_path(path: str | None) -> bool:
     """Validate a user-controllable `next` parameter is a relative in-app path.
 
     Rejects absolute URLs, protocol-relative (//evil.com), backslash tricks,
-    and javascript:/data: URIs. Only single-slash-prefixed relative paths pass.
+    javascript:/data: URIs, and nested open-redirect payloads (``?next=`` /
+    ``?redirect=``) that could be forwarded by a downstream handler.
     """
     if not path or not isinstance(path, str):
         return False
@@ -93,6 +94,16 @@ def is_safe_redirect_path(path: str | None) -> bool:
     lower = path.lower()
     if lower.startswith("/javascript:") or lower.startswith("/data:"):
         return False
+    # Reject nested open-redirect hand-offs so consumers that re-parse the
+    # query string can't be walked into forwarding to an attacker host.
+    forbidden_fragments = (
+        "next=", "redirect=", "redirect_to=", "redirect_uri=", "return=",
+        "return_to=", "returnurl=", "returnto=", "url=",
+        "//", "\\\\", "javascript:", "data:",
+    )
+    for fragment in forbidden_fragments:
+        if fragment in lower:
+            return False
     return True
 
 
@@ -210,16 +221,28 @@ def is_token_revoked_for_user(user_id: str, payload: dict[str, object]) -> bool:
     issued_at = _coerce_timestamp(payload.get("iat"))
     if issued_at is None:
         return True
-    return issued_at < not_before
+    # ``<=`` so a token issued in the same wall-clock second as revocation
+    # is invalidated. Callers reissuing a fresh session (e.g. /auth/password)
+    # must bump the new JWT's ``iat`` past this watermark — see
+    # create_access_token(..., min_iat_epoch=...).
+    return issued_at <= not_before
 
 
-def revoke_user_tokens(user_id: str) -> None:
+def revoke_user_tokens(user_id: str) -> int:
+    """Mark every currently-issued JWT for ``user_id`` as revoked.
+
+    Returns the Unix-epoch ``not_before`` watermark stamped into the
+    revocation record so callers reissuing a token can pass it as
+    ``min_iat_epoch`` to ensure the new session survives.
+    """
+    not_before = int(datetime.now(timezone.utc).timestamp())
     runtime_state.set_json(
         _AUTH_TOKEN_STATE_SCOPE,
         user_id,
-        {"not_before": datetime.now(timezone.utc).timestamp()},
+        {"not_before": not_before},
         ttl_seconds=max(settings.jwt_expire_minutes * 60, settings.csrf_ttl_seconds),
     )
+    return not_before
 
 
 def set_auth_cookie(response: Response, token: str) -> None:

@@ -25,8 +25,16 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, *, min_iat_epoch: int | None = None) -> str:
     issued_at = datetime.now(timezone.utc)
+    # Callers rotating credentials pass the ``not_before`` watermark as
+    # ``min_iat_epoch`` so the fresh session's ``iat`` exceeds it even when
+    # wall-clock ticks haven't rolled over. JWT encodes iat as integer
+    # epoch seconds, so we compare against the truncated value.
+    if min_iat_epoch is not None:
+        current_iat_epoch = int(issued_at.timestamp())
+        if current_iat_epoch <= min_iat_epoch:
+            issued_at = datetime.fromtimestamp(min_iat_epoch + 1, tz=timezone.utc)
     expire = issued_at + timedelta(minutes=settings.jwt_expire_minutes)
     payload: dict[str, Any] = {"sub": subject, "iat": issued_at, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)

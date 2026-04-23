@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   FileText,
   Sparkles,
@@ -42,8 +43,9 @@ export default function MinimizedTray() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const t = useTranslations("console-notebooks");
   const windows = useWindows();
-  const { restoreWindow } = useWindowManager();
+  const { restoreWindow, closeWindow } = useWindowManager();
 
   if (!mounted) return null;
 
@@ -64,7 +66,13 @@ export default function MinimizedTray() {
             type="button"
             className="wm-tray-pill"
             onClick={() => restoreWindow(w.id)}
-            title={w.title}
+            onContextMenu={(e) => {
+              // Spec §19.5 — right-click closes the minimized window directly.
+              e.preventDefault();
+              closeWindow(w.id);
+            }}
+            title={`${w.title} · ${t("tray.rightClickClose")}`}
+            data-testid="tray-pill"
           >
             <Icon size={12} className="wm-tray-pill-icon" />
             <span>{shortTitle}</span>

@@ -16,6 +16,42 @@ from app.services.runtime_state import runtime_state
 logger = logging.getLogger(__name__)
 
 
+# Curated list of widely-known disposable/throwaway mail domains. Not
+# exhaustive — signup hardening, not a security boundary.
+DISPOSABLE_EMAIL_DOMAINS: frozenset[str] = frozenset({
+    "mailinator.com",
+    "10minutemail.com",
+    "10minutemail.net",
+    "tempmail.com",
+    "temp-mail.org",
+    "tempmail.io",
+    "guerrillamail.com",
+    "guerrillamail.net",
+    "guerrillamail.org",
+    "sharklasers.com",
+    "yopmail.com",
+    "yopmail.net",
+    "trashmail.com",
+    "trashmail.net",
+    "getnada.com",
+    "maildrop.cc",
+    "dispostable.com",
+    "fakeinbox.com",
+    "throwawaymail.com",
+    "mohmal.com",
+    "emailondeck.com",
+    "tempail.com",
+})
+
+
+def is_disposable_email(email: str) -> bool:
+    """Return True if the email's domain is a known disposable provider."""
+    if not email or "@" not in email:
+        return False
+    domain = email.rsplit("@", 1)[-1].strip().lower()
+    return domain in DISPOSABLE_EMAIL_DOMAINS
+
+
 def _generate_code() -> str:
     """Generate a numeric verification code."""
     return "".join(secrets.choice(string.digits) for _ in range(settings.verification_code_length))
@@ -41,7 +77,12 @@ def store_verification_code(email: str, purpose: str) -> str:
 
 
 def verify_code(email: str, purpose: str, code: str) -> bool:
-    """Validate and consume a verification code (single-use)."""
+    """Validate and consume a verification code (single-use).
+
+    For ``purpose="reset"``, failed attempts are counted and the code is
+    invalidated once ``settings.reset_code_max_attempts`` is reached to cap
+    distributed brute-force search over the code's TTL window.
+    """
     key = _code_key(email, purpose)
     entry = runtime_state.get_json("verify_code", key)
     if not entry:
@@ -52,8 +93,17 @@ def verify_code(email: str, purpose: str, code: str) -> bool:
     if not secrets.compare_digest(expected_email, normalized_email):
         return False
     if not secrets.compare_digest(expected_code, code.strip()):
+        if purpose == "reset":
+            attempts = runtime_state.incr(
+                "verify_code_attempts",
+                key,
+                ttl_seconds=settings.verification_code_ttl_seconds,
+            )
+            if attempts >= settings.reset_code_max_attempts:
+                runtime_state.delete("verify_code", key)
         return False
     runtime_state.delete("verify_code", key)
+    runtime_state.delete("verify_code_attempts", key)
     return True
 
 
@@ -82,6 +132,7 @@ def _build_code_html(code: str, purpose: str) -> str:
           <p style="color:#6e6e73;font-size:15px;margin:0 0 24px">{instruction}</p>
           <div style="background:#f5f5f7;border-radius:12px;padding:20px;font-size:36px;font-weight:700;letter-spacing:12px;color:#1d1d1f;font-family:monospace">{code}</div>
           <p style="color:#86868b;font-size:13px;margin:24px 0 0">验证码 {ttl_minutes} 分钟内有效，请勿泄露给他人。</p>
+          <p style="color:#c53030;font-size:13px;margin:16px 0 0;font-weight:600">如果您没有请求此验证码，请忽略本邮件 — 您的账户安全未受影响。</p>
         </td></tr>
       </table>
     </td></tr>
@@ -107,7 +158,11 @@ def send_verification_email(to_email: str, code: str, purpose: str) -> None:
     msg["To"] = to_email
     msg["Subject"] = f"【铭润科技】验证码：{code}"
 
-    plain = f"您的验证码是：{code}\n\n验证码 {settings.verification_code_ttl_seconds // 60} 分钟内有效。"
+    plain = (
+        f"您的验证码是：{code}\n\n"
+        f"验证码 {settings.verification_code_ttl_seconds // 60} 分钟内有效。\n\n"
+        "如果您没有请求此验证码，请忽略本邮件 — 您的账户安全未受影响。"
+    )
     html = _build_code_html(code, purpose)
 
     msg.attach(MIMEText(plain, "plain", "utf-8"))

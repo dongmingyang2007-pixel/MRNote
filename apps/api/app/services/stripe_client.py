@@ -15,13 +15,47 @@ def _init() -> None:
 
 
 def get_or_create_customer(*, workspace_id: str, email: str | None = None) -> str:
-    """Create a Stripe customer with workspace_id metadata. Returns the
-    Stripe customer ID. Caller is responsible for persisting it in
-    customer_accounts."""
+    """Return the Stripe customer ID for this workspace, creating one if
+    we don't already have a record.
+
+    MEDIUM-12: the original implementation always called
+    ``stripe.Customer.create`` which could produce orphan Customers on
+    race conditions (two concurrent ``_ensure_customer`` calls both miss
+    the local ``customer_accounts`` row). We now ask Stripe first:
+
+        stripe.Customer.search(query='metadata["mrai_workspace_id"]:"X"')
+
+    If a matching customer exists we reuse it; otherwise we create one
+    with an idempotency key derived from the workspace_id so even a
+    retried call lands on the same Stripe-side resource.
+    """
     _init()
+
+    # 1) Prefer Stripe-side lookup by metadata. If the search API is
+    #    unavailable (older SDK / mocked tests) we silently fall back to
+    #    the create path.
+    try:
+        search_fn = getattr(stripe.Customer, "search", None)
+        if callable(search_fn):
+            query = f'metadata["mrai_workspace_id"]:"{workspace_id}"'
+            result = search_fn(query=query, limit=1)
+            data = (result.get("data") if isinstance(result, dict)
+                    else getattr(result, "data", None)) or []
+            if data:
+                first = data[0]
+                cid = first.get("id") if isinstance(first, dict) else getattr(first, "id", None)
+                if cid:
+                    return cid
+    except Exception:  # noqa: BLE001
+        # Don't let a search failure block checkout; fall through.
+        pass
+
+    # 2) Create with an idempotency key so repeated retries collide on
+    #    the same Stripe resource instead of producing orphans.
     customer = stripe.Customer.create(
         email=email or None,
         metadata={"mrai_workspace_id": workspace_id},
+        idempotency_key=f"mrai-customer-create-{workspace_id}",
     )
     return customer["id"]
 

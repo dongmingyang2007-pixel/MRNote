@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sqlalchemy import or_
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,7 @@ from app.core.deps import (
     require_csrf_protection,
 )
 from app.core.errors import ApiError
-from app.models import CustomerAccount, User
+from app.models import CustomerAccount, Subscription, User
 from app.schemas.billing import (
     CheckoutOnetimeRequest, CheckoutRequest, CheckoutResponse, PortalResponse,
 )
@@ -56,6 +57,38 @@ def _require_billing_configured() -> None:
         )
 
 
+_NON_TRIAL_ACTIVE_STATUSES = ("active", "past_due", "manual")
+
+
+def _workspace_has_active_paid_subscription(
+    db: Session, *, workspace_id: str,
+) -> bool:
+    """HIGH-5: block stacking a fresh checkout when there's already an
+    active non-trialing subscription. Users must cancel via the portal
+    first so we don't end up with parallel Pro + Power lines.
+    """
+    return db.query(Subscription).filter(
+        Subscription.workspace_id == workspace_id,
+        Subscription.status.in_(_NON_TRIAL_ACTIVE_STATUSES),
+    ).first() is not None
+
+
+def _workspace_has_used_trial(db: Session, *, workspace_id: str) -> bool:
+    """HIGH-5: grant trial_period_days=14 only if this workspace has
+    never trialed before. trial_used_at is stamped from the webhook
+    (checkout.session.completed / subscription.updated) the first time
+    we see trialing status.
+    """
+    return db.query(Subscription).filter(
+        Subscription.workspace_id == workspace_id,
+    ).filter(
+        or_(
+            Subscription.status == "trialing",
+            Subscription.trial_used_at.is_not(None),
+        )
+    ).first() is not None
+
+
 @router.post("/checkout", response_model=CheckoutResponse)
 def post_checkout(
     payload: CheckoutRequest,
@@ -84,10 +117,26 @@ def post_checkout(
             "Billing plan prices are not configured.",
             status_code=503,
         )
+    # HIGH-5: refuse to open a second active subscription on the same
+    # workspace. The user must cancel the current plan from the portal
+    # first; otherwise we'd end up double-billing or granting overlapping
+    # entitlements (Pro + Power).
+    if _workspace_has_active_paid_subscription(db, workspace_id=workspace_id):
+        raise ApiError(
+            "subscription_exists",
+            "You already have an active subscription. "
+            "Manage or cancel it from the billing portal before starting a new plan.",
+            status_code=409,
+        )
     ca = _ensure_customer(db, workspace_id=workspace_id, user=current_user)
     # Pro / Power get a 14-day trial; Team is treated as enterprise-like
-    # and starts paid immediately.
-    trial_days = 14 if payload.plan in ("pro", "power") else None
+    # and starts paid immediately. HIGH-5: trial is one-shot per workspace.
+    trial_days: int | None = None
+    if payload.plan in ("pro", "power"):
+        if _workspace_has_used_trial(db, workspace_id=workspace_id):
+            trial_days = None
+        else:
+            trial_days = 14
     url = stripe_client.create_checkout_session_subscription(
         stripe_customer_id=ca.stripe_customer_id,
         price_id=price_id,
@@ -241,6 +290,19 @@ def get_me(
     )
 
 
+def _mask_price_id(pid: str | None) -> str | None:
+    """MEDIUM-16: don't leak the full Stripe price_id on a public list;
+    return a short suffix so the UI can still distinguish plans for
+    tracking/analytics if needed, but enumeration of our exact price
+    tokens is blocked. None plans (free) stay None.
+    """
+    if not pid:
+        return None
+    if len(pid) <= 8:
+        return "masked"
+    return f"****{pid[-4:]}"
+
+
 @router.get("/plans", response_model=PlansResponse)
 def get_plans() -> PlansResponse:
     plans = []
@@ -249,8 +311,12 @@ def get_plans() -> PlansResponse:
             prices = {"monthly": None, "yearly": None}
         else:
             prices = {
-                "monthly": stripe_client.stripe_price_id_for(plan_id, "monthly"),
-                "yearly": stripe_client.stripe_price_id_for(plan_id, "yearly"),
+                "monthly": _mask_price_id(
+                    stripe_client.stripe_price_id_for(plan_id, "monthly"),
+                ),
+                "yearly": _mask_price_id(
+                    stripe_client.stripe_price_id_for(plan_id, "yearly"),
+                ),
             }
         plans.append({
             "id": plan_id,
@@ -307,6 +373,9 @@ async def post_webhook(
             billing_webhook.handle_invoice_paid(db, payload_obj)
         elif event_type == "invoice.payment_failed":
             billing_webhook.handle_invoice_payment_failed(db, payload_obj)
+        elif event_type == "charge.refunded":
+            # LOW-18: cancel the manual subscription on refund.
+            billing_webhook.handle_charge_refunded(db, payload_obj)
         be = db.query(BillingEvent).filter_by(stripe_event_id=event_id).first()
         if be is not None:
             be.processed_at = datetime.now(timezone.utc)

@@ -17,7 +17,7 @@ import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
-from sqlalchemy import text as sql_text
+from sqlalchemy import bindparam, text as sql_text
 
 logger = logging.getLogger(__name__)
 
@@ -61,23 +61,32 @@ def get_related(
     shared_pages: list[dict[str, Any]] = []
     related_memories: list[dict[str, Any]] = []
     if memory_ids:
-        ids_sql = "(" + ",".join(f"'{mid}'" for mid in memory_ids) + ")"
+        # V7: use an expanding bindparam instead of f-string concat. Even
+        # though ``memory_ids`` come from our own DB today, hardening the
+        # pattern prevents a future IDOR / import path from regressing
+        # into second-order SQL injection.
+        memory_ids_list = list(memory_ids)
 
-        # Step 2: find OTHER pages whose episodes carry any of these memories.
+        shared_pages_stmt = sql_text("""
+            SELECT DISTINCT p.id, p.notebook_id, p.title
+            FROM memory_evidences ev
+            JOIN memory_episodes ep ON ep.id = ev.episode_id
+            JOIN notebook_pages p ON p.id = ep.source_id
+            JOIN notebooks n ON n.id = p.notebook_id
+            WHERE ep.source_type = 'notebook_page'
+              AND ev.memory_id IN :ids
+              AND p.id != :page_id
+              AND n.workspace_id = :workspace_id
+            LIMIT :limit
+        """).bindparams(bindparam("ids", expanding=True))
         other_page_rows = db.execute(
-            sql_text(f"""
-                SELECT DISTINCT p.id, p.notebook_id, p.title
-                FROM memory_evidences ev
-                JOIN memory_episodes ep ON ep.id = ev.episode_id
-                JOIN notebook_pages p ON p.id = ep.source_id
-                JOIN notebooks n ON n.id = p.notebook_id
-                WHERE ep.source_type = 'notebook_page'
-                  AND ev.memory_id IN {ids_sql}
-                  AND p.id != :page_id
-                  AND n.workspace_id = :workspace_id
-                LIMIT :limit
-            """),
-            {"page_id": page_id, "workspace_id": workspace_id, "limit": limit * 2},
+            shared_pages_stmt,
+            {
+                "ids": memory_ids_list,
+                "page_id": page_id,
+                "workspace_id": workspace_id,
+                "limit": limit * 2,
+            },
         ).fetchall()
         shared_pages = [
             {
@@ -88,17 +97,22 @@ def get_related(
         ]
 
         # Connected memories for the "memory" bucket.
+        mem_stmt = sql_text("""
+            SELECT m.id, m.content, m.confidence
+            FROM memories m
+            WHERE m.id IN :ids
+              AND m.workspace_id = :workspace_id
+              AND m.node_status = 'active'
+            ORDER BY m.confidence DESC
+            LIMIT :limit
+        """).bindparams(bindparam("ids", expanding=True))
         mem_rows = db.execute(
-            sql_text(f"""
-                SELECT m.id, m.content, m.confidence
-                FROM memories m
-                WHERE m.id IN {ids_sql}
-                  AND m.workspace_id = :workspace_id
-                  AND m.node_status = 'active'
-                ORDER BY m.confidence DESC
-                LIMIT :limit
-            """),
-            {"workspace_id": workspace_id, "limit": limit},
+            mem_stmt,
+            {
+                "ids": memory_ids_list,
+                "workspace_id": workspace_id,
+                "limit": limit,
+            },
         ).fetchall()
         related_memories = [
             {"id": r[0], "content": (r[1] or "")[:200],

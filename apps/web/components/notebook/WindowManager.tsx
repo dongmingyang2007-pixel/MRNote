@@ -43,6 +43,14 @@ interface OpenWindowPayload {
   type: WindowType;
   title: string;
   meta?: Record<string, string>;
+  /**
+   * When true, always open a new window even if an existing one matches.
+   * Defaults to false. Callers opt into this for Shift+Click / "Open in new
+   * window" interactions. Spec §6.3 allows multi-open but the default flow
+   * should de-dup so repeated clicks on the same page/item focus the existing
+   * window instead of stacking duplicates (see B-02 in the notebook audit).
+   */
+  force_new?: boolean;
 }
 
 type WindowAction =
@@ -107,19 +115,31 @@ function windowReducer(
 ): WindowState[] {
   switch (action.kind) {
     case "OPEN_WINDOW": {
-      const { type, title, meta = {} } = action.payload;
-      const supportsMultiOpen =
-        type === "note" || type === "file" || type === "ai_panel";
+      const { type, title, meta = {}, force_new = false } = action.payload;
+      // `ai_panel` / `file` still support multi-open out of the box (multiple AI
+      // conversations, multiple files side by side). `note` used to be in this
+      // list but that produced unbounded duplicates when the page-tree was
+      // clicked repeatedly — B-02 in the notebook audit. We now default to
+      // focus-existing and require `force_new=true` (e.g. Shift+Click) to stack.
+      const supportsMultiOpen = type === "file" || type === "ai_panel";
 
-      const existing = supportsMultiOpen
+      const existing = force_new || supportsMultiOpen
         ? undefined
-        : state.find(
-            (w) =>
-              w.type === type &&
-              JSON.stringify(w.meta) === JSON.stringify(meta),
-          );
+        : state.find((w) => {
+            if (w.type !== type) return false;
+            // For `note` windows, de-dup by pageId only. Other meta fields
+            // may differ (e.g. scroll offset) but the same page means the
+            // same window.
+            if (type === "note") {
+              const existingPage = w.meta.pageId;
+              const targetPage = meta.pageId;
+              return !!existingPage && existingPage === targetPage;
+            }
+            return JSON.stringify(w.meta) === JSON.stringify(meta);
+          });
       if (existing) {
-        // Just focus it
+        // Just focus it — also un-minimize so clicking a minimized page
+        // restores it (previously minimized notes were invisible after click).
         const top = maxZIndex(state) + 1;
         return state.map((w) =>
           w.id === existing.id

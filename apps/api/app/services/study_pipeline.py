@@ -24,6 +24,15 @@ logger = logging.getLogger(__name__)
 # Maximum number of leading chunks to run through the memory pipeline.
 _MEMORY_EXTRACT_LIMIT = 5
 
+# Hard cap on bytes the study pipeline will buffer from S3 before giving
+# up. Audit V9: even if the upload side is capped at 50MB, MinIO objects
+# could be put out-of-band (admin, bucket pollution) and a zip bomb
+# attack through a 500MB-declared object would still expand inside
+# document_indexer. Enforcing 128MB here gives the V3 per-member /
+# per-archive caps a sane outer bound. The +1 lets us detect overflow
+# via range semantics.
+_STUDY_PIPELINE_MAX_S3_OBJECT_BYTES = 128 * 1024 * 1024
+
 
 def _build_doc(title: str, paragraphs: list[str]) -> dict[str, object]:
     content: list[dict[str, object]] = [
@@ -152,11 +161,28 @@ async def ingest_study_asset(
             source_size_bytes = int(data_item.size_bytes or 0)
             try:
                 s3 = get_s3_client()
-                response = s3.get_object(
-                    Bucket=settings.s3_private_bucket,
-                    Key=data_item.object_key,
-                )
-                content_bytes: bytes = response["Body"].read()
+                # V9: request only the first N bytes so an oversized
+                # (or malicious) S3 object cannot force the worker to
+                # load gigabytes into memory. If the object is larger
+                # than the cap, we reject the asset and mark it failed
+                # rather than silently truncating.
+                get_kwargs: dict[str, object] = {
+                    "Bucket": settings.s3_private_bucket,
+                    "Key": data_item.object_key,
+                    "Range": f"bytes=0-{_STUDY_PIPELINE_MAX_S3_OBJECT_BYTES}",
+                }
+                response = s3.get_object(**get_kwargs)
+                content_bytes: bytes = response["Body"].read(_STUDY_PIPELINE_MAX_S3_OBJECT_BYTES + 1)
+                if len(content_bytes) > _STUDY_PIPELINE_MAX_S3_OBJECT_BYTES:
+                    logger.warning(
+                        "StudyAsset %s object %s exceeds size cap %d",
+                        asset_id,
+                        data_item.object_key,
+                        _STUDY_PIPELINE_MAX_S3_OBJECT_BYTES,
+                    )
+                    asset.status = "failed"
+                    db.flush()
+                    return
                 full_text = extract_text_from_content(content_bytes, filename)
                 if not full_text.strip():
                     full_text = build_file_fallback_text(

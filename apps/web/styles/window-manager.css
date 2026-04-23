@@ -128,6 +128,60 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+/* ------------------------------------------------------------------ */
+/* Titlebar metadata chips (U-05 / Spec §19.3 for note windows)       */
+/* ------------------------------------------------------------------ */
+
+.wm-titlebar-meta {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-secondary, #475569);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--border, #e2e8f0) 40%, transparent);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.wm-titlebar-meta--icon {
+  background: transparent;
+  padding: 0 2px;
+  font-size: 14px;
+  color: var(--text-primary, #0f172a);
+}
+
+.wm-titlebar-meta--type {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--brand-v2, #0f76ff);
+  background: color-mix(in srgb, var(--brand-v2, #0f76ff) 10%, transparent);
+}
+
+.wm-titlebar-meta--time {
+  font-variant-numeric: tabular-nums;
+}
+
+.wm-titlebar-save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--success-v2, #10b981) 70%, transparent);
+  flex-shrink: 0;
+  margin: 0 2px;
+  transition: transform 200ms ease, background 200ms ease;
+}
+
+.wm-titlebar-save-dot.is-pulsing {
+  background: var(--brand-v2, #0f76ff);
+  transform: scale(1.5);
 }
 
 /* ------------------------------------------------------------------ */
@@ -299,6 +353,95 @@
 
 .wm-empty-state-action:active {
   transform: translateY(0);
+}
+
+.wm-empty-state-action--primary {
+  background: var(--brand-v2, #0f76ff);
+  color: #fff;
+  border-color: transparent;
+}
+
+.wm-empty-state-action--primary:hover {
+  background: color-mix(in srgb, var(--brand-v2, #0f76ff) 85%, black);
+  color: #fff;
+}
+
+.wm-empty-state-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/* Small screens (U-18) — keep basic usability under 640px            */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .notebook-side-panel {
+    display: none !important;
+  }
+  .wm-canvas {
+    background-size: 16px 16px;
+  }
+  .wm-titlebar-meta--type,
+  .wm-titlebar-meta--time {
+    display: none; /* keep titlebar compact */
+  }
+  .wm-empty-state {
+    padding: 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark mode (U-17) — when `<html class="dark">` is set               */
+/* Tailwind `darkMode: "class"`; these styles mirror the global       */
+/* dark tokens but provide a fallback for window-manager surfaces.    */
+/* ------------------------------------------------------------------ */
+
+.dark .wm-canvas {
+  background-color: var(--bg-base, #0b1220);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--border, #1e293b) 72%, transparent) 1px,
+    transparent 1px
+  );
+}
+
+.dark .wm-window {
+  background: var(--bg-surface, #0f172a);
+  border-color: var(--border, #1e293b);
+}
+
+.dark .wm-titlebar {
+  background: var(--bg-surface, #0f172a);
+  border-bottom-color: var(--border, #1e293b);
+}
+
+.dark .wm-window--focused .wm-titlebar {
+  background: color-mix(in srgb, var(--brand-v2, #0f76ff) 8%, var(--bg-surface, #0f172a));
+}
+
+.dark .wm-body {
+  background: var(--bg-base, #0b1220);
+}
+
+.dark .wm-tray-pill {
+  background: var(--bg-surface, #0f172a);
+  border-color: var(--border, #1e293b);
+  color: var(--text-primary, #e5e7eb);
+}
+
+.dark .wm-tray-pill:hover {
+  background: var(--bg-raised, #111827);
+}
+
+.dark .wm-empty-state-action {
+  background: var(--bg-surface, #0f172a);
+  border-color: var(--border, #1e293b);
+  color: var(--text-secondary, #94a3b8);
+}
+
+.dark .wm-titlebar-meta {
+  color: var(--text-secondary, #94a3b8);
+  background: color-mix(in srgb, var(--border, #1e293b) 50%, transparent);
 }
 
 /* ------------------------------------------------------------------ */

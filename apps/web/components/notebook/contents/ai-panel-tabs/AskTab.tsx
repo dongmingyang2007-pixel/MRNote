@@ -34,6 +34,7 @@ export default function AskTab({ notebookId, pageId }: AskTabProps) {
         pageId={pageId}
         onInsertAIOutput={handleInsertAIBlock}
         onClose={noop}
+        hideCloseButton
       />
     </div>
   );

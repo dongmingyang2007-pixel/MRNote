@@ -164,7 +164,12 @@ def test_expired_override_falls_back_to_plan_via_refresh() -> None:
     assert v is False
 
 
-def test_resolve_self_heals_stale_plan_row_from_current_mapping() -> None:
+def test_resolve_returns_plan_mapping_but_does_not_mutate_stale_row() -> None:
+    """HIGH-8: resolve_entitlement is pure-read. It returns the plan value
+    when the stored row is a non-override row (so stale drift cannot lock a
+    workspace out), but it must NOT write to the database — reconciliation
+    is owned by refresh_workspace_entitlements, which runs on webhooks.
+    """
     ws = _ws()
     with SessionLocal() as db:
         db.add(Subscription(
@@ -181,10 +186,12 @@ def test_resolve_self_heals_stale_plan_row_from_current_mapping() -> None:
         db.commit()
 
         v = resolve_entitlement(db, workspace_id=ws, key="book_upload.enabled")
-        refreshed = db.query(Entitlement).filter_by(
+        after = db.query(Entitlement).filter_by(
             workspace_id=ws, key="book_upload.enabled",
         ).first()
 
+    # Returns the live plan value (free has book_upload.enabled=True)...
     assert v is True
-    assert refreshed is not None
-    assert refreshed.value_bool is True
+    # ...but the stored row is unchanged by the read path.
+    assert after is not None
+    assert after.value_bool is False

@@ -14,6 +14,7 @@ from app.core.deps import (
     is_workspace_privileged_role,
 )
 from app.core.errors import ApiError
+from app.core.notebook_access import assert_notebook_readable
 from app.models import Notebook, NotebookPage, User
 from app.schemas.search import RelatedResponse, SearchResponse, SearchResults
 from app.services.related_pages import get_related
@@ -30,20 +31,14 @@ def _get_readable_notebook_or_404(
     current_user_id: str,
     workspace_role: str,
 ) -> Notebook:
-    query = db.query(Notebook).filter(
-        Notebook.id == notebook_id,
-        Notebook.workspace_id == workspace_id,
+    notebook = db.query(Notebook).filter(Notebook.id == notebook_id).first()
+    assert_notebook_readable(
+        notebook,
+        workspace_id=workspace_id,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+        not_found_message="Notebook not found",
     )
-    if not is_workspace_privileged_role(workspace_role):
-        query = query.filter(
-            or_(
-                Notebook.visibility != "private",
-                Notebook.created_by == current_user_id,
-            )
-        )
-    notebook = query.first()
-    if notebook is None:
-        raise ApiError("not_found", "Notebook not found", status_code=404)
     return notebook
 
 
@@ -58,12 +53,13 @@ def _get_readable_page_or_404(
     page = db.query(NotebookPage).filter_by(id=page_id).first()
     if page is None:
         raise ApiError("not_found", "Page not found", status_code=404)
-    _get_readable_notebook_or_404(
-        db,
-        notebook_id=str(page.notebook_id),
+    notebook = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+    assert_notebook_readable(
+        notebook,
         workspace_id=workspace_id,
         current_user_id=current_user_id,
         workspace_role=workspace_role,
+        not_found_message="Page not found",
     )
     return page
 

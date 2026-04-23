@@ -1911,7 +1911,7 @@ def submit_playbook_feedback_route(
 def backfill_memory_v2_route(
     payload: MemoryBackfillRequest,
     db: Session = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
     _write_guard: None = Depends(require_workspace_write_access),
     __: None = Depends(require_csrf_protection),
@@ -1922,6 +1922,20 @@ def backfill_memory_v2_route(
         project_id=payload.project_id,
         limit=payload.limit,
     )
+    write_audit_log(
+        db,
+        workspace_id=workspace_id,
+        actor_user_id=current_user.id,
+        action="memory.backfill",
+        target_type="project",
+        target_id=payload.project_id,
+        meta_json={
+            "status": status_value,
+            "job_id": job_id,
+            "limit": payload.limit,
+        },
+    )
+    db.commit()
     return MemoryBackfillOut(
         status=status_value,
         job_id=job_id,

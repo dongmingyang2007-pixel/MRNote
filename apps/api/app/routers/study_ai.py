@@ -12,12 +12,14 @@ from starlette.responses import StreamingResponse
 from app.core.deps import (
     get_current_user,
     get_current_workspace_id,
+    get_current_workspace_role,
     get_db_session,
     require_csrf_protection,
     require_workspace_write_access,
 )
 from app.core.entitlements import require_entitlement
 from app.core.errors import ApiError
+from app.core.notebook_access import assert_notebook_readable
 from app.models import (
     Notebook, NotebookPage, StudyAsset, StudyCard, StudyChunk, StudyDeck, User,
 )
@@ -51,20 +53,32 @@ async def _run_llm_json(system: str, user_prompt: str) -> str:
 
 
 def _load_source_text(
-    db: Session, *, source_type: str, source_id: str, workspace_id: str,
+    db: Session,
+    *,
+    source_type: str,
+    source_id: str,
+    workspace_id: str,
+    current_user_id: str,
+    workspace_role: str,
 ) -> tuple[str, str | None, str | None]:
-    """Return (text, page_id_or_None, notebook_id)."""
+    """Return (text, page_id_or_None, notebook_id).
+
+    Every path routes through `assert_notebook_readable` so same-workspace
+    editors/viewers can't exfiltrate the contents of someone else's
+    ``visibility="private"`` notebook by feeding the id to a study-AI endpoint.
+    """
     if source_type == "page":
         page = db.query(NotebookPage).filter_by(id=source_id).first()
         if not page:
             raise ApiError("not_found", "Page not found", status_code=404)
-        nb = (
-            db.query(Notebook)
-            .filter(Notebook.id == page.notebook_id, Notebook.workspace_id == workspace_id)
-            .first()
+        nb = db.query(Notebook).filter(Notebook.id == page.notebook_id).first()
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
+            not_found_message="Page not found",
         )
-        if not nb:
-            raise ApiError("not_found", "Page not found", status_code=404)
         return (page.plain_text or "")[:8000], page.id, nb.id
     if source_type == "chunk":
         chunk = db.query(StudyChunk).filter_by(id=source_id).first()
@@ -73,13 +87,14 @@ def _load_source_text(
         asset = db.query(StudyAsset).filter_by(id=chunk.asset_id).first()
         if not asset:
             raise ApiError("not_found", "Chunk not found", status_code=404)
-        nb = (
-            db.query(Notebook)
-            .filter(Notebook.id == asset.notebook_id, Notebook.workspace_id == workspace_id)
-            .first()
+        nb = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
+            not_found_message="Chunk not found",
         )
-        if not nb:
-            raise ApiError("not_found", "Chunk not found", status_code=404)
         return (chunk.content or "")[:8000], None, nb.id
     raise ApiError("invalid_input", f"Unknown source_type {source_type}", status_code=400)
 
@@ -90,6 +105,7 @@ async def generate_flashcards(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
     _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
@@ -104,6 +120,8 @@ async def generate_flashcards(
     text, page_id, notebook_id = _load_source_text(
         db, source_type=source_type, source_id=source_id,
         workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
     )
 
     prompt = (
@@ -147,13 +165,14 @@ async def generate_flashcards(
             deck = db.query(StudyDeck).filter_by(id=deck_id).first()
             if not deck:
                 raise ApiError("not_found", "Deck not found", status_code=404)
-            nb = (
-                db.query(Notebook)
-                .filter(Notebook.id == deck.notebook_id, Notebook.workspace_id == workspace_id)
-                .first()
+            nb = db.query(Notebook).filter(Notebook.id == deck.notebook_id).first()
+            assert_notebook_readable(
+                nb,
+                workspace_id=workspace_id,
+                current_user_id=str(current_user.id),
+                workspace_role=workspace_role,
+                not_found_message="Deck not found",
             )
-            if not nb:
-                raise ApiError("not_found", "Deck not found", status_code=404)
             src_type = "page_ai" if source_type == "page" else "chunk_ai"
             card_rows: list[StudyCard] = []
             for c in cards:
@@ -195,6 +214,7 @@ async def generate_quiz(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
     _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
@@ -208,6 +228,8 @@ async def generate_quiz(
     text, page_id, notebook_id = _load_source_text(
         db, source_type=source_type, source_id=source_id,
         workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
     )
 
     prompt = (
@@ -267,6 +289,7 @@ async def study_ask(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
     _write_guard: None = Depends(require_workspace_write_access),
     _csrf: None = Depends(require_csrf_protection),
     _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
@@ -280,13 +303,14 @@ async def study_ask(
     asset = db.query(StudyAsset).filter_by(id=asset_id).first()
     if not asset:
         raise ApiError("not_found", "Asset not found", status_code=404)
-    nb = (
-        db.query(Notebook)
-        .filter(Notebook.id == asset.notebook_id, Notebook.workspace_id == workspace_id)
-        .first()
+    nb = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
+    assert_notebook_readable(
+        nb,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+        not_found_message="Asset not found",
     )
-    if not nb:
-        raise ApiError("not_found", "Asset not found", status_code=404)
 
     ctx, sources = assemble_study_context(
         db,

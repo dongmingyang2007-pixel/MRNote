@@ -12,9 +12,26 @@ import {
   Heading2,
   Sparkles,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import AISelectionActions from "./AISelectionActions";
+import AISelectionActions, { type ActionApplyPayload } from "./AISelectionActions";
+
+// ---------------------------------------------------------------------------
+// Code block language options (Spec §5.1.3 / §20)
+// ---------------------------------------------------------------------------
+
+const CODE_LANGUAGES: Array<{ value: string; label: string }> = [
+  { value: "plain", label: "Plain" },
+  { value: "python", label: "Python" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "bash", label: "Bash" },
+  { value: "sql", label: "SQL" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "markdown", label: "Markdown" },
+  { value: "json", label: "JSON" },
+];
 
 // ---------------------------------------------------------------------------
 // Props
@@ -36,6 +53,9 @@ export default function FloatingToolbar({ editor, pageId }: FloatingToolbarProps
   const [showAIActions, setShowAIActions] = useState(false);
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const [selectedText, setSelectedText] = useState("");
+  // U-24 — delayed onBlur so clicking nearby elements (e.g. the same
+  // container) doesn't collapse the link input prematurely.
+  const linkWrapRef = useRef<HTMLDivElement>(null);
 
   const toggleLink = useCallback(() => {
     if (editor.isActive("link")) {
@@ -67,15 +87,43 @@ export default function FloatingToolbar({ editor, pageId }: FloatingToolbarProps
   }, [editor]);
 
   const handleApplyAI = useCallback(
-    ({ mode, text }: { mode: "replace" | "insert_below"; text: string }) => {
+    (payload: ActionApplyPayload) => {
       if (!selectionRange) {
         return;
       }
 
-      if (mode === "replace") {
-        editor.chain().focus().insertContentAt(selectionRange, text).run();
+      if (payload.mode === "insert_task") {
+        // Insert a TaskBlock node right after the selection. Uses the custom
+        // `task` extension registered in NoteEditor. We generate a fresh
+        // client-side block_id; the backend will replace it on next save if
+        // needed (see TaskBlock attrs).
+        const blockId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `task-${Date.now()}`;
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(selectionRange.to, {
+            type: "task",
+            attrs: {
+              block_id: blockId,
+              title: payload.title,
+              description: null,
+              due_date: null,
+              completed: false,
+              completed_at: null,
+            },
+          })
+          .run();
+      } else if (payload.mode === "replace") {
+        editor.chain().focus().insertContentAt(selectionRange, payload.text).run();
       } else {
-        editor.chain().focus().insertContentAt(selectionRange.to, `\n\n${text}`).run();
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(selectionRange.to, `\n\n${payload.text}`)
+          .run();
       }
 
       setShowAIActions(false);
@@ -104,23 +152,110 @@ export default function FloatingToolbar({ editor, pageId }: FloatingToolbarProps
     [submitLink],
   );
 
+  const codeBlockActive = editor.isActive("codeBlock");
+  const codeBlockLanguage = (editor.getAttributes("codeBlock")?.language as string | null) ?? "";
+  const codeBlockFilename = (editor.getAttributes("codeBlock")?.filename as string | null) ?? "";
+
+  const handleSetLanguage = useCallback(
+    (language: string) => {
+      editor
+        .chain()
+        .focus()
+        .updateAttributes("codeBlock", { language: language || null })
+        .run();
+    },
+    [editor],
+  );
+
+  const handleSetFilename = useCallback(
+    (filename: string) => {
+      const trimmed = filename.trim();
+      editor
+        .chain()
+        .focus()
+        .updateAttributes("codeBlock", { filename: trimmed ? trimmed : null })
+        .run();
+    },
+    [editor],
+  );
+
   return (
     <BubbleMenu
       editor={editor}
       className="floating-toolbar"
       options={{ placement: "top" }}
       shouldShow={({ editor: currentEditor }) =>
-        showLinkInput || showAIActions || !currentEditor.state.selection.empty
+        showLinkInput ||
+        showAIActions ||
+        currentEditor.isActive("codeBlock") ||
+        !currentEditor.state.selection.empty
       }
     >
-      {showLinkInput ? (
-        <div className="floating-toolbar-link-input">
+      {codeBlockActive && !showAIActions && !showLinkInput ? (
+        <div
+          className="floating-toolbar-code"
+          data-testid="floating-toolbar-code"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          <label style={{ fontSize: 11, color: "var(--console-text-muted, #64748b)" }}>
+            {t("editor.codeBlock")}
+          </label>
+          <select
+            data-testid="floating-toolbar-code-language"
+            value={codeBlockLanguage || ""}
+            onChange={(e) => handleSetLanguage(e.target.value)}
+            style={{
+              padding: "4px 8px",
+              fontSize: 12,
+              borderRadius: 6,
+              border: "1px solid rgba(15,23,42,0.12)",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+            aria-label={t("toolbar.code_language")}
+          >
+            <option value="">{t("toolbar.code_language_auto")}</option>
+            {CODE_LANGUAGES.map((lang) => (
+              <option key={lang.value} value={lang.value}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            data-testid="floating-toolbar-code-filename"
+            value={codeBlockFilename}
+            onChange={(e) => handleSetFilename(e.target.value)}
+            placeholder={t("toolbar.code_filename_placeholder")}
+            style={{
+              padding: "4px 8px",
+              width: 140,
+              fontSize: 12,
+              borderRadius: 6,
+              border: "1px solid rgba(15,23,42,0.12)",
+            }}
+            aria-label={t("toolbar.code_filename")}
+          />
+        </div>
+      ) : showLinkInput ? (
+        <div className="floating-toolbar-link-input" ref={linkWrapRef}>
           <input
             type="url"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={handleLinkKeyDown}
-            onBlur={() => setShowLinkInput(false)}
+            onBlur={() => {
+              // Delay so a click on a sibling element (e.g. a paste target
+              // or a nearby toolbar button) doesn't immediately close the
+              // input. If focus stayed inside the wrapper we abort.
+              window.setTimeout(() => {
+                if (
+                  !linkWrapRef.current?.contains(document.activeElement)
+                ) {
+                  setShowLinkInput(false);
+                }
+              }, 120);
+            }}
             placeholder={t("toolbar.pasteLink")}
             autoFocus
             className="floating-toolbar-input"

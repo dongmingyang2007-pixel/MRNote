@@ -6,7 +6,7 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev --webpack -p 3000",
+    "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "node server.mjs",
     "lint": "eslint .",

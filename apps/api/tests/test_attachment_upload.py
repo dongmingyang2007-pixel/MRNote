@@ -105,7 +105,10 @@ def _seed_page(ws_id: str, user_id: str) -> str:
 def test_upload_small_png() -> None:
     client, auth = _register_client("u1@x.co")
     page_id = _seed_page(auth["ws_id"], auth["user_id"])
-    files = {"file": ("x.png", io.BytesIO(b"fake png data"), "image/png")}
+    # Must start with real PNG magic bytes — post-audit, the upload
+    # endpoint validates the file signature.
+    png_body = b"\x89PNG\r\n\x1a\n" + b"fake png payload"
+    files = {"file": ("x.png", io.BytesIO(png_body), "image/png")}
 
     resp = client.post(
         f"/api/v1/pages/{page_id}/attachments/upload",
@@ -115,7 +118,7 @@ def test_upload_small_png() -> None:
     body = resp.json()
     assert body["filename"] == "x.png"
     assert body["mime_type"] == "image/png"
-    assert body["size_bytes"] == len(b"fake png data")
+    assert body["size_bytes"] == len(png_body)
     assert body["attachment_id"]
     assert body["attachment_type"] == "image"
 
@@ -137,6 +140,8 @@ def test_upload_rejects_files_over_limit(monkeypatch) -> None:
     import app.routers.notebooks as _notebooks_router
     monkeypatch.setattr(config_module.settings, "notebook_attachment_max_bytes", 10)
     monkeypatch.setattr(_notebooks_router.settings, "notebook_attachment_max_bytes", 10)
+    # Use plain ASCII text so the text/plain signature check passes and
+    # we actually hit the size guard, not the MIME guard.
     files = {"file": ("big.txt", io.BytesIO(b"this-is-way-too-long"), "text/plain")}
 
     resp = client.post(
@@ -153,7 +158,10 @@ def test_upload_cross_workspace_404() -> None:
     page_id = _seed_page(auth_a["ws_id"], auth_a["user_id"])
 
     client_b, _ = _register_client("b@x.co")
-    files = {"file": ("x.png", io.BytesIO(b"data"), "image/png")}
+    # The page lookup happens before file parsing, so any plausible
+    # payload is fine — cross-workspace should 404 regardless.
+    png_body = b"\x89PNG\r\n\x1a\n" + b"data"
+    files = {"file": ("x.png", io.BytesIO(png_body), "image/png")}
     resp = client_b.post(
         f"/api/v1/pages/{page_id}/attachments/upload",
         files=files,
@@ -165,7 +173,9 @@ def test_attachment_url_returns_presigned_url() -> None:
     client, auth = _register_client("u4@x.co")
     page_id = _seed_page(auth["ws_id"], auth["user_id"])
     import io as _io
-    files = {"file": ("doc.pdf", _io.BytesIO(b"pdf-bytes"), "application/pdf")}
+    # Real PDF magic required post-audit.
+    pdf_body = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\nfake pdf bytes"
+    files = {"file": ("doc.pdf", _io.BytesIO(pdf_body), "application/pdf")}
     upload = client.post(
         f"/api/v1/pages/{page_id}/attachments/upload",
         files=files,
@@ -182,9 +192,13 @@ def test_attachment_url_returns_presigned_url() -> None:
 def test_attachment_url_forces_download_disposition() -> None:
     client, auth = _register_client("u5@x.co")
     page_id = _seed_page(auth["ws_id"], auth["user_id"])
+    # SVG is now blocked by the upload endpoint (audit V1). Upload a
+    # benign PDF and verify the presign call still forces the
+    # attachment Content-Disposition on download.
+    pdf_body = b"%PDF-1.4\nminimal"
     upload = client.post(
         f"/api/v1/pages/{page_id}/attachments/upload",
-        files={"file": ("dangerous.svg", io.BytesIO(b"<svg></svg>"), "image/svg+xml")},
+        files={"file": ("doc.pdf", io.BytesIO(pdf_body), "application/pdf")},
     ).json()
 
     captured: dict[str, dict] = {}
@@ -201,4 +215,4 @@ def test_attachment_url_forces_download_disposition() -> None:
     assert resp.status_code == 200, resp.text
     disposition = captured["params"]["ResponseContentDisposition"]
     assert disposition.startswith("attachment;")
-    assert "dangerous.svg" in disposition
+    assert "doc.pdf" in disposition

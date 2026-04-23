@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import secrets
@@ -20,7 +21,7 @@ from app.core.deps import (
     is_token_revoked_for_user,
     require_allowed_origin,
 )
-from app.core.entitlements import require_entitlement
+from app.core.entitlements import require_entitlement, resolve_entitlement
 from app.core.errors import ApiError
 from app.db.session import SessionLocal
 from app.models import Conversation, Membership, Message, ModelCatalog, Project, User
@@ -70,6 +71,37 @@ def _serialize_message_payload(message: Message) -> dict[str, object]:
     return MessageOut.model_validate(message, from_attributes=True).model_dump(mode="json")
 
 
+async def _ensure_voice_entitlement(ws: WebSocket, *, workspace_id: str) -> bool:
+    """Enforce voice.enabled for the session's workspace.
+
+    The HTTP `ws-ticket` endpoint gates on voice.enabled, but the WebSocket
+    handshake here authenticates via access-token cookie alone — a client
+    that skips ws-ticket can still connect. This check closes that gap by
+    re-resolving the entitlement after the conversation/workspace is known,
+    mirroring the semantics of require_entitlement("voice.enabled") on
+    HTTP routes. Returns False after sending error + closing the ws so
+    callers should return immediately.
+    """
+    db: Session = SessionLocal()
+    try:
+        allowed = resolve_entitlement(db, workspace_id=workspace_id, key="voice.enabled")
+    finally:
+        db.close()
+    if allowed is True:
+        return True
+    await ws.send_json({
+        "type": "error",
+        "code": "plan_required",
+        "message": "Your plan doesn't include voice capture",
+    })
+    await ws.close(code=4003, reason="plan_required")
+    return False
+
+
+def _hash_access_token(access_token: str) -> str:
+    return hashlib.sha256(access_token.encode("utf-8")).hexdigest()
+
+
 async def _authenticate_websocket(ws: WebSocket) -> tuple[User, dict[str, object]]:
     """Validate same-site cookie auth for the realtime websocket."""
     origin = ws.headers.get("origin")
@@ -81,13 +113,38 @@ async def _authenticate_websocket(ws: WebSocket) -> tuple[User, dict[str, object
         ticket = str(ws.query_params.get("ticket") or "").strip()
         if ticket:
             ticket_state = runtime_state.pop_json(REALTIME_WS_TICKET_SCOPE, ticket)
-            ticket_access_token = ticket_state.get("access_token") if ticket_state else None
-            if isinstance(ticket_access_token, str) and ticket_access_token:
-                access_token = ticket_access_token
+            if ticket_state:
+                # Ticket payload holds only the sha256 of the access token,
+                # not the token itself. We redeem it by hashing the cookie
+                # the client sent alongside the ticket (if any) and
+                # comparing, or — when no cookie is present — trust the
+                # ticket alone by resolving the user via ticket user_id.
+                ticket_access_token_hash = ticket_state.get("access_token_hash")
+                ticket_user_id = ticket_state.get("user_id")
+                cookie_token = ws.cookies.get(settings.access_cookie_name)
+                if (
+                    cookie_token
+                    and isinstance(ticket_access_token_hash, str)
+                    and secrets.compare_digest(
+                        _hash_access_token(cookie_token), ticket_access_token_hash
+                    )
+                ):
+                    access_token = cookie_token
+                elif isinstance(ticket_user_id, str) and ticket_user_id:
+                    # No cookie: authenticate the user directly via the
+                    # ticket record instead of a JWT.
+                    db: Session = SessionLocal()
+                    try:
+                        user = db.get(User, ticket_user_id)
+                    finally:
+                        db.close()
+                    if user is None:
+                        raise ApiError("unauthorized", "Authentication required", status_code=401)
+                    return user, {}
     if not access_token:
         raise ApiError("unauthorized", "Authentication required", status_code=401)
 
-    db: Session = SessionLocal()
+    db = SessionLocal()
     try:
         return authenticate_access_token(db=db, access_token=access_token)
     finally:
@@ -106,11 +163,15 @@ def create_realtime_ws_ticket(
         raise ApiError("unauthorized", "Authentication required", status_code=401)
 
     ticket = secrets.token_urlsafe(32)
+    # Redis/runtime state is treated as untrusted storage: if leaked, it
+    # must not expose raw JWTs. Store only the SHA-256 digest of the
+    # access token plus the user_id; redemption either rehashes the
+    # cookie-provided token or falls back to user_id-based auth.
     runtime_state.set_json(
         REALTIME_WS_TICKET_SCOPE,
         ticket,
         {
-            "access_token": access_token,
+            "access_token_hash": _hash_access_token(access_token),
             "user_id": current_user.id,
         },
         ttl_seconds=REALTIME_WS_TICKET_TTL_SECONDS,
@@ -704,7 +765,7 @@ async def realtime_dictate(ws: WebSocket) -> None:
 
         db: Session = SessionLocal()
         try:
-            _load_authorized_conversation(
+            conversation, _membership = _load_authorized_conversation(
                 db,
                 current_user_id=user.id,
                 project_id=project_id,
@@ -717,6 +778,9 @@ async def realtime_dictate(ws: WebSocket) -> None:
             return
         finally:
             db.close()
+
+        if not await _ensure_voice_entitlement(ws, workspace_id=conversation.workspace_id):
+            return
 
         await ws.send_json({"type": "session.ready"})
         receive_task = asyncio.create_task(ws.receive())
@@ -893,6 +957,22 @@ async def realtime_voice(ws: WebSocket) -> None:
                 project_id=project_id,
                 conversation_id=conversation_id,
             )
+        except ApiError as exc:
+            await ws.send_json({"type": "error", "code": exc.code, "message": exc.message})
+            await ws.close(code=4003, reason=exc.message)
+            db.close()
+            return
+
+        # Gate voice.enabled BEFORE creating upstream resources or registering
+        # the user in the session registry. The HTTP /ws-ticket endpoint
+        # already checks this via require_entitlement, but a client that
+        # skips the ticket flow and auths by access-token cookie alone
+        # would otherwise bypass the plan gate.
+        if not await _ensure_voice_entitlement(ws, workspace_id=conversation.workspace_id):
+            db.close()
+            return
+
+        try:
             session = RealtimeSession(
                 workspace_id=conversation.workspace_id,
                 project_id=conversation.project_id,
@@ -1207,6 +1287,21 @@ async def composed_realtime_voice(ws: WebSocket) -> None:
                 project_id=project_id,
                 conversation_id=conversation_id,
             )
+        except ApiError as exc:
+            await ws.send_json({"type": "error", "code": exc.code, "message": exc.message})
+            await ws.close(code=4003, reason=exc.message)
+            db.close()
+            return
+
+        # Gate voice.enabled BEFORE loading models, creating the session,
+        # or registering the user. See /voice for rationale — the HTTP
+        # /ws-ticket route's entitlement guard is bypassable by a client
+        # that authenticates via access-token cookie alone.
+        if not await _ensure_voice_entitlement(ws, workspace_id=conversation.workspace_id):
+            db.close()
+            return
+
+        try:
             llm_model_id, llm_capabilities = _load_llm_capabilities(db, conversation.project_id)
             realtime_asr_model_id = _resolve_realtime_asr_model_id(db, conversation.project_id)
             if "vision" not in llm_capabilities and "image" not in llm_capabilities:

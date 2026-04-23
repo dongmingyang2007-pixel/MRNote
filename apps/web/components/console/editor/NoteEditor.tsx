@@ -10,6 +10,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Image from "@tiptap/extension-image";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import Link from "@tiptap/extension-link";
 import { common, createLowlight } from "lowlight";
 import { apiGet, apiPatch } from "@/lib/api";
 import {
@@ -84,10 +85,13 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       StarterKit.configure({
         codeBlock: false,
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-        },
+      }),
+      // StarterKit (Tiptap 3.x) does not bundle Link; it must be registered
+      // explicitly (see B-05 in notebook audit — the previous `link: {...}`
+      // key on StarterKit.configure was silently ignored).
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
       Placeholder.configure({
         placeholder: t("editor.placeholder"),
@@ -96,7 +100,40 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false }),
       HorizontalRule,
-      CodeBlockLowlight.configure({ lowlight }),
+      // Add `language` and `filename` attrs so spec §5.1.3 / §20 code blocks
+      // can round-trip the picked language and filename. The language picker
+      // UI lives in FloatingToolbar when the code block is active.
+      CodeBlockLowlight.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            language: {
+              default: null,
+              parseHTML: (element) =>
+                element.getAttribute("data-language") ||
+                (() => {
+                  const codeEl = element.querySelector("code");
+                  if (!codeEl) return null;
+                  const cls = codeEl.className || "";
+                  const match = cls.match(/language-([\w+#-]+)/);
+                  return match ? match[1] : null;
+                })(),
+              renderHTML: (attrs) => {
+                const language = (attrs as { language?: string | null }).language;
+                return language ? { "data-language": language } : {};
+              },
+            },
+            filename: {
+              default: null,
+              parseHTML: (element) => element.getAttribute("data-filename") || null,
+              renderHTML: (attrs) => {
+                const filename = (attrs as { filename?: string | null }).filename;
+                return filename ? { "data-filename": filename } : {};
+              },
+            },
+          };
+        },
+      }).configure({ lowlight }),
       MathBlock,
       InlineMath,
       CalloutBlock,

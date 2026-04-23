@@ -20,7 +20,11 @@ export function getLocalizedAuthError(
     case "invalid_code":
       return t("common.errors.invalidCode");
     case "email_exists":
+      // Post-audit /register no longer returns this; kept to handle any
+      // non-register caller that still surfaces it.
       return t("common.errors.emailExists");
+    case "disposable_email":
+      return t("common.errors.disposableEmail");
     case "rate_limited":
       return t("common.errors.rateLimited");
     default:

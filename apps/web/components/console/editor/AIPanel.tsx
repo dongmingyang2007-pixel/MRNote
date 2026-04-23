@@ -24,7 +24,15 @@ interface AIPanelProps {
   selectedText?: string;
   onInsertToEditor?: (text: string) => void;
   onInsertAIOutput?: (payload: AIOutputInsertPayload) => void;
+  /**
+   * Close handler for AIPanel's own X button. When this panel is rendered
+   * inside a host window (e.g. AIPanelWindow tab), the host usually manages
+   * closing via its own titlebar, so callers can set `hideCloseButton` and
+   * pass a noop here without surfacing a dead button to the user (B-03).
+   */
   onClose: () => void;
+  /** Hide the X button rendered inside AIPanel's header. Default: false. */
+  hideCloseButton?: boolean;
 }
 
 interface ChatMessage {
@@ -86,6 +94,7 @@ export default function AIPanel({
   onInsertToEditor,
   onInsertAIOutput,
   onClose,
+  hideCloseButton = false,
 }: AIPanelProps) {
   const t = useTranslations("console-notebooks");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -242,9 +251,11 @@ export default function AIPanel({
           <Sparkles size={16} />
           <span>{t("ai.title")}</span>
         </div>
-        <button type="button" className="ai-panel-close" onClick={onClose} aria-label="Close">
-          <X size={16} />
-        </button>
+        {hideCloseButton ? null : (
+          <button type="button" className="ai-panel-close" onClick={onClose} aria-label="Close">
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Messages */}

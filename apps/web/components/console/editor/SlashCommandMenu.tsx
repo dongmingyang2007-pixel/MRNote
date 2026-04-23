@@ -121,10 +121,42 @@ const COMMANDS: SlashCommandItem[] = [
     descKey: "slash.image.desc",
     icon: ImageIcon,
     run: (editor, t) => {
-      const url = window.prompt(t("slash.image.prompt"));
-      if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
-      }
+      // U-25 — replace the lo-fi window.prompt with a native file picker.
+      // We embed the selected image as a data URL so it works without
+      // touching the attachment upload API (which requires a React-context
+      // page id that isn't reachable from here). Users that want to embed
+      // a remote URL can still fall back to the prompt via Cancel→prompt.
+      if (typeof window === "undefined") return;
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.style.display = "none";
+      input.addEventListener("change", () => {
+        const file = input.files?.[0];
+        if (!file) {
+          // Fallback: user cancelled → fall through to URL prompt.
+          const url = window.prompt(t("slash.image.prompt"));
+          if (url) {
+            editor.chain().focus().setImage({ src: url }).run();
+          }
+          input.remove();
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const src = typeof reader.result === "string" ? reader.result : "";
+          if (src) {
+            editor.chain().focus().setImage({ src }).run();
+          }
+          input.remove();
+        };
+        reader.onerror = () => {
+          input.remove();
+        };
+        reader.readAsDataURL(file);
+      });
+      document.body.appendChild(input);
+      input.click();
     },
   },
   {

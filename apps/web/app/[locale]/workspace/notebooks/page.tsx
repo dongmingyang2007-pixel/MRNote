@@ -11,8 +11,11 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+import { notebookSDK, type CreateNotebookInput } from "@/lib/notebook-sdk";
 import { NOTEBOOKS_CHANGED_EVENT, dispatchNotebooksChanged } from "@/lib/notebook-events";
+import CreateNotebookDialog from "@/components/notebook/CreateNotebookDialog";
+import { toast } from "@/hooks/use-toast";
 
 interface NotebookCard {
   id: string;
@@ -152,6 +155,7 @@ export default function NotebooksPage() {
   const [home, setHome] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const loadHome = useCallback(async () => {
     setLoading(true);
@@ -186,27 +190,56 @@ export default function NotebooksPage() {
     return () => window.removeEventListener(NOTEBOOKS_CHANGED_EVENT, refetch);
   }, [loadHome]);
 
-  const handleCreate = useCallback(async () => {
-    if (creating) return;
-    setCreating(true);
-    try {
-      const notebook = await apiPost<{ id: string }>("/api/v1/notebooks", {
-        title: "",
-        notebook_type: "personal",
-      });
-      dispatchNotebooksChanged();
-      router.push(`/app/notebooks/${notebook.id}`);
-    } finally {
-      setCreating(false);
-    }
-  }, [creating, router]);
+  const openCreateDialog = useCallback(() => {
+    setCreateOpen(true);
+  }, []);
 
-  const handleDelete = useCallback(async (id: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    await apiDelete(`/api/v1/notebooks/${id}`);
-    dispatchNotebooksChanged();
-    void loadHome();
-  }, [loadHome]);
+  const handleCreateSubmit = useCallback(
+    async (input: CreateNotebookInput) => {
+      if (creating) return;
+      setCreating(true);
+      try {
+        const notebook = await notebookSDK.create(input);
+        dispatchNotebooksChanged();
+        setCreateOpen(false);
+        router.push(`/app/notebooks/${notebook.id}`);
+      } catch (error) {
+        // Bubble a toast so the user sees something failed. The dialog itself
+        // also renders an inline error based on the thrown message, so 402
+        // plan-limit errors still surface via UpgradeModal (from api.ts) while
+        // other failures are explicit here.
+        const message =
+          error instanceof Error ? error.message : t("pages.error.create_failed");
+        toast({
+          title: t("pages.error.create_failed"),
+          description: message,
+        });
+        throw error;
+      } finally {
+        setCreating(false);
+      }
+    },
+    [creating, router, t],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string, event: React.MouseEvent) => {
+      event.stopPropagation();
+      try {
+        await notebookSDK.delete(id);
+        dispatchNotebooksChanged();
+        void loadHome();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : t("pages.error.delete_failed");
+        toast({
+          title: t("pages.error.delete_failed"),
+          description: message,
+        });
+      }
+    },
+    [loadHome, t],
+  );
 
   const metrics = useMemo(() => {
     const notebooks = home?.notebooks ?? [];
@@ -358,8 +391,9 @@ export default function NotebooksPage() {
               action={(
                 <button
                   type="button"
-                  onClick={handleCreate}
+                  onClick={openCreateDialog}
                   disabled={creating}
+                  data-testid="notebooks-create-button"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -476,8 +510,192 @@ export default function NotebooksPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ color: "var(--console-text-muted, #64748b)", fontSize: "0.875rem" }}>
-                {t("notebooks.empty")}
+              /* U-01 — onboarding empty state: big CTA + 3 preset shortcuts.
+                 Each preset piggy-backs on notebookSDK.create() so the
+                 ProjectProvider / 402 upgrade event contract still holds. */
+              <div
+                data-testid="notebooks-onboarding"
+                style={{
+                  padding: "32px 8px 12px",
+                  display: "grid",
+                  gap: 18,
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      width: 56,
+                      height: 56,
+                      borderRadius: 20,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
+                      color: "#fff",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Sparkles size={26} />
+                  </div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "1.25rem",
+                      fontWeight: 800,
+                      color: "var(--console-text-primary, #0f172a)",
+                    }}
+                  >
+                    {t("home.onboarding.title")}
+                  </h3>
+                  <p
+                    style={{
+                      margin: "8px auto 18px",
+                      maxWidth: 480,
+                      fontSize: "0.875rem",
+                      color: "var(--console-text-muted, #64748b)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {t("home.onboarding.body")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openCreateDialog}
+                    disabled={creating}
+                    data-testid="onboarding-create-button"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "12px 22px",
+                      borderRadius: 999,
+                      border: "none",
+                      background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: "0.9375rem",
+                      cursor: creating ? "default" : "pointer",
+                      opacity: creating ? 0.65 : 1,
+                      boxShadow: "0 12px 40px rgba(37, 99, 235, 0.25)",
+                    }}
+                  >
+                    <Plus size={16} />
+                    {t("home.onboarding.cta")}
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  {([
+                    {
+                      id: "blank" as const,
+                      type: "personal" as const,
+                      icon: BookOpen,
+                    },
+                    {
+                      id: "work" as const,
+                      type: "work" as const,
+                      icon: Brain,
+                    },
+                    {
+                      id: "study" as const,
+                      type: "study" as const,
+                      icon: Sparkles,
+                    },
+                  ]).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      disabled={creating}
+                      data-testid={`onboarding-preset-${preset.id}`}
+                      onClick={() => {
+                        void (async () => {
+                          if (creating) return;
+                          setCreating(true);
+                          try {
+                            const notebook = await notebookSDK.create({
+                              title: t(
+                                `home.onboarding.preset.${preset.id}.title` as
+                                  | "home.onboarding.preset.blank.title"
+                                  | "home.onboarding.preset.work.title"
+                                  | "home.onboarding.preset.study.title",
+                              ),
+                              notebook_type: preset.type,
+                            });
+                            dispatchNotebooksChanged();
+                            router.push(`/app/notebooks/${notebook.id}`);
+                          } catch (error) {
+                            const message =
+                              error instanceof Error
+                                ? error.message
+                                : t("pages.error.create_failed");
+                            toast({
+                              title: t("pages.error.create_failed"),
+                              description: message,
+                            });
+                          } finally {
+                            setCreating(false);
+                          }
+                        })();
+                      }}
+                      style={{
+                        textAlign: "left",
+                        border: "1px solid rgba(15, 23, 42, 0.08)",
+                        borderRadius: 16,
+                        background: "rgba(255,255,255,0.9)",
+                        padding: 16,
+                        cursor: creating ? "default" : "pointer",
+                        opacity: creating ? 0.65 : 1,
+                        transition: "transform 120ms ease, box-shadow 120ms ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 10,
+                            background: "rgba(37, 99, 235, 0.1)",
+                            display: "grid",
+                            placeItems: "center",
+                            color: "var(--console-accent, #2563eb)",
+                          }}
+                        >
+                          <preset.icon size={16} />
+                        </div>
+                        <div style={{ fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
+                          {t(
+                            `home.onboarding.preset.${preset.id}.title` as
+                              | "home.onboarding.preset.blank.title"
+                              | "home.onboarding.preset.work.title"
+                              | "home.onboarding.preset.study.title",
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 10,
+                          fontSize: "0.75rem",
+                          color: "var(--console-text-muted, #64748b)",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {t(
+                          `home.onboarding.preset.${preset.id}.body` as
+                            | "home.onboarding.preset.blank.body"
+                            | "home.onboarding.preset.work.body"
+                            | "home.onboarding.preset.study.body",
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -756,6 +974,13 @@ export default function NotebooksPage() {
           </section>
         </div>
       </div>
+
+      <CreateNotebookDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={handleCreateSubmit}
+        submitting={creating}
+      />
     </div>
   );
 }

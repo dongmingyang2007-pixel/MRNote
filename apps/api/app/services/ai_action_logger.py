@@ -216,6 +216,27 @@ class ActionLogHandle:
         row.output_summary = self._output_summary
         row.trace_metadata = dict(self._trace)
         self._db.add(row)
+        # HIGH-10: flush any buffered usage events even on failure.
+        # Tokens and audio minutes are spent regardless of whether the
+        # request ultimately succeeds — e.g. the LLM returned malformed
+        # JSON and we raised llm_bad_output AFTER record_usage fired.
+        # Not writing here lets attackers burn paid tokens for free by
+        # constructing requests that fail the final parse step.
+        for buf in self._usage:
+            self._db.add(AIUsageEvent(
+                workspace_id=row.workspace_id,
+                user_id=row.user_id,
+                action_log_id=row.id,
+                event_type=buf.event_type,
+                model_id=buf.model_id,
+                prompt_tokens=buf.prompt_tokens,
+                completion_tokens=buf.completion_tokens,
+                total_tokens=buf.prompt_tokens + buf.completion_tokens,
+                audio_seconds=buf.audio_seconds,
+                file_count=buf.file_count,
+                count_source=buf.count_source,
+                meta_json=buf.meta,
+            ))
         self._db.commit()
 
 
