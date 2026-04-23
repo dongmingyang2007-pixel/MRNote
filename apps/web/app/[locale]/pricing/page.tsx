@@ -41,7 +41,13 @@ export default async function PricingPage({
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+    // `.marketing-theme` scopes the `--mkt-*` tokens onto this tree so
+    // PublicHeader / PublicFooter / FeatureComparisonTable / FAQSection
+    // resolve the same teal + orange palette as the homepage.
+    <div
+      className="marketing-theme"
+      style={{ minHeight: "100vh", background: "#F7FEFC" }}
+    >
       <PublicHeader />
       <main>
         <PricingHero />

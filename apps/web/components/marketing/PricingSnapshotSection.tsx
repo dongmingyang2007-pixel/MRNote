@@ -98,7 +98,7 @@ export default async function PricingSnapshotSection() {
                     <Check
                       size={16}
                       strokeWidth={2.4}
-                      color="var(--brand-v2)"
+                      color="var(--mkt-primary)"
                       style={{ marginTop: 3, flexShrink: 0 }}
                     />
                     <span>{t(`plan.${plan.key}.feat.${idx}`)}</span>
@@ -107,15 +107,7 @@ export default async function PricingSnapshotSection() {
               </ul>
               <Link
                 href="/pricing"
-                className="marketing-header__link"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 4,
-                  color: "var(--brand-v2)",
-                  fontWeight: 500,
-                }}
+                className="marketing-arrow-link"
               >
                 {t("pricing.learn")}
                 <ArrowRight size={14} />

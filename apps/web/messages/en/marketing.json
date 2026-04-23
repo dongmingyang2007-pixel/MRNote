@@ -3,7 +3,9 @@
   "brand.company": "Mingrun Tech",
 
   "nav.features": "Features",
+  "nav.memory": "Memory",
   "nav.pricing": "Pricing",
+  "nav.changelog": "Changelog",
   "nav.login": "Log in",
   "nav.start": "Start free",
   "nav.openWorkspace": "Open workspace",
@@ -157,6 +159,7 @@
   "plan.team.feat.1": "Shared workspace & memory",
   "plan.team.feat.2": "Per-seat billing, owner pays",
 
+  "cta.kicker": "Next step",
   "cta.title": "Stop rebuilding context.",
   "cta.titleAccent": "Start working inside one notebook operating system.",
   "cta.sub": "Free forever on the basics. Pro starts at $10 per month with a 14-day free trial when you need more notebook, study, and memory capacity.",

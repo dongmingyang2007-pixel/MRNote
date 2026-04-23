@@ -31,7 +31,7 @@ test.describe("Marketing homepage", () => {
     // on desktop, so a page-wide total would double-count them. Scoping
     // also makes the assertions robust to future DOM shuffles.
     await expect(
-      page.locator(".marketing-feature__media-wrap .marketing-mock"),
+      page.locator(".marketing-feature-row__media .marketing-mock"),
     ).toHaveCount(3);
     await expect(
       page.locator(".marketing-live-canvas .marketing-mock"),

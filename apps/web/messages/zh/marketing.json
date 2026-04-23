@@ -3,7 +3,9 @@
   "brand.company": "铭润科技",
 
   "nav.features": "功能",
+  "nav.memory": "记忆",
   "nav.pricing": "定价",
+  "nav.changelog": "更新日志",
   "nav.login": "登录",
   "nav.start": "免费开始",
   "nav.openWorkspace": "进入工作台",
@@ -157,6 +159,7 @@
   "plan.team.feat.1": "共享工作区与记忆",
   "plan.team.feat.2": "按席位计费,由拥有者统一支付",
 
+  "cta.kicker": "下一步",
   "cta.title": "别再一遍遍重建上下文。",
   "cta.titleAccent": "开始在同一个 notebook 操作系统里工作。",
   "cta.sub": "基础功能永久免费。需要更多 notebook、学习容量和记忆能力时再升级。",

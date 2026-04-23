@@ -18,12 +18,17 @@ function formatNumber(n: number): string {
 }
 
 export default function StatCounter({ target, durationMs = 1200, className }: Props) {
+  // Default to the final value when reduced-motion is on so we never
+  // schedule a counter animation in that state. Users who toggle the
+  // preference mid-session will see the static target — acceptable
+  // trade-off against cascading renders from setting state in useEffect.
   const [value, setValue] = useState<number>(() => (prefersReducedMotion() ? target : 0));
   const observerRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (prefersReducedMotion()) {
-      setValue(target);
+      // Already rendered at `target` (see initial state). Nothing to
+      // animate — skip the observer and avoid setState-in-effect.
       return;
     }
     const node = observerRef.current;

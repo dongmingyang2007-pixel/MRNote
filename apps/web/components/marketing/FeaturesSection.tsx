@@ -1,15 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { Brain, Bell, CalendarCheck } from "lucide-react";
+import { Check } from "lucide-react";
 
 import MemoryMock from "./mocks/MemoryMock";
 import FollowupMock from "./mocks/FollowupMock";
 import DigestMock from "./mocks/DigestMock";
-
-const FEATURE_ICONS = {
-  1: Brain,
-  2: Bell,
-  3: CalendarCheck,
-} as const;
 
 // Map feature index → mock component. Kept here (not in mocks/) so
 // the feature→mock pairing is visible at the call site.
@@ -19,66 +13,98 @@ const FEATURE_MOCKS = {
   3: DigestMock,
 } as const;
 
+// Chrome file-name captions are derived from translations of the mock
+// titles — the prototype shows a faux "page 12 · notebook" header above
+// each demo window. We fall back to a generic label when i18n is missing.
+const CHROME_LABELS: Record<1 | 2 | 3, { label: string; path: string }> = {
+  1: { label: "memory", path: "notebook · persistent" },
+  2: { label: "canvas", path: "notebook · page 12" },
+  3: { label: "study", path: "notebook · weekly" },
+};
+
 type FeatureKey = 1 | 2 | 3;
 
+/**
+ * FeaturesSection — mirrors `.feature-row` in MRNote sections.css.
+ *
+ * Each feature is a full-bleed row with alternating bg tones
+ * (`--mkt-bg-base` / `--mkt-bg-surface`) and reversed columns on even
+ * rows. The right-side "demo frame" wraps the existing mocks in a 4:3
+ * framed viewport (dotted canvas + chrome bar) to match the prototype
+ * scaffolding without disturbing the mock internals.
+ */
 export default async function FeaturesSection() {
   const t = await getTranslations("marketing");
   const features: FeatureKey[] = [1, 2, 3];
 
   return (
-    <section className="marketing-section" id="features">
-      <div className="marketing-inner">
-        <div
-          className="marketing-inner--narrow mb-10 md:mb-16"
-          style={{ textAlign: "center", margin: "0 auto" }}
-        >
-          <span className="marketing-eyebrow">{t("features.kicker")}</span>
-          <h2 className="marketing-h2 font-display tracking-tight text-3xl md:text-4xl lg:text-5xl">
-            {t("features.title")}
-          </h2>
-        </div>
-
-        {features.map((i) => {
-          const Icon = FEATURE_ICONS[i];
-          const Mock = FEATURE_MOCKS[i];
-          const reverse = i % 2 === 0;
-          return (
-            <div
-              key={i}
-              className={`marketing-feature${reverse ? " marketing-feature--reverse" : ""}`}
-            >
-              <div className="marketing-feature__copy">
-                <div className="marketing-problem-card__icon" style={{ marginBottom: 0 }}>
-                  <Icon size={20} strokeWidth={2} />
-                </div>
-                <span className="marketing-eyebrow" style={{ marginBottom: 0 }}>
+    <div id="features">
+      {features.map((i) => {
+        const Mock = FEATURE_MOCKS[i];
+        const chrome = CHROME_LABELS[i];
+        const reverse = i % 2 === 0;
+        return (
+          <section
+            key={i}
+            className={`marketing-feature-row${reverse ? " marketing-feature-row--reverse" : ""}`}
+          >
+            <div className="marketing-feature-row__inner">
+              <div className="marketing-feature-row__copy">
+                <span className="marketing-eyebrow">
                   {t(`feature${i}.eyebrow`)}
                 </span>
-                <h3 className="marketing-h3 font-display tracking-tight text-xl md:text-2xl">
+                <h2 className="marketing-h2 marketing-feature-row__title">
                   {t(`feature${i}.title`)}
-                </h3>
-                <p className="marketing-body text-base md:text-lg leading-relaxed">
+                </h2>
+                <p className="marketing-feature-row__body">
                   {t(`feature${i}.body`)}
                 </p>
-                <ul className="marketing-feature__bullets">
-                  <li className="marketing-feature__bullet">
-                    {t(`feature${i}.bullets.0`)}
+                <ul className="marketing-feature-row__bullets">
+                  <li>
+                    <Check
+                      size={16}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                    />
+                    <span>{t(`feature${i}.bullets.0`)}</span>
                   </li>
-                  <li className="marketing-feature__bullet">
-                    {t(`feature${i}.bullets.1`)}
+                  <li>
+                    <Check
+                      size={16}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                    />
+                    <span>{t(`feature${i}.bullets.1`)}</span>
                   </li>
-                  <li className="marketing-feature__bullet">
-                    {t(`feature${i}.bullets.2`)}
+                  <li>
+                    <Check
+                      size={16}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                    />
+                    <span>{t(`feature${i}.bullets.2`)}</span>
                   </li>
                 </ul>
               </div>
-              <div className="marketing-feature__media-wrap">
-                <Mock />
+              <div className="marketing-feature-row__media">
+                <div className="marketing-demo-frame">
+                  <div
+                    className="marketing-demo-frame__dots"
+                    aria-hidden="true"
+                  />
+                  <div className="marketing-demo-frame__chrome">
+                    <strong>{chrome.label}</strong>
+                    <span>/ {chrome.path}</span>
+                  </div>
+                  <div className="marketing-demo-frame__mock">
+                    <Mock />
+                  </div>
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-    </section>
+          </section>
+        );
+      })}
+    </div>
   );
 }

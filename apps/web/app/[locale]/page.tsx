@@ -40,7 +40,10 @@ export default async function HomePage({
   const sectionLocale: "zh" | "en" = localeKey === "en" ? "en" : "zh";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+    <div
+      className="marketing-theme"
+      style={{ minHeight: "100vh", background: "#F7FEFC" }}
+    >
       <PublicHeader />
       <main>
         <RoleProvider initialRole={initialRole} locale={sectionLocale}>
