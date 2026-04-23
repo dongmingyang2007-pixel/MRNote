@@ -10,6 +10,7 @@ import ProblemSection from "@/components/marketing/ProblemSection";
 import FeaturesSection from "@/components/marketing/FeaturesSection";
 import ScreenshotSection from "@/components/marketing/ScreenshotSection";
 import ExclusiveSection from "@/components/marketing/ExclusiveSection";
+import DigestSection from "@/components/marketing/DigestSection";
 import PricingSnapshotSection from "@/components/marketing/PricingSnapshotSection";
 import CTAFooterSection from "@/components/marketing/CTAFooterSection";
 import PublicFooter from "@/components/marketing/PublicFooter";
@@ -48,6 +49,7 @@ export default async function HomePage({
           <FeaturesSection />
           <ScreenshotSection />
           <ExclusiveSection locale={sectionLocale} />
+          <DigestSection locale={sectionLocale} />
           <PricingSnapshotSection />
         </RoleProvider>
         <CTAFooterSection />

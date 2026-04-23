@@ -1525,3 +1525,599 @@
   }
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Digest section — homepage per-role daily / weekly mock              */
+/* (see components/marketing/DigestSection.tsx + digest/*.tsx)         */
+/* ------------------------------------------------------------------ */
+
+.marketing-digest {
+  padding: var(--space-24) var(--space-6);
+  background: linear-gradient(
+    180deg,
+    var(--bg-base) 0%,
+    color-mix(in srgb, var(--brand-v2) 2%, var(--bg-base)) 100%
+  );
+  position: relative;
+}
+
+.marketing-digest__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.marketing-digest__head {
+  max-width: 680px;
+  margin-bottom: 48px;
+}
+
+.marketing-digest__title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-top: 16px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.marketing-digest__title-em {
+  font-style: normal;
+  background: linear-gradient(
+    180deg,
+    transparent 62%,
+    color-mix(in srgb, var(--brand-v2) 22%, transparent) 62%
+  );
+  padding: 0 2px;
+}
+
+.marketing-digest__lead {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+
+/* Tabs */
+.marketing-digest__tabs {
+  display: inline-flex;
+  padding: 4px;
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  border-radius: 999px;
+  margin-top: 24px;
+  margin-bottom: 28px;
+  gap: 2px;
+}
+
+.marketing-digest__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.marketing-digest__tab:hover {
+  color: var(--text-primary);
+}
+
+.marketing-digest__tab.is-active {
+  background: var(--bg-base);
+  color: var(--brand-v2);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+/* Card shell — shared chrome + body */
+.marketing-digest__card-wrap {
+  display: block;
+  animation: marketing-digest-card-in 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes marketing-digest-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.marketing-digest-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.marketing-digest-card__chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.marketing-digest-card__chrome-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--brand-v2);
+}
+
+.marketing-digest-card__chrome-title {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text-secondary);
+}
+
+.marketing-digest-card__chrome-date {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.marketing-digest-card__chrome-spacer { flex: 1; }
+
+.marketing-digest-card__chrome-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: default;
+  opacity: 0.85;
+}
+
+.marketing-digest-card__body {
+  padding: 28px 28px 24px;
+}
+
+@media (max-width: 720px) {
+  .marketing-digest-card__body { padding: 20px 16px; }
+}
+
+.marketing-digest-card__greeting {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin: 0 0 24px;
+  font-style: italic;
+  /* Subtle letter-like feel without loading a new serif font */
+}
+
+.marketing-digest-card__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .marketing-digest-card__grid { grid-template-columns: 1fr; }
+}
+
+.marketing-digest-block {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marketing-digest-block--insight {
+  background: color-mix(in srgb, var(--brand-v2) 6%, var(--bg-base));
+  border-color: color-mix(in srgb, var(--brand-v2) 20%, var(--border));
+}
+
+.marketing-digest-block__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.marketing-digest-block--insight .marketing-digest-block__title {
+  color: var(--brand-v2);
+}
+
+.marketing-digest-block__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketing-digest-block__list > li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.marketing-digest-block__item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.marketing-digest-block__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.marketing-digest-block__item-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.marketing-digest-block__body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  font-style: italic;
+}
+
+.marketing-digest-card__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+
+.marketing-digest-card__foot-pill {
+  display: inline-flex;
+  padding: 6px 14px;
+  background: var(--brand-v2);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.marketing-digest-card__foot-ghost {
+  display: inline-flex;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.marketing-digest-card__foot-spacer { flex: 1; }
+
+.marketing-digest-card__foot-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Weekly specific */
+.marketing-weekly__headline {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+  margin: 0 0 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-style: italic;
+}
+
+.marketing-weekly__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 720px) {
+  .marketing-weekly__stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.marketing-weekly__stat {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-base);
+}
+
+.marketing-weekly__stat-v {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.marketing-weekly__stat-trend {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.marketing-weekly__stat-trend--up {
+  background: color-mix(in srgb, #059669 14%, transparent);
+  color: #047857;
+}
+
+.marketing-weekly__stat-trend--down {
+  background: color-mix(in srgb, #dc2626 14%, transparent);
+  color: #b91c1c;
+}
+
+.marketing-weekly__stat-k {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+.marketing-weekly__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 760px) {
+  .marketing-weekly__cols { grid-template-columns: 1fr; gap: 20px; }
+}
+
+.marketing-weekly__col-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+}
+
+.marketing-weekly__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marketing-weekly__list > li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.marketing-weekly__list > li::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-v2);
+}
+
+.marketing-weekly__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.marketing-weekly__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: default;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.marketing-weekly__option:hover {
+  border-color: color-mix(in srgb, var(--brand-v2) 50%, var(--border));
+  background: color-mix(in srgb, var(--brand-v2) 3%, var(--bg-base));
+}
+
+.marketing-weekly__option > span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sparkline */
+.marketing-weekly__sparkline {
+  margin-top: 8px;
+  padding: 12px 8px 6px;
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  border-radius: 12px;
+}
+
+.marketing-weekly__sparkline svg {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+.marketing-weekly__sparkline-line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: marketing-sparkline-draw 1400ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes marketing-sparkline-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.marketing-weekly__sparkline-dot {
+  opacity: 0;
+  animation: marketing-sparkline-dot-in 260ms ease-out forwards;
+}
+
+@keyframes marketing-sparkline-dot-in {
+  to { opacity: 1; }
+}
+
+.marketing-weekly__sparkline-axis {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 6px 4px 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero persona title accents                                          */
+/* ------------------------------------------------------------------ */
+
+.marketing-hero__title-em {
+  font-style: italic;
+  color: var(--brand-v2);
+  font-weight: 600;
+}
+
+.marketing-hero__title-mark {
+  background: color-mix(in srgb, var(--brand-v2) 18%, transparent);
+  color: var(--text-primary);
+  padding: 0 6px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.marketing-hero__foot-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.marketing-hero__foot-badges > li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.marketing-hero__foot-badges > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-v2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero canvas focused window — glow + lift per spec §1.6              */
+/* ------------------------------------------------------------------ */
+
+.marketing-canvas-stage__slot {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 420ms ease;
+}
+
+.marketing-canvas-stage__slot.is-focused {
+  z-index: 5;
+  transform: translateY(-4px) scale(1.015);
+  animation: marketing-focus-pulse 3.2s ease-in-out infinite;
+}
+
+.marketing-canvas-stage__slot.is-focused::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed color-mix(in srgb, var(--brand-v2) 55%, transparent);
+  border-radius: 18px;
+  pointer-events: none;
+  animation: marketing-focus-outline 3.2s ease-in-out infinite;
+}
+
+@keyframes marketing-focus-pulse {
+  0%, 100% {
+    box-shadow: 0 22px 44px -22px color-mix(in srgb, var(--brand-v2) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 32px 64px -24px color-mix(in srgb, var(--brand-v2) 55%, transparent);
+  }
+}
+
+@keyframes marketing-focus-outline {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-canvas-stage__slot,
+  .marketing-canvas-stage__slot.is-focused {
+    animation: none;
+    transition: none;
+  }
+  .marketing-canvas-stage__slot.is-focused::after {
+    animation: none;
+  }
+  .marketing-weekly__sparkline-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .marketing-weekly__sparkline-dot {
+    animation: none;
+    opacity: 1;
+  }
+  .marketing-digest__card-wrap {
+    animation: none;
+  }
+}
