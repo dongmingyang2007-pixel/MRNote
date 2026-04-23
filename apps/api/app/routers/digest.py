@@ -40,6 +40,8 @@ from app.models import (
 from app.schemas.digest import (
     DigestDailyMarkReadRequest,
     DigestDailyOut,
+    DigestPreferencesOut,
+    DigestPreferencesPatchRequest,
     DigestWeeklyOut,
     DigestWeeklySaveAsPageRequest,
     DigestWeeklySaveAsPageResponse,
@@ -303,3 +305,45 @@ def save_weekly_as_page(
     db.commit()
 
     return DigestWeeklySaveAsPageResponse(page_id=page.id)
+
+
+# ---------------------------------------------------------------------------
+# Preferences (email opt-out)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/preferences", response_model=DigestPreferencesOut)
+def get_digest_preferences(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> DigestPreferencesOut:
+    """Return the current user's digest preferences (email toggle + tz)."""
+    require_allowed_origin(request)
+    return DigestPreferencesOut(
+        email_enabled=bool(getattr(current_user, "digest_email_enabled", True)),
+        timezone=getattr(current_user, "timezone", None),
+    )
+
+
+@router.patch("/preferences", response_model=DigestPreferencesOut)
+def patch_digest_preferences(
+    payload: DigestPreferencesPatchRequest,
+    request: Request,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _csrf: None = Depends(require_csrf_protection),
+) -> DigestPreferencesOut:
+    """Toggle digest email delivery for the current user.
+
+    Only ``email_enabled`` is patchable here; timezone lives on the
+    ``/auth/me`` PATCH so we don't duplicate IANA validation.
+    """
+    require_allowed_origin(request)
+    current_user.digest_email_enabled = bool(payload.email_enabled)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return DigestPreferencesOut(
+        email_enabled=bool(current_user.digest_email_enabled),
+        timezone=getattr(current_user, "timezone", None),
+    )

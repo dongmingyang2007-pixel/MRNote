@@ -24,7 +24,10 @@ export default async function AuthBrandHeader() {
         className="inline-flex items-center gap-3 text-sm"
         aria-label={tMarketing("brand.name")}
       >
-        <span className="h-2.5 w-2.5 rounded-sm bg-[var(--brand-v2)]" />
+        {/* Brand swatch uses the MRNote teal accent (globals.css --accent)
+            rather than the public --brand-v2 blue, matching the marketing
+            wordmark + console accent throughout the product. */}
+        <span className="h-2.5 w-2.5 rounded-sm bg-[var(--accent)]" />
         <span className="font-display font-semibold tracking-tight">
           {tMarketing("brand.name")}
         </span>

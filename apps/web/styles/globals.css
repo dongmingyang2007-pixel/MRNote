@@ -1,8 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
-/* Marketing font stack — Plus Jakarta Sans (display + body) + Noto Sans SC   *
- * for CJK + JetBrains Mono for mono bits. Scoped visually to .marketing-theme *
- * in marketing.css so console pages keep DM Sans / Space Grotesk.             */
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+/* Marketing font stack — Plus Jakarta Sans (display + body) and JetBrains    *
+ * Mono are now self-hosted via next/font/google in app/[locale]/layout.tsx   *
+ * (exposing --font-plus-jakarta / --font-jetbrains to the tree). Only Noto   *
+ * Sans SC stays on the Google Fonts @import because next/font/google does    *
+ * not support its dynamic Chinese subset yet. Scoped to .marketing-theme via *
+ * marketing.css; console pages keep DM Sans / Space Grotesk untouched.       */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap");
 @import "./window-manager.css";
 
 @tailwind base;

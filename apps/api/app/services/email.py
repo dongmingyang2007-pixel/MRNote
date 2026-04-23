@@ -192,3 +192,49 @@ def send_verification_email_safe(to_email: str, code: str, purpose: str) -> None
             to_email,
             purpose,
         )
+
+
+def send_html_email(
+    to: str,
+    subject: str,
+    html: str,
+    *,
+    text_fallback: str | None = None,
+) -> None:
+    """Send a generic HTML email via the same SMTP pipe as verification codes.
+
+    Shared by the daily-digest / weekly-reflection mailers. Unlike
+    ``send_verification_email``, this raises on SMTP errors so the caller
+    can decide whether to log-and-swallow or bubble up; the daily/weekly
+    digest worker wraps it in try/except to ensure a mail failure never
+    poisons the upsert.
+
+    In the test environment (or when SMTP credentials are unset and we're
+    running locally) this no-ops so unit tests stay hermetic.
+    """
+    if settings.env == "test":
+        logger.info("HTML email skipped in test environment for %s", to)
+        return
+    if not settings.smtp_user or not settings.smtp_password:
+        if settings.env in {"local", "test"}:
+            logger.warning(
+                "SMTP not configured — HTML email skipped for %s", to
+            )
+            return
+        raise RuntimeError("SMTP not configured")
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_address}>"
+    msg["To"] = to
+    msg["Subject"] = subject
+
+    plain = text_fallback or "This email is best viewed in an HTML-capable client."
+    msg.attach(MIMEText(plain, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+        server.starttls()
+        server.login(settings.smtp_user, settings.smtp_password)
+        server.send_message(msg)
+
+    logger.info("HTML email sent to %s (subject=%r)", to, subject)

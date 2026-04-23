@@ -39,6 +39,19 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # SQLite skips the CHECK since it silently ignores constraint violations
     # anyway, and the Pydantic MePatch model gates the enum on the write path.
     persona: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Per-user IANA timezone (e.g. "Asia/Shanghai"). Null means the scheduler
+    # falls back to UTC. Populated by PATCH /api/v1/auth/me; validated at the
+    # write path via ``zoneinfo.ZoneInfo``.
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Toggle for digest emails (daily digest + weekly reflection). Default TRUE
+    # so users opt-out rather than opt-in; per-user flip via PATCH /auth/me or
+    # PATCH /digest/preferences.
+    digest_email_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default=sql_text("true"),
+        nullable=False,
+    )
 
 
 class Workspace(Base, UUIDPrimaryKeyMixin, TimestampMixin):

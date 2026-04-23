@@ -2636,39 +2636,57 @@ def subscription_sync_repair_task() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 # Homepage daily digest + weekly reflection (spec §2.4)
 #
-# These are stub scaffolding tasks — the real implementation needs the
-# per-user timezone + LLM insight path. The wrappers exist now so the
-# beat schedule has a stable target and so the PATCH /me rollout can
-# exercise the full pipeline (even if the payload is hard-fact-only).
+# The Celery beat runs these hourly. Each task walks every user, resolves
+# their IANA timezone, and only generates/emails for users whose local
+# time matches the target window (08:00-08:59 local for daily; Sunday
+# 20:00-20:59 local for weekly).
 # ---------------------------------------------------------------------------
+
+
+_DAILY_TARGET_HOUR = 8  # 08:xx local
+_WEEKLY_TARGET_HOUR = 20  # 20:xx local
+_WEEKLY_TARGET_WEEKDAY = 6  # Sunday — Python's weekday(): Mon=0..Sun=6
+
+
+def _resolve_user_tz(user) -> "object":  # type: ignore[no-untyped-def]
+    """Return a ZoneInfo for the user's configured timezone (fallback UTC).
+
+    Broken / unknown zone strings degrade to UTC rather than raising so
+    one bad row can't break the whole beat run.
+    """
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    tz_name = getattr(user, "timezone", None) or "UTC"
+    try:
+        return ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, Exception):  # noqa: BLE001
+        return ZoneInfo("UTC")
 
 
 @celery_app.task(name="app.tasks.worker_tasks.daily_digest_generate_task")
 def daily_digest_generate_task(user_id: str | None = None) -> dict[str, object]:
-    """Generate ``digest_daily`` rows for all active users (or a single one).
+    """Generate ``digest_daily`` rows (and mail, if enabled) for users
+    whose local time is currently inside the daily target window.
 
     Iteration strategy:
 
-    * ``user_id`` provided → generate just that user. Lets ops kick off
-      a one-shot regen from a Celery shell.
-    * ``user_id=None`` (the beat-scheduled path) → walk every User with
-      at least one Membership (cheap filter that catches "account shell"
-      rows from abandoned sign-ups).
+    * ``user_id`` provided → force-generate that user regardless of
+      their local clock (ops one-shot, tests).
+    * ``user_id=None`` (beat path) → walk every User with at least one
+      Membership, resolve their IANA timezone, match ``local.hour ==
+      _DAILY_TARGET_HOUR``. Users without a timezone fall back to UTC.
 
     Upsert semantics: on conflict with ``uq_digest_daily_user_date`` we
-    overwrite ``payload`` + bump ``updated_at``. Mark-read state
-    (``read_at``) is preserved — regenerating a digest the user already
-    dismissed doesn't re-surface it.
+    overwrite ``payload``; mark-read state is preserved.
     """
-    from datetime import date as _date_type
-
     from app.models import DigestDaily, Membership, User as _User
+    from app.services.digest_email import send_daily_digest_email
     from app.services.digest_generation import generate_daily_digest_payload
 
     db = SessionLocal()
     try:
-        today = datetime.now(timezone.utc).date()
-        if user_id is not None:
+        now_utc = datetime.now(timezone.utc)
+        forced = user_id is not None
+        if forced:
             user_ids = [user_id]
         else:
             rows = (
@@ -2680,41 +2698,68 @@ def daily_digest_generate_task(user_id: str | None = None) -> dict[str, object]:
             user_ids = [r[0] for r in rows]
 
         generated = 0
+        skipped_window = 0
+        emails_sent = 0
         for uid in user_ids:
             user = db.get(_User, uid)
             if user is None:
                 continue
-            payload = generate_daily_digest_payload(db, user, target_day=today)
+            tz = _resolve_user_tz(user)
+            local_now = now_utc.astimezone(tz)
+            if not forced and local_now.hour != _DAILY_TARGET_HOUR:
+                skipped_window += 1
+                continue
+
+            target_day = local_now.date()
+            try:
+                payload = generate_daily_digest_payload(
+                    db, user, target_day=target_day,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "daily_digest_generate_task: generation failed for user=%s", uid,
+                )
+                continue
+
             existing = (
                 db.query(DigestDaily)
                 .filter(
                     DigestDaily.user_id == uid,
-                    DigestDaily.date == today,
+                    DigestDaily.date == target_day,
                 )
                 .first()
             )
             if existing is None:
                 db.add(DigestDaily(
                     user_id=uid,
-                    date=today,
+                    date=target_day,
                     payload=payload,
                 ))
             else:
                 existing.payload = payload
-                # Preserve read_at — don't reset a dismissal on regen.
                 db.add(existing)
             generated += 1
+
+            if getattr(user, "digest_email_enabled", True) and user.email:
+                try:
+                    send_daily_digest_email(user, payload)
+                    emails_sent += 1
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "daily_digest_generate_task: email dispatch failed user=%s",
+                        uid,
+                    )
         db.commit()
         logger.info(
-            "daily_digest_generate_task produced %d row(s) for %s",
-            generated,
-            "single-user" if user_id else "all users",
+            "daily_digest_generate_task produced %d row(s) (emails=%d, skipped=%d)",
+            generated, emails_sent, skipped_window,
         )
         return {
-            "status": "stub",
+            "status": "ok",
             "user_count": len(user_ids),
             "generated": generated,
-            "date": today.isoformat(),
+            "skipped_window": skipped_window,
+            "emails_sent": emails_sent,
         }
     finally:
         db.close()
@@ -2722,13 +2767,14 @@ def daily_digest_generate_task(user_id: str | None = None) -> dict[str, object]:
 
 @celery_app.task(name="app.tasks.worker_tasks.weekly_reflection_generate_task")
 def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, object]:
-    """Generate ``digest_weekly`` rows for all active users (or a single one).
+    """Generate ``digest_weekly`` rows (and mail, if enabled) for users
+    whose local clock is currently inside the weekly target window.
 
-    Same iteration + upsert model as ``daily_digest_generate_task``. The
-    ``iso_week`` is computed from "now" in UTC — when per-user timezones
-    come online this will move into the service layer.
+    Window: Sunday 20:00-20:59 in user's local timezone. ``user_id``
+    overrides the filter for ops/test runs.
     """
     from app.models import DigestWeekly, Membership, User as _User
+    from app.services.digest_email import send_weekly_reflection_email
     from app.services.digest_generation import (
         generate_weekly_reflection_payload,
         iso_week_for_date,
@@ -2736,9 +2782,9 @@ def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, obj
 
     db = SessionLocal()
     try:
-        today = datetime.now(timezone.utc).date()
-        iso_week = iso_week_for_date(today)
-        if user_id is not None:
+        now_utc = datetime.now(timezone.utc)
+        forced = user_id is not None
+        if forced:
             user_ids = [user_id]
         else:
             rows = (
@@ -2750,13 +2796,33 @@ def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, obj
             user_ids = [r[0] for r in rows]
 
         generated = 0
+        skipped_window = 0
+        emails_sent = 0
         for uid in user_ids:
             user = db.get(_User, uid)
             if user is None:
                 continue
-            payload = generate_weekly_reflection_payload(
-                db, user, iso_week=iso_week,
-            )
+            tz = _resolve_user_tz(user)
+            local_now = now_utc.astimezone(tz)
+            if not forced and (
+                local_now.weekday() != _WEEKLY_TARGET_WEEKDAY
+                or local_now.hour != _WEEKLY_TARGET_HOUR
+            ):
+                skipped_window += 1
+                continue
+
+            iso_week = iso_week_for_date(local_now.date())
+            try:
+                payload = generate_weekly_reflection_payload(
+                    db, user, iso_week=iso_week,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "weekly_reflection_generate_task: generation failed user=%s",
+                    uid,
+                )
+                continue
+
             existing = (
                 db.query(DigestWeekly)
                 .filter(
@@ -2775,17 +2841,27 @@ def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, obj
                 existing.payload = payload
                 db.add(existing)
             generated += 1
+
+            if getattr(user, "digest_email_enabled", True) and user.email:
+                try:
+                    send_weekly_reflection_email(user, payload)
+                    emails_sent += 1
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "weekly_reflection_generate_task: email dispatch failed user=%s",
+                        uid,
+                    )
         db.commit()
         logger.info(
-            "weekly_reflection_generate_task produced %d row(s) for %s",
-            generated,
-            "single-user" if user_id else "all users",
+            "weekly_reflection_generate_task produced %d row(s) (emails=%d, skipped=%d)",
+            generated, emails_sent, skipped_window,
         )
         return {
-            "status": "stub",
+            "status": "ok",
             "user_count": len(user_ids),
             "generated": generated,
-            "iso_week": iso_week,
+            "skipped_window": skipped_window,
+            "emails_sent": emails_sent,
         }
     finally:
         db.close()

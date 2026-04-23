@@ -79,3 +79,24 @@ class DigestWeeklySaveAsPageRequest(BaseModel):
 
 class DigestWeeklySaveAsPageResponse(BaseModel):
     page_id: str
+
+
+# ---------------------------------------------------------------------------
+# Preferences (email opt-out)
+# ---------------------------------------------------------------------------
+
+
+class DigestPreferencesPatchRequest(BaseModel):
+    """``PATCH /api/v1/digest/preferences`` body.
+
+    Narrow surface for now — email toggle only. Kept separate from the
+    broader ``/auth/me`` PATCH so a settings page that just flips the
+    email toggle doesn't need to know about persona/timezone wiring.
+    """
+
+    email_enabled: bool
+
+
+class DigestPreferencesOut(BaseModel):
+    email_enabled: bool
+    timezone: str | None = None

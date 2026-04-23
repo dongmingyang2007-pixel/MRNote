@@ -98,16 +98,17 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.worker_tasks.subscription_sync_repair_task",
         "schedule": crontab(minute=0, hour="*/6"),
     },
-    # Homepage daily digest — spec §2.4. 08:30 UTC for now; per-user
-    # timezone scheduling is a follow-up (requires storing the zone on
-    # users and fanning out in the task body rather than via beat).
+    # Homepage daily digest — spec §2.4. Runs hourly; the task body
+    # checks each user's IANA timezone and only generates for users
+    # whose local clock is 08:xx. This is the per-user timezone path.
     "homepage-daily-digest": {
         "task": "app.tasks.worker_tasks.daily_digest_generate_task",
-        "schedule": crontab(hour=8, minute=30),
+        "schedule": crontab(minute=30),
     },
-    # Homepage weekly reflection — spec §2.4. Sunday 20:00 UTC.
+    # Homepage weekly reflection — runs hourly; task body matches
+    # Sunday 20:xx in user's local time.
     "homepage-weekly-reflection": {
         "task": "app.tasks.worker_tasks.weekly_reflection_generate_task",
-        "schedule": crontab(hour=20, minute=0, day_of_week=0),
+        "schedule": crontab(minute=0),
     },
 }

@@ -10,6 +10,28 @@ from pydantic import BaseModel, EmailStr, field_validator
 PersonaValue = Literal["student", "researcher", "pm"]
 
 
+def _validate_iana_timezone(value: str | None) -> str | None:
+    """Confirm the string parses as an IANA zone; normalize None/empty → None.
+
+    Reuses ``zoneinfo.ZoneInfo`` — anything it rejects raises ValueError so
+    FastAPI returns 422 with a useful detail, rather than us discovering
+    the bad zone later in the Celery scheduler.
+    """
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        ZoneInfo(stripped)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"unknown IANA timezone: {stripped!r}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"invalid timezone: {stripped!r}") from exc
+    return stripped
+
+
 class SendCodeRequest(BaseModel):
     email: EmailStr
     purpose: str = "register"
@@ -103,14 +125,19 @@ class UserOut(BaseModel):
     onboarding_completed_at: datetime | None = None
     # Homepage persona selector — null until the user picks one.
     persona: PersonaValue | None = None
+    # IANA timezone ("Asia/Shanghai"). Null = scheduler falls back to UTC.
+    timezone: str | None = None
+    # Opt-out flag for digest emails; default TRUE for new users.
+    digest_email_enabled: bool = True
 
 
 class MePatchRequest(BaseModel):
     """PATCH /api/v1/auth/me body.
 
-    Today only ``persona`` is patchable. Keeping the request model
-    narrow so mis-typed JSON keys don't silently no-op — Pydantic will
-    still accept the body but only these fields are honored.
+    Patchable fields: ``persona``, ``timezone``, ``digest_email_enabled``.
+    Any field omitted from the JSON body is left untouched; setting a
+    field to ``null`` clears it (currently meaningful for ``persona`` /
+    ``timezone`` only — ``digest_email_enabled`` is NOT NULL).
     """
 
     # Explicit Optional so the caller can clear the value back to null
@@ -118,6 +145,13 @@ class MePatchRequest(BaseModel):
     # treats missing vs null differently: missing leaves the column alone,
     # null writes NULL. See ``update_me`` in routers/auth.py.
     persona: PersonaValue | None = None
+    timezone: str | None = None
+    digest_email_enabled: bool | None = None
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def _validate_tz(cls, value: str | None) -> str | None:
+        return _validate_iana_timezone(value)
 
 
 class WorkspaceOut(BaseModel):

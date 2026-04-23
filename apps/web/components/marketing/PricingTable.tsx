@@ -62,8 +62,8 @@ export default function PricingTable() {
             gap: 6,
             padding: "4px 12px",
             borderRadius: "var(--radius-full)",
-            background: "rgba(15, 118, 255, 0.1)",
-            color: "var(--brand-v2)",
+            background: "rgba(13, 148, 136, 0.12)",
+            color: "var(--mkt-primary)",
             fontSize: "0.72rem",
             fontWeight: 600,
             letterSpacing: "0.04em",
@@ -103,8 +103,8 @@ export default function PricingTable() {
               boxShadow: cycle === "monthly" ? undefined : "none",
               padding: "8px 18px",
               fontSize: "0.9rem",
-              background: cycle === "monthly" ? "var(--brand-v2)" : "transparent",
-              color: cycle === "monthly" ? "#fff" : "var(--text-secondary)",
+              background: cycle === "monthly" ? "var(--mkt-primary)" : "transparent",
+              color: cycle === "monthly" ? "#fff" : "var(--mkt-text-secondary)",
             }}
             aria-pressed={cycle === "monthly"}
           >
@@ -122,8 +122,8 @@ export default function PricingTable() {
               boxShadow: cycle === "yearly" ? undefined : "none",
               padding: "8px 18px",
               fontSize: "0.9rem",
-              background: cycle === "yearly" ? "var(--brand-v2)" : "transparent",
-              color: cycle === "yearly" ? "#fff" : "var(--text-secondary)",
+              background: cycle === "yearly" ? "var(--mkt-primary)" : "transparent",
+              color: cycle === "yearly" ? "#fff" : "var(--mkt-text-secondary)",
               gap: 8,
             }}
             aria-pressed={cycle === "yearly"}
@@ -132,8 +132,8 @@ export default function PricingTable() {
             <span
               style={{
                 fontSize: "0.72rem",
-                background: cycle === "yearly" ? "rgba(255,255,255,0.22)" : "rgba(15,118,255,0.12)",
-                color: cycle === "yearly" ? "#fff" : "var(--brand-v2)",
+                background: cycle === "yearly" ? "rgba(255,255,255,0.22)" : "rgba(13,148,136,0.12)",
+                color: cycle === "yearly" ? "#fff" : "var(--mkt-primary)",
                 padding: "2px 6px",
                 borderRadius: "var(--radius-full)",
                 fontWeight: 600,
@@ -195,7 +195,7 @@ export default function PricingTable() {
                       <Check
                         size={16}
                         strokeWidth={2.4}
-                        color="var(--brand-v2)"
+                        color="var(--mkt-primary)"
                         style={{ marginTop: 3, flexShrink: 0 }}
                       />
                       <span>{t(`plan.${plan.key}.feat.${idx}`)}</span>

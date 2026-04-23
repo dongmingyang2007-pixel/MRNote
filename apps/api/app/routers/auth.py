@@ -336,12 +336,18 @@ def update_me(
         window_seconds=60,
     )
 
-    # ``model_fields_set`` lets us distinguish "persona field omitted"
-    # (leave alone) from "persona: null" (clear to NULL). Without this a
-    # naive ``current_user.persona = payload.persona`` would also clobber
-    # the value on a partial patch that doesn't mention persona.
+    # ``model_fields_set`` lets us distinguish "field omitted" (leave
+    # alone) from "field: null" (clear to NULL). Without this a naive
+    # ``current_user.persona = payload.persona`` would also clobber the
+    # value on a partial patch that doesn't mention the field.
     if "persona" in payload.model_fields_set:
         current_user.persona = payload.persona
+    if "timezone" in payload.model_fields_set:
+        current_user.timezone = payload.timezone
+    if "digest_email_enabled" in payload.model_fields_set:
+        # NOT NULL on the column — only honor bool inputs, ignore null.
+        if payload.digest_email_enabled is not None:
+            current_user.digest_email_enabled = bool(payload.digest_email_enabled)
 
     db.add(current_user)
     db.commit()

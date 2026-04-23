@@ -2,7 +2,7 @@
 
 import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { gsap } from "@/lib/gsap-register";
 
 import { MagneticButton } from "@/components/MagneticButton";
@@ -10,6 +10,7 @@ import { apiPost, persistWorkspaceId } from "@/lib/api";
 import { getLocalizedAuthError } from "@/lib/auth-errors";
 import { getSafeNavigationPath } from "@/lib/security";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import PersonaPickerStep from "@/components/auth/PersonaPickerStep";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
@@ -27,14 +28,21 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const [step, setStep] = useState<"form" | "code">("form");
+  // Register flow: form → code (email verify) → persona (spec §1.1 / §1.2
+  // role-personalized first view). Navigation to the console only fires
+  // from the persona step (skip or select). Returning to "form" from
+  // "persona" is intentionally disabled — the account is already created.
+  const [step, setStep] = useState<"form" | "code" | "persona">("form");
   const [code, setCode] = useState("");
   const [codeSending, setCodeSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const pendingNextPathRef = useRef<string | null>(null);
 
   const t = useTranslations("auth");
+  const locale = useLocale();
+  const normalizedLocale: "zh" | "en" = locale === "en" ? "en" : "zh";
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -103,16 +111,36 @@ export default function RegisterPage() {
         },
       );
       persistWorkspaceId(auth.workspace.id, auth.access_token_expires_in_seconds);
-      const nextPath = getSafeNavigationPath(
+      // Capture the post-auth destination now so we can honor `?next=` after
+      // the persona step completes. Navigation is deferred to `onResolved`.
+      pendingNextPathRef.current = getSafeNavigationPath(
         new URLSearchParams(window.location.search).get("next"),
       );
-      window.location.replace(nextPath || getDefaultConsolePath());
+      setStep("persona");
     } catch (err) {
       setError(getLocalizedAuthError(err, t, "register.error"));
     }
   };
 
+  const handlePersonaResolved = useCallback(() => {
+    const nextPath = pendingNextPathRef.current;
+    pendingNextPathRef.current = null;
+    window.location.replace(nextPath || getDefaultConsolePath());
+  }, []);
+
   const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors duration-[var(--motion-base)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
+
+  if (step === "persona") {
+    // PersonaPickerStep owns its own heading + layout. Rendering it outside
+    // the `.auth-heading` / `.auth-form-card` scaffolding keeps the GSAP
+    // intro anim from replaying once the user is already post-auth.
+    return (
+      <PersonaPickerStep
+        locale={normalizedLocale}
+        onResolved={handlePersonaResolved}
+      />
+    );
+  }
 
   return (
     <section ref={sectionRef} className="flex w-full flex-col text-left">

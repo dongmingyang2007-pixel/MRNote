@@ -7,6 +7,7 @@ import PublicHeader from "@/components/marketing/PublicHeader";
 import HeroSection from "@/components/marketing/HeroSection";
 import { RoleProvider } from "@/lib/marketing/RoleContext";
 import ProblemSection from "@/components/marketing/ProblemSection";
+import MemorySection from "@/components/marketing/MemorySection";
 import FeaturesSection from "@/components/marketing/FeaturesSection";
 import ScreenshotSection from "@/components/marketing/ScreenshotSection";
 import ExclusiveSection from "@/components/marketing/ExclusiveSection";
@@ -49,6 +50,7 @@ export default async function HomePage({
         <RoleProvider initialRole={initialRole} locale={sectionLocale}>
           <HeroSection locale={sectionLocale} />
           <ProblemSection />
+          <MemorySection />
           <FeaturesSection />
           <ScreenshotSection />
           <ExclusiveSection locale={sectionLocale} />
