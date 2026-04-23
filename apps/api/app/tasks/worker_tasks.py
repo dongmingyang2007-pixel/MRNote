@@ -2631,3 +2631,161 @@ def subscription_sync_repair_task() -> dict[str, object]:
         return {"status": "ok", "stale_count": len(stale), "stale_ids": stale[:20]}
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Homepage daily digest + weekly reflection (spec §2.4)
+#
+# These are stub scaffolding tasks — the real implementation needs the
+# per-user timezone + LLM insight path. The wrappers exist now so the
+# beat schedule has a stable target and so the PATCH /me rollout can
+# exercise the full pipeline (even if the payload is hard-fact-only).
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(name="app.tasks.worker_tasks.daily_digest_generate_task")
+def daily_digest_generate_task(user_id: str | None = None) -> dict[str, object]:
+    """Generate ``digest_daily`` rows for all active users (or a single one).
+
+    Iteration strategy:
+
+    * ``user_id`` provided → generate just that user. Lets ops kick off
+      a one-shot regen from a Celery shell.
+    * ``user_id=None`` (the beat-scheduled path) → walk every User with
+      at least one Membership (cheap filter that catches "account shell"
+      rows from abandoned sign-ups).
+
+    Upsert semantics: on conflict with ``uq_digest_daily_user_date`` we
+    overwrite ``payload`` + bump ``updated_at``. Mark-read state
+    (``read_at``) is preserved — regenerating a digest the user already
+    dismissed doesn't re-surface it.
+    """
+    from datetime import date as _date_type
+
+    from app.models import DigestDaily, Membership, User as _User
+    from app.services.digest_generation import generate_daily_digest_payload
+
+    db = SessionLocal()
+    try:
+        today = datetime.now(timezone.utc).date()
+        if user_id is not None:
+            user_ids = [user_id]
+        else:
+            rows = (
+                db.query(_User.id)
+                .join(Membership, Membership.user_id == _User.id)
+                .distinct()
+                .all()
+            )
+            user_ids = [r[0] for r in rows]
+
+        generated = 0
+        for uid in user_ids:
+            user = db.get(_User, uid)
+            if user is None:
+                continue
+            payload = generate_daily_digest_payload(db, user, target_day=today)
+            existing = (
+                db.query(DigestDaily)
+                .filter(
+                    DigestDaily.user_id == uid,
+                    DigestDaily.date == today,
+                )
+                .first()
+            )
+            if existing is None:
+                db.add(DigestDaily(
+                    user_id=uid,
+                    date=today,
+                    payload=payload,
+                ))
+            else:
+                existing.payload = payload
+                # Preserve read_at — don't reset a dismissal on regen.
+                db.add(existing)
+            generated += 1
+        db.commit()
+        logger.info(
+            "daily_digest_generate_task produced %d row(s) for %s",
+            generated,
+            "single-user" if user_id else "all users",
+        )
+        return {
+            "status": "stub",
+            "user_count": len(user_ids),
+            "generated": generated,
+            "date": today.isoformat(),
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.weekly_reflection_generate_task")
+def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, object]:
+    """Generate ``digest_weekly`` rows for all active users (or a single one).
+
+    Same iteration + upsert model as ``daily_digest_generate_task``. The
+    ``iso_week`` is computed from "now" in UTC — when per-user timezones
+    come online this will move into the service layer.
+    """
+    from app.models import DigestWeekly, Membership, User as _User
+    from app.services.digest_generation import (
+        generate_weekly_reflection_payload,
+        iso_week_for_date,
+    )
+
+    db = SessionLocal()
+    try:
+        today = datetime.now(timezone.utc).date()
+        iso_week = iso_week_for_date(today)
+        if user_id is not None:
+            user_ids = [user_id]
+        else:
+            rows = (
+                db.query(_User.id)
+                .join(Membership, Membership.user_id == _User.id)
+                .distinct()
+                .all()
+            )
+            user_ids = [r[0] for r in rows]
+
+        generated = 0
+        for uid in user_ids:
+            user = db.get(_User, uid)
+            if user is None:
+                continue
+            payload = generate_weekly_reflection_payload(
+                db, user, iso_week=iso_week,
+            )
+            existing = (
+                db.query(DigestWeekly)
+                .filter(
+                    DigestWeekly.user_id == uid,
+                    DigestWeekly.iso_week == iso_week,
+                )
+                .first()
+            )
+            if existing is None:
+                db.add(DigestWeekly(
+                    user_id=uid,
+                    iso_week=iso_week,
+                    payload=payload,
+                ))
+            else:
+                existing.payload = payload
+                db.add(existing)
+            generated += 1
+        db.commit()
+        logger.info(
+            "weekly_reflection_generate_task produced %d row(s) for %s",
+            generated,
+            "single-user" if user_id else "all users",
+        )
+        return {
+            "status": "stub",
+            "user_count": len(user_ids),
+            "generated": generated,
+            "iso_week": iso_week,
+        }
+    finally:
+        db.close()

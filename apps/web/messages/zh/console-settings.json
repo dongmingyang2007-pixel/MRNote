@@ -27,5 +27,12 @@
     "logout": "退出登录",
     "deleteData": "发起数据删除",
     "deleteConfirm": "删除流程已受理（v0.1 占位，后端异步清理队列）"
+  },
+  "persona": {
+    "title": "身份偏好",
+    "description": "选择最贴近你日常工作的身份，用来定制每日 digest 和专属优惠。",
+    "save": "保存",
+    "saved": "已保存身份偏好",
+    "error": "保存失败，请稍后重试"
   }
 }

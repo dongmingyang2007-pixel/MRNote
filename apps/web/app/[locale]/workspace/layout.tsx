@@ -13,6 +13,7 @@ import { AuthSessionGuard } from "@/components/AuthSessionGuard";
 import { GlassTopBar, GlassStatusBar } from "@/components/console/glass";
 import UpgradeModal from "@/components/billing/UpgradeModal";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
+import DigestDrawer from "@/components/app/DigestDrawer";
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
         <MobileMenuProvider>
           <ModalProvider>
             <div data-theme="console">
+              <DigestDrawer />
               <GlassTopBar />
               <ConsoleShell>
                 {children}

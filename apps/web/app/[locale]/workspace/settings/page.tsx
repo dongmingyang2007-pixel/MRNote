@@ -8,6 +8,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { PageTransition } from "@/components/console/PageTransition";
 import { GlassCard } from "@/components/console/glass";
 import ConnectedAccountsList from "@/components/settings/ConnectedAccountsList";
+import PersonaSection from "@/components/settings/PersonaSection";
 import { apiGet, logout } from "@/lib/api";
 import { useDeveloperMode } from "@/lib/developer-mode";
 
@@ -106,6 +107,12 @@ export default function SettingsPage() {
               </p>
               <ConnectedAccountsList />
             </GlassCard>
+
+            {/* Persona (role preference) — drives daily digest + personalized
+                offers once the user sets it. Safe to render for everyone; the
+                section self-hides nothing, but the probe silently fails for
+                guests (should not happen inside /workspace anyway). */}
+            <PersonaSection />
 
             {/* Language */}
             <GlassCard>

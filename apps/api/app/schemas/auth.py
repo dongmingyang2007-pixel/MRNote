@@ -1,6 +1,13 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, field_validator
+
+
+# Homepage spec §1.7 — three persona values live at the product layer
+# (Hero pill, registration step 2, Settings → Profile). Null means "not
+# yet set"; the API never infers a value server-side.
+PersonaValue = Literal["student", "researcher", "pm"]
 
 
 class SendCodeRequest(BaseModel):
@@ -94,6 +101,23 @@ class UserOut(BaseModel):
     display_name: str | None
     created_at: datetime
     onboarding_completed_at: datetime | None = None
+    # Homepage persona selector — null until the user picks one.
+    persona: PersonaValue | None = None
+
+
+class MePatchRequest(BaseModel):
+    """PATCH /api/v1/auth/me body.
+
+    Today only ``persona`` is patchable. Keeping the request model
+    narrow so mis-typed JSON keys don't silently no-op — Pydantic will
+    still accept the body but only these fields are honored.
+    """
+
+    # Explicit Optional so the caller can clear the value back to null
+    # ("I no longer identify as student/researcher/pm") — the write path
+    # treats missing vs null differently: missing leaves the column alone,
+    # null writes NULL. See ``update_me`` in routers/auth.py.
+    persona: PersonaValue | None = None
 
 
 class WorkspaceOut(BaseModel):

@@ -45,6 +45,8 @@
   "digest.weekly.weekdayShort.fri": "Fri",
   "digest.weekly.weekdayShort.sat": "Sat",
   "digest.weekly.weekdayShort.sun": "Sun",
+  "digest.fallback.guestHint": "Sign in to see your own daily digest",
+  "digest.fallback.noData": "Today's digest isn't ready yet.",
 
   "exclusiveSection.eyebrow": "Hand-picked · Exclusive",
   "exclusiveSection.chipsLabel": "Role selector",

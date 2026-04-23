@@ -27,5 +27,12 @@
     "logout": "Log Out",
     "deleteData": "Request Data Deletion",
     "deleteConfirm": "Deletion request received (v0.1 placeholder, backend async cleanup queue)"
+  },
+  "persona": {
+    "title": "Role preference",
+    "description": "Pick the identity closest to your daily work — it tailors the daily digest and personal offers.",
+    "save": "Save",
+    "saved": "Role preference saved",
+    "error": "Save failed, please try again"
   }
 }

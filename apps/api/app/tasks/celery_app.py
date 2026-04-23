@@ -42,6 +42,9 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.study_asset_review_recommendation_task": {"queue": "memory"},
     "app.tasks.worker_tasks.usage_rollup_task": {"queue": "memory"},
     "app.tasks.worker_tasks.subscription_sync_repair_task": {"queue": "memory"},
+    # Homepage persona/digest upgrade (spec §2.4)
+    "app.tasks.worker_tasks.daily_digest_generate_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.weekly_reflection_generate_task": {"queue": "memory"},
 }
 celery_app.conf.update(
     accept_content=["json"],
@@ -94,5 +97,17 @@ celery_app.conf.beat_schedule = {
     "subscription-sync-repair-6h": {
         "task": "app.tasks.worker_tasks.subscription_sync_repair_task",
         "schedule": crontab(minute=0, hour="*/6"),
+    },
+    # Homepage daily digest — spec §2.4. 08:30 UTC for now; per-user
+    # timezone scheduling is a follow-up (requires storing the zone on
+    # users and fanning out in the task body rather than via beat).
+    "homepage-daily-digest": {
+        "task": "app.tasks.worker_tasks.daily_digest_generate_task",
+        "schedule": crontab(hour=8, minute=30),
+    },
+    # Homepage weekly reflection — spec §2.4. Sunday 20:00 UTC.
+    "homepage-weekly-reflection": {
+        "task": "app.tasks.worker_tasks.weekly_reflection_generate_task",
+        "schedule": crontab(hour=20, minute=0, day_of_week=0),
     },
 }

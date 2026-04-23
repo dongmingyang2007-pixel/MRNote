@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -31,6 +32,13 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    # Homepage persona selector — spec §1.7.
+    # Nullable: account-level value is absent until the user first picks one
+    # in Hero pill, registration step 2, or Settings → Profile. Valid values
+    # are enforced by a CHECK constraint in Postgres (migration 202604240002);
+    # SQLite skips the CHECK since it silently ignores constraint violations
+    # anyway, and the Pydantic MePatch model gates the enum on the write path.
+    persona: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Workspace(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -1080,3 +1088,69 @@ class BillingEvent(
         DateTime(timezone=True), nullable=True,
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Homepage daily digest + weekly reflection — spec §2.3, §2.4
+# ---------------------------------------------------------------------------
+#
+# Two sibling tables keyed on (user_id, date) and (user_id, iso_week).
+# ``payload`` stores the JSON the homepage component consumes directly; the
+# shape is owned by ``services/digest_generation.py``. We intentionally keep
+# this distinct from ``ProactiveDigest`` (workspace/project-scoped) so the
+# homepage path doesn't bleed into project-level digest assumptions.
+
+
+class DigestDaily(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "digest_daily"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "date",
+            name="uq_digest_daily_user_date",
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
+
+class DigestWeekly(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
+    __tablename__ = "digest_weekly"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "iso_week",
+            name="uq_digest_weekly_user_iso_week",
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    # "2026-W17" — 12 chars is plenty; String(12) prevents oversize values
+    # from accidentally bypassing the UniqueConstraint by hash collision.
+    iso_week: Mapped[str] = mapped_column(String(12), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    saved_page_id: Mapped[str | None] = mapped_column(
+        ForeignKey("notebook_pages.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
+Index(
+    "ix_digest_daily_user_date",
+    DigestDaily.user_id,
+    DigestDaily.date.desc(),
+)
+Index(
+    "ix_digest_weekly_user_iso_week",
+    DigestWeekly.user_id,
+    DigestWeekly.iso_week.desc(),
+)

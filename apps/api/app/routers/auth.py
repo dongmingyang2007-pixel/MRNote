@@ -40,6 +40,7 @@ from app.models import Membership, OAuthIdentity, User, Workspace
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
+    MePatchRequest,
     RegisterRequest,
     ResetPasswordRequest,
     SendCodeRequest,
@@ -309,6 +310,42 @@ def refresh_csrf(
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)) -> UserOut:
+    return UserOut.model_validate(current_user, from_attributes=True)
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    payload: MePatchRequest,
+    request: Request,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _csrf: None = Depends(require_csrf_protection),
+) -> UserOut:
+    """Patch mutable profile fields on the signed-in user.
+
+    Spec §1.7 — today only ``persona`` is mutable through this path.
+    Rate-limited so a compromised CSRF+cookie pair can't be used to
+    flip persona thousands of times.
+    """
+    require_allowed_origin(request)
+    enforce_rate_limit(
+        request,
+        scope="auth:me_patch:user",
+        identifier=current_user.id,
+        limit=20,
+        window_seconds=60,
+    )
+
+    # ``model_fields_set`` lets us distinguish "persona field omitted"
+    # (leave alone) from "persona: null" (clear to NULL). Without this a
+    # naive ``current_user.persona = payload.persona`` would also clobber
+    # the value on a partial patch that doesn't mention persona.
+    if "persona" in payload.model_fields_set:
+        current_user.persona = payload.persona
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
     return UserOut.model_validate(current_user, from_attributes=True)
 
 

@@ -45,6 +45,8 @@
   "digest.weekly.weekdayShort.fri": "五",
   "digest.weekly.weekdayShort.sat": "六",
   "digest.weekly.weekdayShort.sun": "日",
+  "digest.fallback.guestHint": "登录后看到自己的每日 digest",
+  "digest.fallback.noData": "今天的 digest 还没准备好。",
 
   "exclusiveSection.eyebrow": "为你精选 · 独家",
   "exclusiveSection.chipsLabel": "身份选择",

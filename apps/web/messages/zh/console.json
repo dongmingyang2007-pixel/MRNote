@@ -509,5 +509,8 @@
   "home.settings": "设置",
   "home.recentTitle": "最近对话",
   "home.noAssistants": "还没有助手，创建一个开始吧。",
-  "home.noRecent": "暂无最近对话。"
+  "home.noRecent": "暂无最近对话。",
+  "digestDrawer.greeting": "今日 digest",
+  "digestDrawer.dismiss": "稍后再看",
+  "digestDrawer.ctaStartToday": "开始今天"
 }

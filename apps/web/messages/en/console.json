@@ -509,5 +509,8 @@
   "home.settings": "Settings",
   "home.recentTitle": "Recent Conversations",
   "home.noAssistants": "No assistants yet. Create one to get started.",
-  "home.noRecent": "No recent conversations."
+  "home.noRecent": "No recent conversations.",
+  "digestDrawer.greeting": "Today's digest",
+  "digestDrawer.dismiss": "Later",
+  "digestDrawer.ctaStartToday": "Start today"
 }
