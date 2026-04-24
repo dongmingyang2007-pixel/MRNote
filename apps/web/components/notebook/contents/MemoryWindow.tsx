@@ -179,13 +179,13 @@ export default function MemoryWindow({
                     padding: "9px 10px",
                     textAlign: "left",
                     background: isSelected
-                      ? "rgba(37, 99, 235, 0.08)"
+                      ? "var(--console-accent-soft, rgba(13, 148, 136, 0.1))"
                       : "transparent",
                     borderColor: isSelected
-                      ? "rgba(37, 99, 235, 0.16)"
+                      ? "rgba(13, 148, 136, 0.16)"
                       : "transparent",
                     color: isSelected
-                      ? "var(--console-accent, #2563EB)"
+                      ? "var(--console-accent, var(--console-accent, #0D9488))"
                       : "var(--console-text-secondary, #475569)",
                     cursor: "pointer",
                   }}

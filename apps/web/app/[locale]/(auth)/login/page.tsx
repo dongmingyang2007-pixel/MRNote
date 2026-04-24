@@ -12,9 +12,9 @@ import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 
 function getDefaultConsolePath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
-    return "/en/app/notebooks";
+    return "/en/app";
   }
-  return "/app/notebooks";
+  return "/app";
 }
 
 export default function LoginPage() {

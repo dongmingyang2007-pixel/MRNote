@@ -114,7 +114,7 @@ function FlashcardBlockView(props: NodeViewProps) {
           <span
             className="flashcard-block__in-deck"
             data-testid="flashcard-in-deck"
-            style={{ fontSize: 10, color: "#2563eb", marginLeft: 6 }}
+            style={{ fontSize: 10, color: "var(--console-accent, #0D9488)", marginLeft: 6 }}
           >
             {t("block.flashcard.inDeck")}
           </span>

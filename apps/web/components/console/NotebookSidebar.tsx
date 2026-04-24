@@ -218,14 +218,14 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         aria-label={t("nav.expandSidebar")}
         style={{
           position: "fixed",
-          top: 56, left: 8,
+          top: 64, left: 8,
           width: 32, height: 32,
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(255,255,255,0.88)",
+          background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(12px)",
           border: "1px solid rgba(15,42,45,0.1)",
           borderRadius: 10,
-          color: "var(--text-primary, #0f172a)",
+          color: "var(--console-text-primary, #0f172a)",
           cursor: "pointer",
           zIndex: 40,
         }}
@@ -242,7 +242,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         className="glass-sidebar glass-sidebar--collapsed"
         style={{
           position: "fixed",
-          top: 48,
+          top: 56,
           left: 0,
           bottom: 0,
           width: 56,
@@ -349,7 +349,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
               data-testid="sidebar-plan-badge"
               style={{
                 position: "absolute", bottom: 4, right: 4,
-                background: "#2563eb", color: "#fff",
+                background: "var(--console-accent, #0D9488)", color: "#fff",
                 fontSize: 8, fontWeight: 700,
                 padding: "1px 4px", borderRadius: 3,
                 lineHeight: 1,
@@ -448,7 +448,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
                 gap: 8,
                 padding: "8px 12px",
                 borderRadius: 6,
-                color: "var(--console-accent, #2563EB)",
+                color: "var(--console-accent, var(--console-accent, #0D9488))",
                 background: "none",
                 border: "none",
                 cursor: creatingPage ? "default" : "pointer",

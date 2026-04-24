@@ -53,7 +53,35 @@ export default function ReviewSession({ deckId, onExit }: Props) {
     }
   }, [deckId]);
 
-  useEffect(() => { void fetchNext(); }, [fetchNext]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitialCard = async () => {
+      try {
+        const r = await apiPost<{ card: Card | null; queue_empty?: boolean }>(
+          `/api/v1/decks/${deckId}/review/next`,
+          {},
+        );
+        if (cancelled) return;
+        if (r.card) {
+          setCard(r.card);
+          setEmpty(false);
+        } else {
+          setCard(null);
+          setEmpty(true);
+        }
+      } catch {
+        if (cancelled) return;
+        setCard(null);
+        setEmpty(true);
+      }
+    };
+
+    void loadInitialCard();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
 
   const handleRate = useCallback(
     async (rating: 1 | 2 | 3 | 4) => {
@@ -156,8 +184,8 @@ export default function ReviewSession({ deckId, onExit }: Props) {
           style={{
             minHeight: 120,
             padding: 20,
-            border: "1px solid #2563eb33",
-            background: "rgba(37,99,235,0.04)",
+            border: "1px solid color-mix(in srgb, var(--console-accent, #0D9488) 20%, transparent)",
+            background: "rgba(13,148,136,0.06)",
             borderRadius: 10,
             marginBottom: 16,
           }}

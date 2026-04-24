@@ -35,12 +35,18 @@ const MAIN_TABS = [
   },
 ];
 
+function normalizeConsolePath(pathname: string): string {
+  const withoutLocale = pathname.replace(/^\/(en|zh)(?=\/|$)/, "") || "/";
+  return withoutLocale.replace(/^\/workspace(?=\/|$)/, "/app");
+}
+
 export function MobileTabBar() {
   const pathname = usePathname();
   const t = useTranslations("console");
+  const consolePath = normalizeConsolePath(pathname);
 
   const isActive = (href: string) =>
-    href === "/app" ? pathname === "/app" : pathname.startsWith(href);
+    href === "/app" ? consolePath === "/app" : consolePath === href || consolePath.startsWith(`${href}/`);
 
   return (
     <nav

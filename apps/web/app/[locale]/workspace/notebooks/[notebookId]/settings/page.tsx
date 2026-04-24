@@ -77,7 +77,7 @@ export default function NotebookSettingsPage() {
     <div style={{ height: "100%", overflow: "auto", padding: "32px 40px" }}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-          <Settings size={24} color="var(--console-accent, #2563EB)" />
+          <Settings size={24} color="var(--console-accent, var(--console-accent, #0D9488))" />
           <h2 style={{ fontSize: "1.375rem", fontWeight: 700, color: "var(--console-text-primary)", fontFamily: "var(--font-sora, var(--font-sans))" }}>
             {t("nav.notebookSettings")}
           </h2>
@@ -154,9 +154,9 @@ export default function NotebookSettingsPage() {
                     alignItems: "flex-start",
                     gap: 8,
                     padding: "10px 12px",
-                    border: `1px solid ${selected ? "#2563eb" : "rgba(15,23,42,0.12)"}`,
+                    border: `1px solid ${selected ? "var(--console-accent, #0D9488)" : "rgba(15,23,42,0.12)"}`,
                     borderRadius: 10,
-                    background: selected ? "rgba(37,99,235,0.08)" : "rgba(255,255,255,0.6)",
+                    background: selected ? "var(--console-accent-soft, rgba(13,148,136,0.1))" : "rgba(255,255,255,0.6)",
                     cursor: "pointer",
                   }}
                 >
@@ -198,7 +198,7 @@ export default function NotebookSettingsPage() {
             alignItems: "center",
             gap: 8,
             padding: "10px 20px",
-            background: "var(--console-accent-gradient, linear-gradient(135deg, #2563EB, #3B82F6))",
+            background: "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
             color: "white",
             border: "none",
             borderRadius: 10,

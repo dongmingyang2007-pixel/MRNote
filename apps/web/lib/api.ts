@@ -277,8 +277,15 @@ export function handleStreamUnauthorized(): void {
   handleUnauthorizedSession();
 }
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
-  return apiRequest<T>(path, init, { requireCsrf: false });
+export async function apiGet<T>(
+  path: string,
+  init?: RequestInit,
+  options: { suppressUnauthorizedHandling?: boolean } = {},
+): Promise<T> {
+  return apiRequest<T>(path, init, {
+    requireCsrf: false,
+    suppressUnauthorizedHandling: options.suppressUnauthorizedHandling,
+  });
 }
 
 export async function apiPost<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {

@@ -18,10 +18,10 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
         style={{
           position: "relative",
           zIndex: 1,
-          marginLeft: 56,
-          marginTop: 48,
-          marginBottom: 28,
-          minHeight: "calc(100vh - 48px - 28px)",
+          marginLeft: "var(--console-shell-offset-left, 56px)",
+          marginTop: "var(--console-shell-offset-top, 56px)",
+          marginBottom: "var(--console-shell-offset-bottom, 28px)",
+          minHeight: "calc(100vh - var(--console-shell-offset-top, 56px) - var(--console-shell-offset-bottom, 28px))",
         }}
       >
         {children}

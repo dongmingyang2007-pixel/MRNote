@@ -153,7 +153,7 @@ export default function DecksPanel({ notebookId, onStartReview }: Props) {
                 onClick={() => onStartReview(d.id)}
                 title={t("study.decks.startReview")}
                 data-testid="deck-start-review"
-                style={{ padding: 4, border: "none", background: "transparent", cursor: "pointer", color: "#2563eb" }}
+                style={{ padding: 4, border: "none", background: "transparent", cursor: "pointer", color: "var(--console-accent, #0D9488)" }}
               >
                 <Play size={16} />
               </button>

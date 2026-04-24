@@ -8,31 +8,28 @@ export function AmbientBackground() {
         zIndex: 0,
         pointerEvents: "none",
         overflow: "hidden",
-        background: "var(--console-bg)",
+        background:
+          "linear-gradient(180deg, rgba(247,254,252,0.98) 0%, rgba(240,253,250,0.84) 44%, rgba(255,250,244,0.92) 100%)",
       }}
     >
       <div
         style={{
           position: "absolute",
-          width: 350,
-          height: 350,
-          borderRadius: "50%",
-          background: "rgba(37,99,235,0.08)",
-          filter: "blur(90px)",
-          top: "-100px",
-          right: "5%",
+          inset: 0,
+          backgroundImage:
+            "linear-gradient(rgba(13,148,136,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(13,148,136,0.07) 1px, transparent 1px)",
+          backgroundSize: "42px 42px",
+          maskImage: "linear-gradient(180deg, rgba(0,0,0,0.72), transparent 72%)",
+          WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,0.72), transparent 72%)",
         }}
       />
       <div
         style={{
           position: "absolute",
-          width: 280,
-          height: 280,
-          borderRadius: "50%",
-          background: "rgba(59,130,246,0.06)",
-          filter: "blur(70px)",
-          bottom: "-60px",
-          left: "15%",
+          inset: 0,
+          background:
+            "linear-gradient(115deg, rgba(13,148,136,0.12), transparent 34%, rgba(249,115,22,0.1) 76%, transparent)",
+          opacity: 0.8,
         }}
       />
     </div>

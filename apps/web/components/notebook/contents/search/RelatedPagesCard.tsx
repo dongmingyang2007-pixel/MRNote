@@ -64,7 +64,7 @@ export default function RelatedPagesCard({ pageId }: Props) {
                       }
                       style={{
                         background: "none", border: "none",
-                        cursor: "pointer", color: "#2563eb",
+                        cursor: "pointer", color: "var(--console-accent, #0D9488)",
                         fontSize: 12, padding: 0, textAlign: "left",
                       }}
                     >

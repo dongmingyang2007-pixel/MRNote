@@ -5,6 +5,7 @@ import "@/styles/marketing.css";
 
 import PublicHeader from "@/components/marketing/PublicHeader";
 import HeroSection from "@/components/marketing/HeroSection";
+import HomeModeSection from "@/components/marketing/HomeModeSection";
 import { RoleProvider } from "@/lib/marketing/RoleContext";
 import ProblemSection from "@/components/marketing/ProblemSection";
 import MemorySection from "@/components/marketing/MemorySection";
@@ -49,6 +50,7 @@ export default async function HomePage({
       <main>
         <RoleProvider initialRole={initialRole} locale={sectionLocale}>
           <HeroSection locale={sectionLocale} />
+          <HomeModeSection />
           <ProblemSection />
           <MemorySection />
           <FeaturesSection />

@@ -22,6 +22,17 @@
   "hero.forRole": "为{role}定制",
   "hero.footBadgesLabel": "关键能力",
 
+  "mode.eyebrow": "工作模式",
+  "mode.title": "从收集到复盘，MRNote 把工作固定在同一个节奏里。",
+  "mode.capture.title": "收集",
+  "mode.capture.body": "把页面、PDF、语音和 AI 回答放进一个 notebook，不再先决定它属于哪个文件夹。",
+  "mode.connect.title": "连接",
+  "mode.connect.body": "记忆图谱自动抽取概念、证据和来源，把散落的线索连回同一个问题。",
+  "mode.continue.title": "继续",
+  "mode.continue.body": "每日 digest 和待办窗口把昨天没收完的线索推回画布，打开就能接着做。",
+  "mode.review.title": "复盘",
+  "mode.review.body": "学习资料、flashcards 和每周反思一起沉淀成长期记忆，而不是一次性聊天记录。",
+
   "digest.eyebrow": "节奏",
   "digest.title.lineA": "每天 30 秒读懂自己，",
   "digest.title.lineBPrefix": "每周一次",

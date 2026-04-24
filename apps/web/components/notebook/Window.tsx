@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Rnd } from "react-rnd";
 import {
@@ -19,11 +26,7 @@ import {
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowState, WindowType } from "./WindowManager";
-
-// Spec §6.3 — windows can be dragged partially off-canvas but the titlebar
-// must stay at least this many pixels inside so the user can always grab it
-// and drag the window back. Matches macOS / mission-control behavior.
-const TITLEBAR_MIN_VISIBLE_PX = 80;
+import { clampWindowPosition } from "./window-bounds";
 
 // ---------------------------------------------------------------------------
 // Icon map
@@ -43,7 +46,9 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
 // Per-type minimum dimensions — prevents users from shrinking a window
 // below a usable size. Fallback to the generic 200x150 for types that
 // don't declare their own.
-const MIN_SIZES: Partial<Record<WindowType, { width: number; height: number }>> = {
+const MIN_SIZES: Partial<
+  Record<WindowType, { width: number; height: number }>
+> = {
   memory_graph: { width: 600, height: 440 },
 };
 
@@ -67,6 +72,7 @@ export default function Window({
   titlebarExtras,
 }: WindowProps) {
   const t = useTranslations("console-notebooks");
+  const shellRef = useRef<HTMLDivElement>(null);
   const {
     closeWindow,
     minimizeWindow,
@@ -140,10 +146,64 @@ export default function Window({
     ? { width: "100%", height: "100%" }
     : { width: effectiveWidth, height };
 
-  const rndStyle = useMemo(
-    () => ({ zIndex, display: "flex" }),
-    [zIndex],
+  const rndStyle = useMemo(() => ({ zIndex, display: "flex" }), [zIndex]);
+
+  const getCanvasSize = useCallback((target?: EventTarget | null) => {
+    const eventCanvas =
+      target instanceof Element
+        ? (target.closest(".wm-canvas") as HTMLElement | null)
+        : null;
+    const canvas =
+      eventCanvas ??
+      (shellRef.current?.closest(".wm-canvas") as HTMLElement | null);
+    return {
+      width: canvas?.clientWidth ?? window.innerWidth,
+      height: canvas?.clientHeight ?? window.innerHeight,
+      canvas,
+    };
+  }, []);
+
+  const clampAndMove = useCallback(
+    ({
+      nextX,
+      nextY,
+      nextWidth = effectiveWidth,
+      target,
+    }: {
+      nextX: number;
+      nextY: number;
+      nextWidth?: number;
+      target?: EventTarget | null;
+    }) => {
+      if (maximized) return;
+      const canvas = getCanvasSize(target);
+      const next = clampWindowPosition({
+        x: nextX,
+        y: nextY,
+        width: nextWidth,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+      });
+      if (next.x !== x || next.y !== y) {
+        moveWindow(id, next.x, next.y);
+      }
+    },
+    [effectiveWidth, getCanvasSize, id, maximized, moveWindow, x, y],
   );
+
+  useLayoutEffect(() => {
+    clampAndMove({ nextX: x, nextY: y });
+  }, [clampAndMove, x, y]);
+
+  useEffect(() => {
+    const { canvas } = getCanvasSize();
+    if (!canvas || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      clampAndMove({ nextX: x, nextY: y });
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [clampAndMove, getCanvasSize, x, y]);
 
   return (
     <Rnd
@@ -155,35 +215,42 @@ export default function Window({
       minHeight={MIN_SIZES[windowState.type]?.height ?? 150}
       disableDragging={maximized}
       enableResizing={!maximized}
+      onDrag={(_e, d) => {
+        clampAndMove({
+          nextX: d.x,
+          nextY: d.y,
+          target: _e?.target,
+        });
+      }}
       onDragStop={(_e, d) => {
-        // Spec §6.3 — clamp so at least TITLEBAR_MIN_VISIBLE_PX remains
-        // grabbable on every edge. Intentionally looser than bounds="parent"
-        // so users can push a window partially off-canvas.
-        const parent =
-          (_e?.target as HTMLElement | undefined)?.closest?.(".wm-canvas") as
-            | HTMLElement
-            | null;
-        const canvasWidth = parent?.clientWidth ?? window.innerWidth;
-        const canvasHeight = parent?.clientHeight ?? window.innerHeight;
-        const clampedX = Math.max(
-          -width + TITLEBAR_MIN_VISIBLE_PX,
-          Math.min(d.x, canvasWidth - TITLEBAR_MIN_VISIBLE_PX),
-        );
-        const clampedY = Math.max(
-          0,
-          Math.min(d.y, canvasHeight - TITLEBAR_MIN_VISIBLE_PX),
-        );
-        moveWindow(id, clampedX, clampedY);
+        clampAndMove({
+          nextX: d.x,
+          nextY: d.y,
+          target: _e?.target,
+        });
       }}
       onResizeStop={(_e, _dir, ref, _delta, pos) => {
+        const next = clampWindowPosition({
+          x: pos.x,
+          y: pos.y,
+          width: ref.offsetWidth,
+          canvasWidth: getCanvasSize(_e?.target).width,
+          canvasHeight: getCanvasSize(_e?.target).height,
+        });
         resizeWindow(id, ref.offsetWidth, ref.offsetHeight);
-        moveWindow(id, pos.x, pos.y);
+        moveWindow(id, next.x, next.y);
       }}
       onMouseDown={handleFocus}
     >
       <div
         className={`wm-window${isFocused ? " wm-window--focused" : ""}`}
-        style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
+        ref={shellRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }}
         onMouseDown={handleFocus}
         data-focused={isFocused ? "true" : "false"}
       >
@@ -209,7 +276,9 @@ export default function Window({
               className="wm-titlebar-btn"
               onClick={handleMaximizeToggle}
               title={maximized ? t("window.restore") : t("window.maximize")}
-              aria-label={maximized ? t("window.restore") : t("window.maximize")}
+              aria-label={
+                maximized ? t("window.restore") : t("window.maximize")
+              }
             >
               {maximized ? <Maximize2 size={12} /> : <Square size={12} />}
             </button>

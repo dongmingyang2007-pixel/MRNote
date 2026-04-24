@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { WorkspaceDashboard } from "@/components/console/WorkspaceDashboard";
 
 export default function WorkspaceRootPage() {
-  redirect("/app/notebooks");
+  return <WorkspaceDashboard />;
 }

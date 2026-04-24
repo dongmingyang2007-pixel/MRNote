@@ -325,13 +325,13 @@ export default function StudyProgressPanel({
                       ? "rgba(16, 185, 129, 0.1)"
                       : status === "atRisk"
                         ? "rgba(217, 119, 6, 0.12)"
-                        : "rgba(37, 99, 235, 0.08)",
+                        : "var(--console-accent-soft, rgba(13, 148, 136, 0.1))",
                   color:
                     status === "active"
                       ? "#047857"
                       : status === "atRisk"
                         ? "#b45309"
-                        : "#2563eb",
+                        : "var(--console-accent, #0D9488)",
                   fontSize: "0.75rem",
                   fontWeight: 700,
                 }}
@@ -400,7 +400,7 @@ export default function StudyProgressPanel({
                   padding: "8px 12px",
                   borderRadius: 999,
                   border: "none",
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  background: "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
                   color: "#fff",
                   cursor: "pointer",
                 }}
@@ -512,7 +512,7 @@ export default function StudyProgressPanel({
                         background:
                           total === 0
                             ? "rgba(148, 163, 184, 0.2)"
-                            : "linear-gradient(180deg, rgba(37, 99, 235, 0.95), rgba(249, 115, 22, 0.85))",
+                            : "linear-gradient(180deg, rgba(13, 148, 136, 0.95), rgba(249, 115, 22, 0.85))",
                       }}
                     />
                   </div>

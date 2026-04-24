@@ -56,7 +56,7 @@ export default function MarkdownContent({
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                color: "var(--console-accent, #2563EB)",
+                color: "var(--console-accent, var(--console-accent, #0D9488))",
                 textDecoration: "underline",
               }}
             >

@@ -13,7 +13,7 @@ export const TIER_RADIUS: Record<Role, number> = {
 export const RING_COLORS: Record<Role, number> = {
   subject:   0x10b981,
   concept:   0x0d9488,
-  fact:      0x2563eb,
+  fact:      0x0d9488,
   structure: 0x7c3aed,
   summary:   0xf59e0b,
 };

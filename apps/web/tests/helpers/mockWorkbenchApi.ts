@@ -1187,6 +1187,17 @@ export async function installWorkbenchApiMock(
       return;
     }
 
+    if (pathname === "/api/v1/auth/me" && method === "PATCH") {
+      const body = readJsonBody<{ persona?: string | null }>(route);
+      await fulfillJson(route, {
+        id: "user-playwright",
+        email: "playwright@example.com",
+        display_name: "Playwright User",
+        persona: body.persona ?? null,
+      });
+      return;
+    }
+
     if (pathname === "/api/v1/projects" && method === "GET") {
       await fulfillJson(route, { items: db.projects });
       return;

@@ -32,9 +32,15 @@ export default function DigestList({ kind, status, onPick }: Props) {
   const t = useTranslations("console-notebooks");
   const [items, setItems] = useState<Digest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const relTime = (iso: string): string => {
-    const diff = Date.now() - new Date(iso).getTime();
+    const diff = now - new Date(iso).getTime();
     const days = Math.floor(diff / 86400000);
     if (days === 0) return t("digest.relTime.today");
     if (days === 1) return t("digest.relTime.yesterday");
@@ -42,8 +48,7 @@ export default function DigestList({ kind, status, onPick }: Props) {
     return t("digest.relTime.weeksAgo", { weeks: Math.floor(days / 7) });
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchItems = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (kind) params.set("kind", kind);
@@ -52,14 +57,27 @@ export default function DigestList({ kind, status, onPick }: Props) {
       const data = await apiGet<{ items: Digest[]; next_cursor: string | null }>(
         `/api/v1/digests?${params.toString()}`,
       );
-      setItems(data.items || []);
+      return data.items || [];
     } catch {
-      setItems([]);
+      return [];
     }
-    setLoading(false);
   }, [kind, status]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadItems = async () => {
+      const nextItems = await fetchItems();
+      if (cancelled) return;
+      setItems(nextItems);
+      setLoading(false);
+    };
+
+    void loadItems();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchItems]);
 
   if (loading) {
     return <p style={{ padding: 12, fontSize: 12, color: "#888" }}>{t("digest.loading")}</p>;
@@ -97,7 +115,7 @@ export default function DigestList({ kind, status, onPick }: Props) {
                 {it.status === "unread" && (
                   <span
                     data-testid="digest-unread-dot"
-                    style={{ width: 8, height: 8, borderRadius: 999, background: "#2563eb" }}
+                    style={{ width: 8, height: 8, borderRadius: 999, background: "var(--console-accent, #0D9488)" }}
                   />
                 )}
                 {it.title}

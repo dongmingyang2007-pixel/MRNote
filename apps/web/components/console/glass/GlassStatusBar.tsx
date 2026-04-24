@@ -21,17 +21,17 @@ export function GlassStatusBar() {
         left: 56,
         right: 0,
         height: 28,
-        background: "rgba(255,255,255,0.03)",
+        background: "rgba(250, 253, 252, 0.78)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        borderTop: "1px solid rgba(255,255,255,0.04)",
+        borderTop: "1px solid var(--console-border-subtle)",
         zIndex: 45,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 12px",
         fontSize: 11,
-        color: "var(--text-secondary)",
+        color: "var(--console-text-secondary)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

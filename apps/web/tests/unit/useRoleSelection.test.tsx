@@ -1,14 +1,17 @@
-import { act, render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { act, render, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ROLE_COOKIE_NAME, useRoleSelection } from "@/hooks/useRoleSelection";
+import { AUTH_SESSION_EXPIRED_EVENT } from "@/lib/api";
 
 function Probe({
+  initialRole = null,
   onReady,
 }: {
+  initialRole?: Parameters<typeof useRoleSelection>[0];
   onReady: (api: ReturnType<typeof useRoleSelection>) => void;
 }) {
-  const api = useRoleSelection(null);
+  const api = useRoleSelection(initialRole);
   onReady(api);
   return null;
 }
@@ -25,15 +28,15 @@ function clearAllCookies() {
 
 describe("useRoleSelection", () => {
   beforeEach(() => clearAllCookies());
-  afterEach(() => clearAllCookies());
+  afterEach(() => {
+    clearAllCookies();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it("starts with initialRole (SSR hint)", () => {
     let api: ReturnType<typeof useRoleSelection> | null = null;
-    function Probe2() {
-      api = useRoleSelection("researcher");
-      return null;
-    }
-    render(<Probe2 />);
+    render(<Probe initialRole="researcher" onReady={(a) => (api = a)} />);
     expect(api!.role).toBe("researcher");
   });
 
@@ -64,13 +67,42 @@ describe("useRoleSelection", () => {
   it("reconciles a live cookie over a stale initialRole after mount", async () => {
     document.cookie = `${ROLE_COOKIE_NAME}=doctor; Path=/`;
     let api: ReturnType<typeof useRoleSelection> | null = null;
-    function P() {
-      api = useRoleSelection("lawyer");
-      return null;
-    }
     await act(async () => {
-      render(<P />);
+      render(<Probe initialRole="lawyer" onReady={(a) => (api = a)} />);
     });
     expect(api!.role).toBe("doctor");
+  });
+
+  it("does not redirect guests when the homepage persona probe returns 401", async () => {
+    const expiredSpy = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, expiredSpy);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: RequestInfo | URL) => {
+        const urlStr = String(url);
+        if (urlStr.includes("/api/v1/auth/me")) {
+          return {
+            ok: false,
+            status: 401,
+            json: async () => ({
+              error: {
+                code: "unauthorized",
+                message: "Authentication required",
+              },
+            }),
+          } as Response;
+        }
+        throw new Error(`unexpected fetch ${urlStr}`);
+      }),
+    );
+
+    render(<Probe onReady={() => {}} />);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+    expect(expiredSpy).not.toHaveBeenCalled();
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, expiredSpy);
   });
 });

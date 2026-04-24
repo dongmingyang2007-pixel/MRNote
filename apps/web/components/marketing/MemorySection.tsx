@@ -1,4 +1,15 @@
 import { getTranslations } from "next-intl/server";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bot,
+  Brain,
+  FileText,
+  GraduationCap,
+  Layers3,
+  Link2,
+  Newspaper,
+  ScrollText,
+} from "lucide-react";
 
 /**
  * MemorySection — dark memory-graph section (mirrors `.memory` in MRNote
@@ -17,31 +28,29 @@ import { getTranslations } from "next-intl/server";
  */
 
 // Satellite nodes arranged roughly on a circle of radius 38% around the
-// root (center). 7 satellites + 1 root = 8 total pills. The `labelKey`
-// points at `memorySection.node.<id>` in marketing.json so zh/en copy can
-// diverge. `icon` is a single emoji glyph for zero-dep visual anchoring
-// (we avoid loading another icon set for this one section).
+// root (center). The `labelKey` points at `memorySection.node.<id>` in
+// marketing.json so zh/en copy can diverge.
 type Node = {
   id: "root" | "pages" | "ai" | "study" | "files" | "flashcard" | "digest" | "evidence";
   labelKey: string;
   // percent positions inside the graph container (0–100)
   x: number;
   y: number;
-  icon: string;
+  Icon: LucideIcon;
   variant?: "root" | "accent";
   // animation delay so pulses don't fire in lockstep
   delay: string;
 };
 
 const NODES: Node[] = [
-  { id: "root", labelKey: "memorySection.node.root", x: 50, y: 50, icon: "◆", variant: "root", delay: "0s" },
-  { id: "pages", labelKey: "memorySection.node.pages", x: 22, y: 22, icon: "▤", delay: "0.2s" },
-  { id: "ai", labelKey: "memorySection.node.ai", x: 78, y: 20, icon: "✦", delay: "0.4s" },
-  { id: "study", labelKey: "memorySection.node.study", x: 18, y: 72, icon: "❖", delay: "0.6s" },
-  { id: "files", labelKey: "memorySection.node.files", x: 84, y: 54, icon: "◇", delay: "0.8s" },
-  { id: "flashcard", labelKey: "memorySection.node.flashcard", x: 72, y: 86, icon: "▲", variant: "accent", delay: "1.0s" },
-  { id: "evidence", labelKey: "memorySection.node.evidence", x: 32, y: 88, icon: "●", variant: "accent", delay: "1.2s" },
-  { id: "digest", labelKey: "memorySection.node.digest", x: 52, y: 10, icon: "◐", delay: "1.4s" },
+  { id: "root", labelKey: "memorySection.node.root", x: 50, y: 50, Icon: Brain, variant: "root", delay: "0s" },
+  { id: "pages", labelKey: "memorySection.node.pages", x: 22, y: 22, Icon: ScrollText, delay: "0.2s" },
+  { id: "ai", labelKey: "memorySection.node.ai", x: 78, y: 20, Icon: Bot, delay: "0.4s" },
+  { id: "study", labelKey: "memorySection.node.study", x: 18, y: 72, Icon: GraduationCap, delay: "0.6s" },
+  { id: "files", labelKey: "memorySection.node.files", x: 84, y: 54, Icon: FileText, delay: "0.8s" },
+  { id: "flashcard", labelKey: "memorySection.node.flashcard", x: 72, y: 86, Icon: Layers3, variant: "accent", delay: "1.0s" },
+  { id: "evidence", labelKey: "memorySection.node.evidence", x: 32, y: 88, Icon: Link2, variant: "accent", delay: "1.2s" },
+  { id: "digest", labelKey: "memorySection.node.digest", x: 52, y: 10, Icon: Newspaper, delay: "1.4s" },
 ];
 
 // Every satellite is connected to the root, plus a handful of lateral
@@ -149,6 +158,7 @@ export default async function MemorySection() {
                 : n.variant === "accent"
                   ? "marketing-memory-node--accent"
                   : "";
+            const Icon = n.Icon;
             return (
               <span
                 key={n.id}
@@ -160,7 +170,7 @@ export default async function MemorySection() {
                 }}
               >
                 <span className="marketing-memory-node__icon" aria-hidden="true">
-                  {n.icon}
+                  <Icon size={14} strokeWidth={1.8} />
                 </span>
                 <span>{t(n.labelKey)}</span>
               </span>

@@ -3,7 +3,11 @@ import { installWorkbenchApiMock } from "./helpers/mockWorkbenchApi";
 
 test.use({ locale: "zh-CN" });
 
-async function fillRegisterForm(page: Page, localePrefix: "" | "/en", stamp: string) {
+async function fillRegisterForm(
+  page: Page,
+  localePrefix: "" | "/en",
+  stamp: string,
+) {
   await page.goto(`${localePrefix}/register`);
   await page.locator("#register-display-name").fill(`User ${stamp}`);
   await page.locator("#register-email").fill(`user-${stamp}@example.com`);
@@ -11,29 +15,75 @@ async function fillRegisterForm(page: Page, localePrefix: "" | "/en", stamp: str
   await page.locator("#register-confirm-password").fill("password-1234");
 }
 
-test("root entry falls into the console auth flow", async ({ page }) => {
+test("root entry renders the public marketing homepage for guests", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/auth/me", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "unauthorized",
+          message: "Authentication required",
+        },
+      }),
+    }),
+  );
+  await page.route("**/api/v1/digest/**", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "unauthorized",
+          message: "Authentication required",
+        },
+      }),
+    }),
+  );
+
   await page.goto("/");
-  await expect(page).toHaveURL(/\/login\?next=/);
-  await expect(page.getByRole("heading", { name: "登录控制台" })).toBeVisible();
+  await expect(page).toHaveURL(/\/zh$|\/$/);
+  await expect(page.getByTestId("marketing-header")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "登录", exact: true }),
+  ).toBeVisible();
+  await page.waitForTimeout(1400);
+  await expect(page).not.toHaveURL(/\/login/);
 });
 
-test("english register flow uses two-step verification and enters the english console", async ({ page }) => {
+test("english register flow uses two-step verification and enters the english console", async ({
+  page,
+}) => {
   await installWorkbenchApiMock(page);
 
   const stamp = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   await fillRegisterForm(page, "/en", stamp);
   await page.getByRole("button", { name: "Get verification code" }).click();
 
-  await expect(page.getByRole("heading", { name: "Enter verification code" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Check your email" }),
+  ).toBeVisible();
   await page.locator("#register-code").fill("654321");
-  await page.getByRole("button", { name: "Register and enter console" }).click();
+  await page
+    .getByRole("button", { name: "Register and enter console" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "One more step." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Skip for now" }).click();
 
-  await expect(page).toHaveURL(/\/en\/app\/assistants$/);
-  await expect(page.getByRole("heading", { name: "My AI" })).toBeVisible();
+  await expect(page).toHaveURL(/\/en\/app$/);
+  await expect(
+    page.getByRole("heading", { name: "Continue from your workspace." }),
+  ).toBeVisible();
   await expect(page.locator("[data-theme='console']").first()).toBeVisible();
 });
 
-test("chinese forgot-password flow uses verification code and shows success state", async ({ page }) => {
+test("chinese forgot-password flow uses verification code and shows success state", async ({
+  page,
+}) => {
   await installWorkbenchApiMock(page);
 
   await page.goto("/forgot-password");
@@ -46,14 +96,24 @@ test("chinese forgot-password flow uses verification code and shows success stat
   await page.getByRole("button", { name: "确认重设" }).click();
 
   await expect(page.getByRole("heading", { name: "密码已更新" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "去登录" }).or(page.getByRole("button", { name: "去登录" }))).toBeVisible();
+  await expect(
+    page
+      .getByRole("link", { name: "去登录" })
+      .or(page.getByRole("button", { name: "去登录" })),
+  ).toBeVisible();
 });
 
 test("console pages load correctly against mocked API", async ({ page }) => {
   await installWorkbenchApiMock(page, { authenticated: true });
 
-  // Assistants page loads and shows the seed project as an assistant card
-  await page.goto("/app/assistants");
-  await expect(page.getByRole("heading", { name: "我的 AI", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Seed Console Project/i }).first()).toBeVisible();
+  await page.goto("/app");
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(
+    page.getByRole("heading", { name: "今天从这里继续。" }),
+  ).toBeVisible();
+
+  await page.goto("/app/notebooks");
+  await expect(
+    page.getByRole("heading", { name: "笔记本库", exact: true }),
+  ).toBeVisible();
 });

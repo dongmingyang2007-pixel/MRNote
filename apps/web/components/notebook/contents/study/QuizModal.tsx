@@ -207,7 +207,7 @@ export default function QuizModal({ notebookId, onClose }: Props) {
             onClick={handleGenerate}
             disabled={generating}
             data-testid="quiz-start"
-            style={{ padding: "8px 14px", border: "1px solid #e5e7eb", borderRadius: 6, background: "#2563eb", color: "#fff", cursor: "pointer" }}
+            style={{ padding: "8px 14px", border: "1px solid #e5e7eb", borderRadius: 6, background: "var(--console-accent, #0D9488)", color: "#fff", cursor: "pointer" }}
           >
             {generating ? t("study.quiz.generating") : t("study.quiz.start")}
           </button>
@@ -298,8 +298,8 @@ function sourceBtn(active: boolean): React.CSSProperties {
   return {
     padding: "4px 10px",
     borderRadius: 4,
-    border: `1px solid ${active ? "#2563eb" : "#e5e7eb"}`,
-    background: active ? "rgba(37,99,235,0.06)" : "#fff",
+    border: `1px solid ${active ? "var(--console-accent, #0D9488)" : "#e5e7eb"}`,
+    background: active ? "var(--console-accent-soft, rgba(13,148,136,0.1))" : "#fff",
     cursor: "pointer",
     fontSize: 12,
   };

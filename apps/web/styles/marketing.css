@@ -3,9 +3,9 @@
 /*                                                                     */
 /* Scoped tokens: the `.marketing-theme` class (wrapped around the     *
  * marketing root only) carries the MRNote teal + orange palette,      *
- * Plus Jakarta Sans, and the warm canvas surfaces. Console pages keep *
- * the original brand-v2 blue because this file never touches          *
- * `--brand-v2` outside the scoped block. Hex values here are lifted   *
+ * Plus Jakarta Sans, and the warm canvas surfaces. Console pages now  *
+ * mirror this palette through their own `[data-theme="console"]`      *
+ * tokens, while this file still stays scoped to marketing. Values are *
  * verbatim from `design-system/mrnote/MASTER.md` / `tokens.css`.      */
 /* ------------------------------------------------------------------ */
 
@@ -277,7 +277,8 @@
 
 .marketing-hero {
   position: relative;
-  padding: 48px 24px 0;
+  min-height: calc(100svh - 84px);
+  padding: 18px 24px 0;
   overflow: hidden;
 }
 
@@ -286,8 +287,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(20, 184, 166, 0.12), transparent 70%),
-    radial-gradient(ellipse 40% 30% at 85% 20%, rgba(249, 115, 22, 0.08), transparent 70%);
+    radial-gradient(ellipse 58% 44% at 50% 2%, rgba(20, 184, 166, 0.12), transparent 70%),
+    radial-gradient(ellipse 42% 30% at 84% 36%, rgba(249, 115, 22, 0.1), transparent 72%),
+    linear-gradient(180deg, rgba(247, 254, 252, 0) 0%, rgba(240, 253, 250, 0.68) 100%);
 }
 
 .marketing-hero__grid-bg {
@@ -307,8 +309,8 @@
   position: relative;
   max-width: var(--mkt-site-max, 1200px);
   margin: 0 auto;
-  padding-top: 64px;
-  padding-bottom: 64px;
+  padding-top: clamp(34px, 6vh, 72px);
+  padding-bottom: 0;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -338,7 +340,7 @@
   box-shadow: var(--mkt-shadow-sm, 0 1px 2px rgba(6, 43, 40, 0.05));
   font-size: 13px;
   color: var(--mkt-text-secondary, #415C59);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
   max-width: 100%;
 }
@@ -395,7 +397,7 @@
   font-size: 13px;
   color: var(--mkt-text-secondary, #415C59);
   box-shadow: var(--mkt-shadow-sm, 0 1px 2px rgba(6, 43, 40, 0.05));
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   max-width: 100%;
 }
 .marketing-hero__kicker-row strong {
@@ -414,12 +416,12 @@
 
 .marketing-hero__title {
   font-family: var(--mkt-font-display, "Plus Jakarta Sans", system-ui, sans-serif);
-  font-size: clamp(44px, 7vw, 96px);
-  line-height: 0.96;
-  letter-spacing: -0.045em;
-  font-weight: 700;
-  margin: 0 auto 24px;
-  max-width: 1020px;
+  font-size: clamp(42px, 6vw, 84px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+  margin: 0 auto 20px;
+  max-width: 960px;
   color: var(--mkt-text-primary, #0F2F2C);
   text-wrap: balance;
 }
@@ -447,11 +449,11 @@
 }
 
 .marketing-hero__sub {
-  font-size: clamp(17px, 1.5vw, 21px);
+  font-size: clamp(16px, 1.35vw, 20px);
   line-height: 1.55;
   color: var(--mkt-text-secondary, #415C59);
-  max-width: 680px;
-  margin: 0 auto 36px;
+  max-width: 660px;
+  margin: 0 auto 28px;
   text-wrap: pretty;
 }
 
@@ -460,7 +462,7 @@
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
-  margin: 0 0 20px;
+  margin: 0 0 16px;
 }
 
 .marketing-hero__foot {
@@ -489,8 +491,140 @@
 .marketing-hero__demo-wrap {
   position: relative;
   width: 100%;
-  max-width: 1280px;
-  margin: 48px auto 0;
+  max-width: 1180px;
+  margin: clamp(24px, 4.6vh, 42px) auto 0;
+}
+
+/* ─── Homepage mode rail ─── */
+
+.marketing-mode {
+  position: relative;
+  padding: 0 24px 84px;
+  background:
+    linear-gradient(180deg, rgba(247, 254, 252, 0), var(--mkt-bg-surface) 38%);
+}
+
+.marketing-mode__inner {
+  max-width: var(--mkt-site-max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  padding-top: 36px;
+  border-top: 1px solid color-mix(in srgb, var(--mkt-border) 70%, transparent);
+}
+
+.marketing-mode__intro {
+  max-width: 560px;
+}
+
+.marketing-mode__title {
+  margin: 12px 0 0;
+  font-family: var(--mkt-font-display);
+  font-size: clamp(28px, 3.2vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: var(--mkt-text-primary);
+  text-wrap: balance;
+}
+
+.marketing-mode__rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--mkt-border);
+  border-radius: var(--mkt-r-xl);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 46px rgba(6, 43, 40, 0.07);
+  overflow: hidden;
+}
+
+.marketing-mode__item {
+  position: relative;
+  min-height: 220px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-left: 1px solid var(--mkt-border);
+  transition:
+    background-color var(--mkt-dur) var(--mkt-ease),
+    transform var(--mkt-dur) var(--mkt-ease);
+}
+
+.marketing-mode__item:first-child {
+  border-left: 0;
+}
+
+.marketing-mode__item:hover {
+  background: var(--mkt-bg-tint);
+  transform: translateY(-2px);
+}
+
+.marketing-mode__item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--mkt-primary);
+}
+
+.marketing-mode__step {
+  font-family: var(--mkt-font-mono);
+  font-size: 12px;
+  color: var(--mkt-text-tertiary);
+}
+
+.marketing-mode__item h3 {
+  margin: auto 0 10px;
+  font-family: var(--mkt-font-display);
+  font-size: 21px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--mkt-text-primary);
+}
+
+.marketing-mode__item p {
+  margin: 0;
+  color: var(--mkt-text-secondary);
+  font-size: 14px;
+  line-height: 1.58;
+}
+
+@media (min-width: 900px) {
+  .marketing-mode__inner {
+    grid-template-columns: 0.72fr 1.28fr;
+    align-items: start;
+  }
+}
+
+@media (max-width: 899px) {
+  .marketing-mode__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .marketing-mode__item:nth-child(odd) {
+    border-left: 0;
+  }
+  .marketing-mode__item:nth-child(n + 3) {
+    border-top: 1px solid var(--mkt-border);
+  }
+}
+
+@media (max-width: 560px) {
+  .marketing-mode {
+    padding: 12px 16px 64px;
+  }
+  .marketing-mode__rail {
+    grid-template-columns: 1fr;
+  }
+  .marketing-mode__item,
+  .marketing-mode__item:nth-child(odd) {
+    min-height: 0;
+    border-left: 0;
+    border-top: 1px solid var(--mkt-border);
+    gap: 18px;
+  }
+  .marketing-mode__item:first-child {
+    border-top: 0;
+  }
 }
 
 /* ─── Problem section ─── */
@@ -886,29 +1020,36 @@
 
 .marketing-header {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 50;
-  backdrop-filter: saturate(180%) blur(16px);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
-  background: rgba(247, 254, 252, 0.72);
-  border-bottom: 1px solid transparent;
+  padding: 0 16px;
+  background: transparent;
+  border-bottom: 0;
   transition:
-    border-color var(--mkt-dur, 220ms) var(--mkt-ease, cubic-bezier(0.32, 0.72, 0, 1)),
-    background var(--mkt-dur, 220ms) var(--mkt-ease, cubic-bezier(0.32, 0.72, 0, 1));
+    transform var(--mkt-dur, 220ms) var(--mkt-ease, cubic-bezier(0.32, 0.72, 0, 1));
 }
 
 .marketing-header.is-scrolled {
-  border-bottom-color: var(--mkt-border, #D6EDE9);
+  transform: translateY(-2px);
 }
 
 .marketing-header__inner {
   max-width: var(--mkt-site-max, 1200px);
   margin: 0 auto;
-  padding: 14px 24px;
+  padding: 10px 14px 10px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  border: 1px solid color-mix(in srgb, var(--mkt-border) 86%, transparent);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(247, 254, 252, 0.74));
+  box-shadow:
+    0 18px 46px rgba(6, 43, 40, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
 }
 
 .marketing-header__logo {
@@ -1081,6 +1222,37 @@
 @media (min-width: 768px) {
   .marketing-header__mobile-toggle {
     display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .marketing-header {
+    top: 0;
+    padding: 0;
+  }
+  .marketing-header__inner {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    padding: 10px 16px;
+  }
+  .marketing-hero {
+    min-height: auto;
+    padding: 28px 16px 0;
+  }
+  .marketing-hero__inner {
+    padding-top: 32px;
+  }
+  .marketing-hero__title {
+    font-size: clamp(36px, 12vw, 50px);
+    line-height: 0.98;
+  }
+  .marketing-hero__sub {
+    font-size: 16px;
+    margin-bottom: 22px;
+  }
+  .marketing-hero__demo-wrap {
+    margin-top: 22px;
   }
 }
 
@@ -1498,7 +1670,7 @@
 .marketing-canvas-stage {
   position: relative;
   width: 100%;
-  height: 620px;
+  height: clamp(400px, 43vw, 540px);
   border-radius: var(--mkt-r-2xl, 28px);
   background:
     radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.08), transparent 60%),
@@ -1509,6 +1681,8 @@
   box-shadow: var(--mkt-shadow-xl, 0 24px 64px rgba(6, 43, 40, 0.16));
   backdrop-filter: blur(2px);
   isolation: isolate;
+  transform: perspective(1400px) rotateX(1.8deg);
+  transform-origin: center top;
 }
 
 .marketing-canvas-stage__dots {
@@ -1634,22 +1808,22 @@
 }
 .marketing-canvas-stage__slot--a {
   /* memory — top-left */
-  top: 24px;
-  left: 40px;
+  top: 22px;
+  left: clamp(18px, 4vw, 48px);
   z-index: 3;
 }
 .marketing-canvas-stage__slot--b {
   /* AI — bottom-left */
   top: auto;
-  bottom: 32px;
-  left: 80px;
+  bottom: clamp(22px, 4vw, 42px);
+  left: clamp(46px, 8vw, 104px);
   width: min(320px, 38%);
   z-index: 2;
 }
 .marketing-canvas-stage__slot--c {
   /* digest — right */
-  top: 120px;
-  right: 40px;
+  top: clamp(72px, 10vw, 118px);
+  right: clamp(18px, 4vw, 48px);
   width: min(380px, 42%);
   z-index: 1;
 }
@@ -1759,6 +1933,7 @@
     flex-direction: column;
     gap: 16px;
     border-radius: var(--mkt-r-lg, 16px);
+    transform: none;
   }
   .marketing-canvas-stage__chrome,
   .marketing-canvas-stage__hint,
@@ -3240,4 +3415,3 @@
     display: none;
   }
 }
-

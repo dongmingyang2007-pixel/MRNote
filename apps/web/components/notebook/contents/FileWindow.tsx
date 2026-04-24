@@ -106,7 +106,7 @@ export default function FileWindow({
         download={filename}
         style={{
           fontSize: "0.8125rem",
-          color: "var(--console-accent, #2563EB)",
+          color: "var(--console-accent, var(--console-accent, #0D9488))",
           textDecoration: "none",
         }}
       >

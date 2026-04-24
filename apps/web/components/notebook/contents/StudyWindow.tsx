@@ -509,7 +509,7 @@ export default function StudyWindow({
         }}
       >
         <div>
-          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, #2563eb)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, var(--console-accent, #0D9488))", letterSpacing: "0.04em", textTransform: "uppercase" }}>
             {t("study.workspace.kicker")}
           </div>
           <h3 style={{ margin: "6px 0 0", fontSize: "1rem", color: "var(--console-text-primary, #0f172a)" }}>
@@ -528,7 +528,7 @@ export default function StudyWindow({
             padding: "8px 12px",
             borderRadius: 999,
             border: "none",
-            background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+            background: "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
             color: "#fff",
             cursor: uploading ? "default" : "pointer",
             opacity: uploading ? 0.7 : 1,
@@ -606,7 +606,7 @@ export default function StudyWindow({
                 padding: "14px 16px",
                 borderRadius: 16,
                 border: selectedAssetId === asset.id
-                  ? "1px solid rgba(37, 99, 235, 0.28)"
+                  ? "1px solid rgba(13, 148, 136, 0.28)"
                   : "1px solid rgba(15, 23, 42, 0.08)",
                 background: selectedAssetId === asset.id
                   ? "rgba(239, 246, 255, 0.96)"
@@ -677,7 +677,7 @@ export default function StudyWindow({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, #2563eb)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, var(--console-accent, #0D9488))", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                     {t("study.workspace.assetLabel")}
                   </div>
                   <h2 style={{ margin: "8px 0 0", fontSize: "1.35rem", color: "var(--console-text-primary, #0f172a)" }}>
@@ -927,7 +927,7 @@ export default function StudyWindow({
 
       <div style={{ ...surfaceStyle, padding: 18, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, #2563eb)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, var(--console-accent, #0D9488))", letterSpacing: "0.04em", textTransform: "uppercase" }}>
             {t("study.workspace.assistantTitle")}
           </div>
           <div style={{ marginTop: 6, fontSize: "0.875rem", color: "var(--console-text-muted, #64748b)", lineHeight: 1.6 }}>
@@ -962,7 +962,7 @@ export default function StudyWindow({
                 padding: "12px 14px",
                 borderRadius: 16,
                 background: message.role === "user"
-                  ? "rgba(37, 99, 235, 0.08)"
+                  ? "var(--console-accent-soft, rgba(13, 148, 136, 0.1))"
                   : "rgba(248, 250, 252, 0.95)",
                 border: "1px solid rgba(15, 23, 42, 0.08)",
               }}
@@ -1068,7 +1068,7 @@ export default function StudyWindow({
                 padding: "8px 14px",
                 borderRadius: 999,
                 border: "none",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                background: "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
                 color: "#fff",
                 cursor: "pointer",
                 opacity: !assistantInput.trim() || !selectedAsset || selectedAsset.status !== "indexed" || assistantStreaming ? 0.6 : 1,
@@ -1101,7 +1101,7 @@ export default function StudyWindow({
         }}
       >
         <div>
-          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, #2563eb)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, var(--console-accent, #0D9488))", letterSpacing: "0.04em", textTransform: "uppercase" }}>
             {t("study.workspace.headerKicker")}
           </div>
           <h1 style={{ margin: "6px 0 0", fontSize: "1.2rem", color: "var(--console-text-primary, #0f172a)" }}>
@@ -1134,13 +1134,13 @@ export default function StudyWindow({
                 padding: "8px 12px",
                 borderRadius: 999,
                 border: tab === item.id
-                  ? "1px solid rgba(37, 99, 235, 0.24)"
+                  ? "1px solid rgba(13, 148, 136, 0.24)"
                   : "1px solid rgba(15, 23, 42, 0.08)",
                 background: tab === item.id
                   ? "rgba(239, 246, 255, 0.96)"
                   : "#fff",
                 color: tab === item.id
-                  ? "var(--console-accent, #2563eb)"
+                  ? "var(--console-accent, var(--console-accent, #0D9488))"
                   : "var(--console-text-muted, #64748b)",
                 cursor: item.id === "review" && !reviewingDeckId ? "default" : "pointer",
               }}

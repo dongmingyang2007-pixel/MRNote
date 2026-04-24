@@ -1,198 +1,134 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import {
+  ArrowRight,
   BookOpen,
   Brain,
-  Clock3,
+  FileText,
+  Filter,
   Plus,
+  Search,
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { apiGet } from "@/lib/api";
-import { notebookSDK, type CreateNotebookInput } from "@/lib/notebook-sdk";
-import { NOTEBOOKS_CHANGED_EVENT, dispatchNotebooksChanged } from "@/lib/notebook-events";
+
+import {
+  ConsoleEmptyState,
+  ConsolePageHeader,
+} from "@/components/console/ConsolePrimitives";
+import { PageTransition } from "@/components/console/PageTransition";
+import { GlassButton } from "@/components/console/glass/GlassButton";
 import CreateNotebookDialog from "@/components/notebook/CreateNotebookDialog";
+import { useRouter } from "@/i18n/navigation";
 import { toast } from "@/hooks/use-toast";
+import { useNotebookHome } from "@/hooks/useNotebookHome";
+import {
+  notebookSDK,
+  type CreateNotebookInput,
+  type NotebookType,
+} from "@/lib/notebook-sdk";
+import { dispatchNotebooksChanged } from "@/lib/notebook-events";
+import {
+  formatNotebookDate,
+  getNotebookHomeMetrics,
+  type HomeAIAction,
+  type HomePageItem,
+} from "@/lib/notebook-home";
 
-interface NotebookCard {
-  id: string;
-  title: string;
-  description: string;
-  notebook_type: string;
-  updated_at: string;
-  page_count: number;
-  study_asset_count: number;
-  ai_action_count: number;
-}
+type NotebookFilter = "all" | NotebookType;
 
-interface HomePageItem {
-  id: string;
-  notebook_id: string;
-  notebook_title: string;
-  title: string;
-  updated_at: string;
-  last_edited_at: string | null;
-  plain_text_preview: string;
-}
-
-interface HomeStudyAsset {
-  id: string;
-  notebook_id: string;
-  notebook_title: string;
-  title: string;
-  status: string;
-  asset_type: string;
-  total_chunks: number;
-  created_at: string;
-}
-
-interface HomeAIAction {
-  id: string;
-  notebook_id: string | null;
-  page_id: string | null;
-  notebook_title: string | null;
-  page_title: string | null;
-  action_type: string;
-  output_summary: string;
-  created_at: string;
-}
-
-interface FocusItem {
-  notebook_id: string;
-  notebook_title: string;
-  page_count: number;
-  study_asset_count: number;
-  ai_action_count: number;
-}
-
-interface HomeSummary {
-  notebooks: NotebookCard[];
-  recent_pages: HomePageItem[];
-  continue_writing: HomePageItem[];
-  recent_study_assets: HomeStudyAsset[];
-  ai_today: {
-    actions_today: number;
-    top_action_types: Array<{ action_type: string; count: number }>;
-    recent_actions: HomeAIAction[];
-  };
-  work_themes: FocusItem[];
-  long_term_focus: FocusItem[];
-  recommended_pages: HomePageItem[];
-}
-
-const surfaceStyle: React.CSSProperties = {
-  border: "1px solid var(--console-border-subtle, rgba(15, 23, 42, 0.08))",
-  borderRadius: 20,
-  background: "rgba(255,255,255,0.72)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
-  boxShadow: "0 20px 60px rgba(15, 23, 42, 0.08)",
-};
-
-function relDate(value: string): string {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function SectionHeader({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 16,
-      }}
-    >
-      <div>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "1rem",
-            fontWeight: 700,
-            color: "var(--console-text-primary, #0f172a)",
-          }}
-        >
-          {title}
-        </h2>
-        {body ? (
-          <p
-            style={{
-              margin: "6px 0 0",
-              fontSize: "0.8125rem",
-              color: "var(--console-text-muted, #64748b)",
-            }}
-          >
-            {body}
-          </p>
-        ) : null}
-      </div>
-      {action}
-    </div>
-  );
-}
+const notebookTypes: NotebookType[] = ["personal", "work", "study", "scratch"];
 
 export default function NotebooksPage() {
   const t = useTranslations("console-notebooks");
   const router = useRouter();
-  const [home, setHome] = useState<HomeSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { home, loading, reload } = useNotebookHome();
   const [creating, setCreating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<NotebookFilter>("all");
 
-  const loadHome = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiGet<HomeSummary>("/api/v1/notebooks/home");
-      setHome(data);
-    } catch {
-      setHome({
-        notebooks: [],
-        recent_pages: [],
-        continue_writing: [],
-        recent_study_assets: [],
-        ai_today: { actions_today: 0, top_action_types: [], recent_actions: [] },
-        work_themes: [],
-        long_term_focus: [],
-        recommended_pages: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const metrics = useMemo(() => getNotebookHomeMetrics(home), [home]);
 
-  useEffect(() => {
-    void loadHome();
-  }, [loadHome]);
+  const typeLabels = useMemo<Record<NotebookType, string>>(
+    () => ({
+      personal: t("notebooks.personal"),
+      work: t("notebooks.work"),
+      study: t("notebooks.study"),
+      scratch: t("notebooks.scratch"),
+    }),
+    [t],
+  );
 
-  useEffect(() => {
-    const refetch = () => {
-      void loadHome();
-    };
-    window.addEventListener(NOTEBOOKS_CHANGED_EVENT, refetch);
-    return () => window.removeEventListener(NOTEBOOKS_CHANGED_EVENT, refetch);
-  }, [loadHome]);
+  const typeCounts = useMemo(() => {
+    return notebookTypes.reduce(
+      (counts, type) => {
+        counts[type] = home.notebooks.filter(
+          (notebook) => notebook.notebook_type === type,
+        ).length;
+        return counts;
+      },
+      {
+        personal: 0,
+        work: 0,
+        study: 0,
+        scratch: 0,
+      } as Record<NotebookType, number>,
+    );
+  }, [home.notebooks]);
+
+  const filteredNotebooks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return home.notebooks
+      .filter((notebook) => {
+        const matchesFilter =
+          filter === "all" || notebook.notebook_type === filter;
+        const matchesQuery =
+          !normalizedQuery ||
+          notebook.title.toLowerCase().includes(normalizedQuery) ||
+          notebook.description.toLowerCase().includes(normalizedQuery);
+        return matchesFilter && matchesQuery;
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+  }, [filter, home.notebooks, query]);
 
   const openCreateDialog = useCallback(() => {
     setCreateOpen(true);
   }, []);
+
+  const openNotebook = useCallback(
+    (notebookId: string) => {
+      router.push(`/app/notebooks/${notebookId}`);
+    },
+    [router],
+  );
+
+  const openPage = useCallback(
+    (page: HomePageItem) => {
+      router.push(`/app/notebooks/${page.notebook_id}?openPage=${page.id}`);
+    },
+    [router],
+  );
+
+  const openAction = useCallback(
+    (action: HomeAIAction) => {
+      if (action.notebook_id && action.page_id) {
+        router.push(
+          `/app/notebooks/${action.notebook_id}?openPage=${action.page_id}`,
+        );
+        return;
+      }
+      if (action.notebook_id) {
+        router.push(`/app/notebooks/${action.notebook_id}`);
+      }
+    },
+    [router],
+  );
 
   const handleCreateSubmit = useCallback(
     async (input: CreateNotebookInput) => {
@@ -204,12 +140,10 @@ export default function NotebooksPage() {
         setCreateOpen(false);
         router.push(`/app/notebooks/${notebook.id}`);
       } catch (error) {
-        // Bubble a toast so the user sees something failed. The dialog itself
-        // also renders an inline error based on the thrown message, so 402
-        // plan-limit errors still surface via UpgradeModal (from api.ts) while
-        // other failures are explicit here.
         const message =
-          error instanceof Error ? error.message : t("pages.error.create_failed");
+          error instanceof Error
+            ? error.message
+            : t("pages.error.create_failed");
         toast({
           title: t("pages.error.create_failed"),
           description: message,
@@ -217,770 +151,439 @@ export default function NotebooksPage() {
         throw error;
       } finally {
         setCreating(false);
+        void reload();
       }
     },
-    [creating, router, t],
+    [creating, reload, router, t],
+  );
+
+  const handlePresetCreate = useCallback(
+    async (type: NotebookType, title: string) => {
+      if (creating) return;
+      setCreating(true);
+      try {
+        const notebook = await notebookSDK.create({
+          title,
+          notebook_type: type,
+        });
+        dispatchNotebooksChanged();
+        router.push(`/app/notebooks/${notebook.id}`);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : t("pages.error.create_failed");
+        toast({
+          title: t("pages.error.create_failed"),
+          description: message,
+        });
+      } finally {
+        setCreating(false);
+        void reload();
+      }
+    },
+    [creating, reload, router, t],
   );
 
   const handleDelete = useCallback(
-    async (id: string, event: React.MouseEvent) => {
+    async (id: string, event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
       try {
         await notebookSDK.delete(id);
         dispatchNotebooksChanged();
-        void loadHome();
+        void reload();
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : t("pages.error.delete_failed");
+          error instanceof Error
+            ? error.message
+            : t("pages.error.delete_failed");
         toast({
           title: t("pages.error.delete_failed"),
           description: message,
         });
       }
     },
-    [loadHome, t],
+    [reload, t],
   );
 
-  const metrics = useMemo(() => {
-    const notebooks = home?.notebooks ?? [];
-    return {
-      notebooks: notebooks.length,
-      pages: notebooks.reduce((sum, notebook) => sum + notebook.page_count, 0),
-      assets: notebooks.reduce((sum, notebook) => sum + notebook.study_asset_count, 0),
-      ai: home?.ai_today.actions_today ?? 0,
-    };
-  }, [home]);
+  const isTrueEmpty =
+    !loading &&
+    home.notebooks.length === 0 &&
+    query.trim() === "" &&
+    filter === "all";
 
-  const openPage = useCallback((page: HomePageItem) => {
-    router.push(`/app/notebooks/${page.notebook_id}?openPage=${page.id}`);
-  }, [router]);
+  const filterOptions: Array<{
+    id: NotebookFilter;
+    label: string;
+    count: number;
+  }> = [
+    {
+      id: "all",
+      label: t("library.filters.all"),
+      count: home.notebooks.length,
+    },
+    ...notebookTypes.map((type) => ({
+      id: type,
+      label: typeLabels[type],
+      count: typeCounts[type],
+    })),
+  ];
 
-  const openNotebook = useCallback((notebookId: string) => {
-    router.push(`/app/notebooks/${notebookId}`);
-  }, [router]);
-
-  const openAction = useCallback((action: HomeAIAction) => {
-    if (action.notebook_id && action.page_id) {
-      router.push(`/app/notebooks/${action.notebook_id}?openPage=${action.page_id}`);
-      return;
-    }
-    if (action.notebook_id) {
-      router.push(`/app/notebooks/${action.notebook_id}`);
-    }
-  }, [router]);
-
-  const renderFocusSummary = (item: FocusItem) =>
-    t("home.focus.summary", {
-      pages: item.page_count,
-      assets: item.study_asset_count,
-      ai: item.ai_action_count,
-    });
+  const presets = [
+    {
+      id: "blank" as const,
+      type: "personal" as const,
+      Icon: BookOpen,
+      titleKey: "home.onboarding.preset.blank.title" as const,
+      bodyKey: "home.onboarding.preset.blank.body" as const,
+    },
+    {
+      id: "work" as const,
+      type: "work" as const,
+      Icon: Sparkles,
+      titleKey: "home.onboarding.preset.work.title" as const,
+      bodyKey: "home.onboarding.preset.work.body" as const,
+    },
+    {
+      id: "study" as const,
+      type: "study" as const,
+      Icon: Brain,
+      titleKey: "home.onboarding.preset.study.title" as const,
+      bodyKey: "home.onboarding.preset.study.body" as const,
+    },
+  ];
 
   return (
-    <div style={{ padding: "32px 32px 40px" }}>
-      <div
-        style={{
-          ...surfaceStyle,
-          padding: 28,
-          marginBottom: 24,
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 0.9fr)",
-          gap: 24,
-        }}
-      >
-        <div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: "rgba(37, 99, 235, 0.08)",
-              color: "var(--console-accent, #2563eb)",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              marginBottom: 16,
-            }}
-          >
-            <Sparkles size={14} />
-            {t("home.kicker")}
-          </div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "2rem",
-              lineHeight: 1.05,
-              fontWeight: 800,
-              color: "var(--console-text-primary, #0f172a)",
-              maxWidth: 720,
-            }}
-          >
-            {t("home.title")}
-          </h1>
-          <p
-            style={{
-              margin: "14px 0 0",
-              fontSize: "0.95rem",
-              color: "var(--console-text-muted, #64748b)",
-              maxWidth: 760,
-              lineHeight: 1.7,
-            }}
-          >
-            {t("home.subtitle")}
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 12,
-            alignContent: "start",
-          }}
-        >
-          {[
-            { key: "notebooks", icon: BookOpen, value: metrics.notebooks },
-            { key: "pages", icon: Clock3, value: metrics.pages },
-            { key: "assets", icon: Brain, value: metrics.assets },
-            { key: "ai", icon: Sparkles, value: metrics.ai },
-          ].map((metric) => (
-            <div
-              key={metric.key}
-              style={{
-                borderRadius: 18,
-                padding: "16px 18px",
-                background: "rgba(248, 250, 252, 0.86)",
-                border: "1px solid rgba(15, 23, 42, 0.08)",
-              }}
+    <PageTransition>
+      <div className="console-page-shell notebook-library-page">
+        <ConsolePageHeader
+          eyebrow={t("library.kicker")}
+          title={t("library.title")}
+          description={t("library.description")}
+          metrics={[
+            { label: t("home.metrics.notebooks"), value: metrics.notebooks },
+            { label: t("home.metrics.pages"), value: metrics.pages },
+            { label: t("home.metrics.assets"), value: metrics.assets },
+            { label: t("home.metrics.ai"), value: metrics.ai },
+          ]}
+          actions={
+            <GlassButton
+              type="button"
+              onClick={openCreateDialog}
+              disabled={creating}
+              data-testid="notebooks-create-button"
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 12,
-                  color: "var(--console-text-muted, #64748b)",
-                }}
-              >
-                <metric.icon size={16} />
-                <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                  {t(`home.metrics.${metric.key}`)}
-                </span>
-              </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--console-text-primary, #0f172a)" }}>
-                {metric.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              <Plus size={16} />
+              {t("notebooks.create")}
+            </GlassButton>
+          }
+        />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.3fr) minmax(320px, 0.9fr)",
-          gap: 24,
-        }}
-      >
-        <div style={{ display: "grid", gap: 24 }}>
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.notebooks")}
-              body={t("home.sections.notebooksBody")}
-              action={(
-                <button
-                  type="button"
-                  onClick={openCreateDialog}
-                  disabled={creating}
-                  data-testid="notebooks-create-button"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "10px 16px",
-                    borderRadius: 999,
-                    border: "none",
-                    background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
-                    color: "#fff",
-                    fontWeight: 700,
-                    cursor: creating ? "default" : "pointer",
-                    opacity: creating ? 0.65 : 1,
-                  }}
-                >
-                  <Plus size={16} />
-                  {t("notebooks.create")}
-                </button>
-              )}
-            />
-            {loading ? (
-              <div style={{ color: "var(--console-text-muted, #64748b)", fontSize: "0.875rem" }}>
-                {t("common.loading")}
+        <div className="notebook-library-layout">
+          <main className="notebook-library-main">
+            <section
+              className="notebook-library-toolbar"
+              aria-label={t("library.toolbarLabel")}
+            >
+              <div className="notebook-library-search">
+                <Search size={17} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={t("library.searchPlaceholder")}
+                />
               </div>
-            ) : home && home.notebooks.length > 0 ? (
+
               <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 14,
-                }}
+                className="notebook-library-filters"
+                aria-label={t("library.filterLabel")}
               >
-                {home.notebooks.map((notebook) => (
-                  <div
-                    key={notebook.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openNotebook(notebook.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openNotebook(notebook.id);
-                      }
-                    }}
-                    data-testid="notebook-card"
-                    style={{
-                      textAlign: "left",
-                      border: "1px solid rgba(15, 23, 42, 0.08)",
-                      borderRadius: 20,
-                      background: "rgba(248, 250, 252, 0.92)",
-                      padding: 18,
-                      cursor: "pointer",
-                    }}
+                <Filter size={15} />
+                {filterOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={filter === option.id ? "is-active" : undefined}
+                    aria-pressed={filter === option.id}
+                    onClick={() => setFilter(option.id)}
                   >
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                          {notebook.title || t("notebooks.untitled")}
-                        </div>
-                        <div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                          {notebook.description || t("home.notebookFallback")}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(event) => void handleDelete(notebook.id, event)}
-                        style={{
-                          border: "none",
-                          background: "transparent",
-                          color: "var(--console-text-muted, #94a3b8)",
-                          cursor: "pointer",
-                        }}
-                        aria-label={t("notebooks.delete")}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                        gap: 8,
-                        marginTop: 18,
-                      }}
-                    >
-                      {[
-                        { key: "pages", value: notebook.page_count },
-                        { key: "assets", value: notebook.study_asset_count },
-                        { key: "ai", value: notebook.ai_action_count },
-                      ].map((stat) => (
-                        <div
-                          key={stat.key}
-                          style={{
-                            borderRadius: 14,
-                            padding: "10px 12px",
-                            background: "rgba(255,255,255,0.82)",
-                            border: "1px solid rgba(15, 23, 42, 0.06)",
-                          }}
-                        >
-                          <div style={{ fontSize: "0.6875rem", color: "var(--console-text-muted, #64748b)" }}>
-                            {t(`home.metrics.${stat.key}`)}
-                          </div>
-                          <div style={{ marginTop: 4, fontSize: "1rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                            {stat.value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ marginTop: 14, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                      {t("home.updatedAt", { value: relDate(notebook.updated_at) })}
-                    </div>
-                  </div>
+                    <span>{option.label}</span>
+                    <strong>{option.count}</strong>
+                  </button>
                 ))}
               </div>
-            ) : (
-              /* U-01 — onboarding empty state: big CTA + 3 preset shortcuts.
-                 Each preset piggy-backs on notebookSDK.create() so the
-                 ProjectProvider / 402 upgrade event contract still holds. */
-              <div
-                data-testid="notebooks-onboarding"
-                style={{
-                  padding: "32px 8px 12px",
-                  display: "grid",
-                  gap: 18,
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      width: 56,
-                      height: 56,
-                      borderRadius: 20,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
-                      color: "#fff",
-                      marginBottom: 16,
-                    }}
-                  >
-                    <Sparkles size={26} />
-                  </div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "1.25rem",
-                      fontWeight: 800,
-                      color: "var(--console-text-primary, #0f172a)",
-                    }}
-                  >
-                    {t("home.onboarding.title")}
-                  </h3>
-                  <p
-                    style={{
-                      margin: "8px auto 18px",
-                      maxWidth: 480,
-                      fontSize: "0.875rem",
-                      color: "var(--console-text-muted, #64748b)",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {t("home.onboarding.body")}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={openCreateDialog}
-                    disabled={creating}
-                    data-testid="onboarding-create-button"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "12px 22px",
-                      borderRadius: 999,
-                      border: "none",
-                      background: "linear-gradient(135deg, #2563eb, #0f4bd7)",
-                      color: "#fff",
-                      fontWeight: 700,
-                      fontSize: "0.9375rem",
-                      cursor: creating ? "default" : "pointer",
-                      opacity: creating ? 0.65 : 1,
-                      boxShadow: "0 12px 40px rgba(37, 99, 235, 0.25)",
-                    }}
-                  >
-                    <Plus size={16} />
-                    {t("home.onboarding.cta")}
-                  </button>
-                </div>
+            </section>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                    gap: 12,
-                    marginTop: 4,
-                  }}
-                >
-                  {([
-                    {
-                      id: "blank" as const,
-                      type: "personal" as const,
-                      icon: BookOpen,
-                    },
-                    {
-                      id: "work" as const,
-                      type: "work" as const,
-                      icon: Brain,
-                    },
-                    {
-                      id: "study" as const,
-                      type: "study" as const,
-                      icon: Sparkles,
-                    },
-                  ]).map((preset) => (
+            {loading ? (
+              <div className="notebook-library-panel">
+                {t("common.loading")}
+              </div>
+            ) : isTrueEmpty ? (
+              <section
+                className="notebook-library-panel notebook-library-onboarding"
+                data-testid="notebooks-onboarding"
+              >
+                <ConsoleEmptyState
+                  icon={<Sparkles size={25} />}
+                  title={t("home.onboarding.title")}
+                  description={t("home.onboarding.body")}
+                  action={
+                    <GlassButton
+                      type="button"
+                      onClick={openCreateDialog}
+                      disabled={creating}
+                      data-testid="onboarding-create-button"
+                    >
+                      <Plus size={16} />
+                      {t("home.onboarding.cta")}
+                    </GlassButton>
+                  }
+                />
+                <div className="notebook-library-preset-grid">
+                  {presets.map((preset) => (
                     <button
                       key={preset.id}
                       type="button"
                       disabled={creating}
                       data-testid={`onboarding-preset-${preset.id}`}
-                      onClick={() => {
-                        void (async () => {
-                          if (creating) return;
-                          setCreating(true);
-                          try {
-                            const notebook = await notebookSDK.create({
-                              title: t(
-                                `home.onboarding.preset.${preset.id}.title` as
-                                  | "home.onboarding.preset.blank.title"
-                                  | "home.onboarding.preset.work.title"
-                                  | "home.onboarding.preset.study.title",
-                              ),
-                              notebook_type: preset.type,
-                            });
-                            dispatchNotebooksChanged();
-                            router.push(`/app/notebooks/${notebook.id}`);
-                          } catch (error) {
-                            const message =
-                              error instanceof Error
-                                ? error.message
-                                : t("pages.error.create_failed");
-                            toast({
-                              title: t("pages.error.create_failed"),
-                              description: message,
-                            });
-                          } finally {
-                            setCreating(false);
-                          }
-                        })();
-                      }}
-                      style={{
-                        textAlign: "left",
-                        border: "1px solid rgba(15, 23, 42, 0.08)",
-                        borderRadius: 16,
-                        background: "rgba(255,255,255,0.9)",
-                        padding: 16,
-                        cursor: creating ? "default" : "pointer",
-                        opacity: creating ? 0.65 : 1,
-                        transition: "transform 120ms ease, box-shadow 120ms ease",
-                      }}
+                      onClick={() =>
+                        void handlePresetCreate(preset.type, t(preset.titleKey))
+                      }
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 10,
-                            background: "rgba(37, 99, 235, 0.1)",
-                            display: "grid",
-                            placeItems: "center",
-                            color: "var(--console-accent, #2563eb)",
-                          }}
-                        >
-                          <preset.icon size={16} />
-                        </div>
-                        <div style={{ fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                          {t(
-                            `home.onboarding.preset.${preset.id}.title` as
-                              | "home.onboarding.preset.blank.title"
-                              | "home.onboarding.preset.work.title"
-                              | "home.onboarding.preset.study.title",
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 10,
-                          fontSize: "0.75rem",
-                          color: "var(--console-text-muted, #64748b)",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {t(
-                          `home.onboarding.preset.${preset.id}.body` as
-                            | "home.onboarding.preset.blank.body"
-                            | "home.onboarding.preset.work.body"
-                            | "home.onboarding.preset.study.body",
-                        )}
-                      </div>
+                      <span className="workspace-icon-badge">
+                        <preset.Icon size={17} />
+                      </span>
+                      <span>
+                        <strong>{t(preset.titleKey)}</strong>
+                        <small>{t(preset.bodyKey)}</small>
+                      </span>
                     </button>
                   ))}
                 </div>
-              </div>
+              </section>
+            ) : filteredNotebooks.length > 0 ? (
+              <section className="notebook-card-grid">
+                {filteredNotebooks.map((notebook) => {
+                  const notebookType = notebookTypes.includes(
+                    notebook.notebook_type as NotebookType,
+                  )
+                    ? (notebook.notebook_type as NotebookType)
+                    : "personal";
+                  return (
+                    <article
+                      key={notebook.id}
+                      className="notebook-library-card"
+                      data-testid="notebook-card"
+                    >
+                      <div className="notebook-library-card-head">
+                        <span className="workspace-icon-badge">
+                          <BookOpen size={18} />
+                        </span>
+                        <button
+                          type="button"
+                          className="notebook-library-icon-button"
+                          onClick={(event) =>
+                            void handleDelete(notebook.id, event)
+                          }
+                          aria-label={t("notebooks.delete")}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      <div className="notebook-library-card-copy">
+                        <span className="notebook-library-type">
+                          {typeLabels[notebookType]}
+                        </span>
+                        <h2>{notebook.title || t("notebooks.untitled")}</h2>
+                        <p>
+                          {notebook.description || t("home.notebookFallback")}
+                        </p>
+                      </div>
+
+                      <div className="notebook-library-stats">
+                        {[
+                          { key: "pages", value: notebook.page_count },
+                          { key: "assets", value: notebook.study_asset_count },
+                          { key: "ai", value: notebook.ai_action_count },
+                        ].map((stat) => (
+                          <span key={stat.key}>
+                            <strong>{stat.value}</strong>
+                            {t(`home.metrics.${stat.key}`)}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="notebook-library-card-foot">
+                        <small>
+                          {t("home.updatedAt", {
+                            value: formatNotebookDate(notebook.updated_at),
+                          })}
+                        </small>
+                        <button
+                          type="button"
+                          className="notebook-library-open-button"
+                          onClick={() => openNotebook(notebook.id)}
+                        >
+                          {t("library.openNotebook")}
+                          <ArrowRight size={15} />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            ) : (
+              <section className="notebook-library-panel">
+                <ConsoleEmptyState
+                  icon={<Search size={24} />}
+                  title={t("library.emptySearch")}
+                  description={t("library.emptySearchBody")}
+                  action={
+                    <GlassButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setQuery("");
+                        setFilter("all");
+                      }}
+                    >
+                      {t("library.clearFilters")}
+                    </GlassButton>
+                  }
+                />
+              </section>
             )}
-          </section>
+          </main>
 
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.recentPages")}
-              body={t("home.sections.recentPagesBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.recent_pages ?? []).map((page) => (
-                <button
-                  key={page.id}
-                  type="button"
-                  onClick={() => openPage(page)}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 16,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(255,255,255,0.9)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {page.title || t("pages.untitled")}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {page.notebook_title} · {relDate(page.last_edited_at || page.updated_at)}
-                  </div>
-                  {page.plain_text_preview ? (
-                    <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
-                      {page.plain_text_preview}
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-              {!loading && (home?.recent_pages.length ?? 0) === 0 ? (
-                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
-                  {t("home.empty.pages")}
-                </div>
-              ) : null}
-            </div>
-          </section>
+          <aside className="notebook-library-rail">
+            <section className="notebook-library-panel">
+              <div className="notebook-rail-heading">
+                <h2>{t("library.healthTitle")}</h2>
+                <p>{t("library.healthBody")}</p>
+              </div>
+              <div className="notebook-health-grid">
+                {notebookTypes.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={filter === type ? "is-active" : undefined}
+                    onClick={() => setFilter(type)}
+                  >
+                    <span>{typeLabels[type]}</span>
+                    <strong>{typeCounts[type]}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
 
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.continue")}
-              body={t("home.sections.continueBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.continue_writing ?? []).map((page) => (
-                <button
-                  key={page.id}
-                  type="button"
-                  onClick={() => openPage(page)}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 16,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(248, 250, 252, 0.86)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {page.title || t("pages.untitled")}
+            <section className="notebook-library-panel">
+              <div className="notebook-rail-heading">
+                <h2>{t("home.sections.recentPages")}</h2>
+                <p>{t("home.sections.recentPagesBody")}</p>
+              </div>
+              <div className="notebook-rail-list">
+                {home.recent_pages.slice(0, 5).map((page) => (
+                  <button
+                    key={page.id}
+                    type="button"
+                    onClick={() => openPage(page)}
+                  >
+                    <FileText size={15} />
+                    <span>
+                      <strong>{page.title || t("pages.untitled")}</strong>
+                      <small>
+                        {page.notebook_title || t("home.noNotebook")} ·{" "}
+                        {formatNotebookDate(
+                          page.last_edited_at || page.updated_at,
+                        )}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+                {!loading && home.recent_pages.length === 0 ? (
+                  <div className="workspace-empty-inline">
+                    {t("home.empty.pages")}
                   </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {page.notebook_title} · {relDate(page.last_edited_at || page.updated_at)}
-                  </div>
-                  {page.plain_text_preview ? (
-                    <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
-                      {page.plain_text_preview}
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-              {!loading && (home?.continue_writing.length ?? 0) === 0 ? (
-                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
-                  {t("home.empty.pages")}
-                </div>
-              ) : null}
-            </div>
-          </section>
+                ) : null}
+              </div>
+            </section>
 
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.recommended")}
-              body={t("home.sections.recommendedBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.recommended_pages ?? []).map((page) => (
-                <button
-                  key={page.id}
-                  type="button"
-                  onClick={() => openPage(page)}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(255,255,255,0.9)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {page.title || t("pages.untitled")}
+            <section className="notebook-library-panel">
+              <div className="notebook-rail-heading">
+                <h2>{t("home.sections.study")}</h2>
+                <p>{t("home.sections.studyBody")}</p>
+              </div>
+              <div className="notebook-rail-list">
+                {home.recent_study_assets.slice(0, 4).map((asset) => (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => openNotebook(asset.notebook_id)}
+                  >
+                    <Brain size={15} />
+                    <span>
+                      <strong>{asset.title}</strong>
+                      <small>
+                        {asset.notebook_title || t("home.noNotebook")} ·{" "}
+                        {t("study.assets.chunks", {
+                          count: asset.total_chunks,
+                        })}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+                {!loading && home.recent_study_assets.length === 0 ? (
+                  <div className="workspace-empty-inline">
+                    {t("home.empty.study")}
                   </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {page.notebook_title}
+                ) : null}
+              </div>
+            </section>
+
+            <section className="notebook-library-panel">
+              <div className="notebook-rail-heading">
+                <h2>{t("home.sections.aiToday")}</h2>
+                <p>
+                  {t("home.sections.aiTodayBody", {
+                    count: home.ai_today.actions_today,
+                  })}
+                </p>
+              </div>
+              <div className="notebook-rail-list">
+                {home.ai_today.recent_actions.slice(0, 4).map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => openAction(action)}
+                  >
+                    <Sparkles size={15} />
+                    <span>
+                      <strong>{action.page_title || action.action_type}</strong>
+                      <small>
+                        {action.notebook_title || t("home.noNotebook")} ·{" "}
+                        {formatNotebookDate(action.created_at)}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+                {!loading && home.ai_today.recent_actions.length === 0 ? (
+                  <div className="workspace-empty-inline">
+                    {t("aiActions.empty")}
                   </div>
-                </button>
-              ))}
-            </div>
-          </section>
+                ) : null}
+              </div>
+            </section>
+          </aside>
         </div>
 
-        <div style={{ display: "grid", gap: 24 }}>
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.study")}
-              body={t("home.sections.studyBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.recent_study_assets ?? []).map((asset) => (
-                <button
-                  key={asset.id}
-                  type="button"
-                  onClick={() => openNotebook(asset.notebook_id)}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(248, 250, 252, 0.86)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {asset.title}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {asset.notebook_title} · {asset.asset_type} · {t("study.assets.chunks", { count: asset.total_chunks })}
-                  </div>
-                </button>
-              ))}
-              {!loading && (home?.recent_study_assets.length ?? 0) === 0 ? (
-                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
-                  {t("home.empty.study")}
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.aiToday")}
-              body={t("home.sections.aiTodayBody", { count: home?.ai_today.actions_today ?? 0 })}
-            />
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              {(home?.ai_today.top_action_types ?? []).map((item) => (
-                <span
-                  key={item.action_type}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 10px",
-                    borderRadius: 999,
-                    background: "rgba(15, 23, 42, 0.06)",
-                    color: "var(--console-text-primary, #0f172a)",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  {item.action_type}
-                  <span style={{ color: "var(--console-text-muted, #64748b)" }}>{item.count}</span>
-                </span>
-              ))}
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.ai_today.recent_actions ?? []).map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => openAction(action)}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(255,255,255,0.9)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {action.page_title || action.action_type}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {action.notebook_title || t("home.noNotebook")} · {relDate(action.created_at)}
-                  </div>
-                  <div style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--console-text-secondary, #475569)", lineHeight: 1.6 }}>
-                    {action.output_summary || action.action_type}
-                  </div>
-                </button>
-              ))}
-              {!loading && (home?.ai_today.recent_actions.length ?? 0) === 0 ? (
-                <div style={{ fontSize: "0.8125rem", color: "var(--console-text-muted, #64748b)" }}>
-                  {t("aiActions.empty")}
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.themes")}
-              body={t("home.sections.themesBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.work_themes ?? []).map((item) => (
-                <button
-                  key={item.notebook_id}
-                  type="button"
-                  onClick={() => openNotebook(item.notebook_id)}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(248, 250, 252, 0.86)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {item.notebook_title}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {renderFocusSummary(item)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section style={{ ...surfaceStyle, padding: 24 }}>
-            <SectionHeader
-              title={t("home.sections.focus")}
-              body={t("home.sections.focusBody")}
-            />
-            <div style={{ display: "grid", gap: 10 }}>
-              {(home?.long_term_focus ?? []).map((item) => (
-                <button
-                  key={item.notebook_id}
-                  type="button"
-                  onClick={() => openNotebook(item.notebook_id)}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(15, 23, 42, 0.08)",
-                    background: "rgba(255,255,255,0.9)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--console-text-primary, #0f172a)" }}>
-                    {item.notebook_title}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-                    {renderFocusSummary(item)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
+        <CreateNotebookDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onSubmit={handleCreateSubmit}
+          submitting={creating}
+        />
       </div>
-
-      <CreateNotebookDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSubmit={handleCreateSubmit}
-        submitting={creating}
-      />
-    </div>
+    </PageTransition>
   );
 }

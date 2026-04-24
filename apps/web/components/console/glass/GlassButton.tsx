@@ -27,7 +27,7 @@ const variantStyles: Record<GlassButtonVariant, React.CSSProperties> = {
   ghost: {
     background: "transparent",
     color: "var(--console-accent)",
-    border: "1px solid rgba(37,99,235,0.3)",
+    border: "1px solid rgba(13,148,136,0.3)",
   },
 };
 

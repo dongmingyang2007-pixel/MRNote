@@ -130,7 +130,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             type="button"
             onClick={() => setSourceType("page")}
             data-testid="gen-source-page"
-            style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "page" ? "#2563eb" : "#e5e7eb", background: sourceType === "page" ? "rgba(37,99,235,0.06)" : "#fff", cursor: "pointer", fontSize: 12 }}
+            style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "page" ? "var(--console-accent, #0D9488)" : "#e5e7eb", background: sourceType === "page" ? "var(--console-accent-soft, rgba(13,148,136,0.1))" : "#fff", cursor: "pointer", fontSize: 12 }}
           >
             {t("study.gen.fromPage")}
           </button>
@@ -138,7 +138,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
             type="button"
             onClick={() => setSourceType("chunk")}
             data-testid="gen-source-chunk"
-            style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "chunk" ? "#2563eb" : "#e5e7eb", background: sourceType === "chunk" ? "rgba(37,99,235,0.06)" : "#fff", cursor: "pointer", fontSize: 12 }}
+            style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", borderColor: sourceType === "chunk" ? "var(--console-accent, #0D9488)" : "#e5e7eb", background: sourceType === "chunk" ? "var(--console-accent-soft, rgba(13,148,136,0.1))" : "#fff", cursor: "pointer", fontSize: 12 }}
           >
             {t("study.gen.fromChapter")}
           </button>
@@ -231,7 +231,7 @@ export default function GenerateFlashcardsModal({ notebookId, deckId, onClose }:
                 padding: "8px 16px",
                 borderRadius: 6,
                 border: "1px solid #e5e7eb",
-                background: "#2563eb",
+                background: "var(--console-accent, #0D9488)",
                 color: "#fff",
                 cursor: "pointer",
               }}

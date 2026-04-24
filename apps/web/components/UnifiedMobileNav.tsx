@@ -19,6 +19,11 @@ const CONSOLE_NAV_ITEMS = [
   { href: "/app/settings", navKey: "settings" },
 ] as const;
 
+function normalizeConsolePath(pathname: string): string {
+  const withoutLocale = pathname.replace(/^\/(en|zh)(?=\/|$)/, "") || "/";
+  return withoutLocale.replace(/^\/workspace(?=\/|$)/, "/app");
+}
+
 export function UnifiedMobileNav() {
   const { open, closeMenu } = useMobileMenu();
   const pathname = usePathname();
@@ -39,8 +44,9 @@ export function UnifiedMobileNav() {
     };
   }, [open]);
 
+  const consolePath = normalizeConsolePath(pathname);
   const isConsoleActive = (href: string) =>
-    href === "/app" ? pathname === "/app" : pathname.startsWith(href);
+    href === "/app" ? consolePath === "/app" : consolePath === href || consolePath.startsWith(`${href}/`);
 
   const handleLogout = async () => {
     closeMenu();
@@ -51,7 +57,7 @@ export function UnifiedMobileNav() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col bg-white/85 backdrop-blur-xl"
+          className="fixed inset-0 z-50 flex flex-col bg-[rgba(247,254,252,0.92)] backdrop-blur-xl"
           style={{ WebkitBackdropFilter: "blur(20px)" }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -59,7 +65,7 @@ export function UnifiedMobileNav() {
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-black/[0.06]">
+          <div className="flex items-center justify-between border-b border-[var(--console-border-subtle)] p-4">
             <span className="text-sm font-semibold text-[var(--text-primary)]">
               {tConsole("brand")}
             </span>
@@ -92,7 +98,7 @@ export function UnifiedMobileNav() {
                   "flex items-center justify-between rounded-lg px-4 py-3 text-sm transition-colors",
                   isConsoleActive(item.href)
                     ? "bg-[var(--console-accent-soft,var(--brand-soft))] text-[var(--console-accent,var(--brand-v2))] font-medium"
-                    : "text-[var(--console-text-muted,var(--text-secondary))] hover:bg-black/[0.03] hover:text-[var(--text-primary)]",
+                    : "text-[var(--console-text-muted,var(--text-secondary))] hover:bg-[var(--console-accent-soft)] hover:text-[var(--text-primary)]",
                 )}
               >
                 <span>{tConsole(`nav.${item.navKey}`)}</span>
@@ -105,19 +111,19 @@ export function UnifiedMobileNav() {
 
           {/* Auth Section */}
           <div className="px-4 pb-2">
-            <div className="border-t border-black/[0.06] pt-4 flex flex-col gap-1">
+            <div className="flex flex-col gap-1 border-t border-[var(--console-border-subtle)] pt-4">
               {loggedIn ? (
                 <>
                   <Link
                     href="/app/settings"
                     onClick={closeMenu}
-                    className="flex items-center rounded-lg px-4 py-3 text-sm text-[var(--console-text-muted,var(--text-secondary))] hover:bg-black/[0.03] hover:text-[var(--text-primary)] transition-colors"
+                    className="flex items-center rounded-lg px-4 py-3 text-sm text-[var(--console-text-muted,var(--text-secondary))] transition-colors hover:bg-[var(--console-accent-soft)] hover:text-[var(--text-primary)]"
                   >
                     {tCommon("user.settings")}
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center rounded-lg px-4 py-3 text-sm text-[var(--console-text-muted,var(--text-secondary))] hover:bg-black/[0.03] hover:text-[var(--text-primary)] transition-colors text-left"
+                    className="flex items-center rounded-lg px-4 py-3 text-left text-sm text-[var(--console-text-muted,var(--text-secondary))] transition-colors hover:bg-[var(--console-accent-soft)] hover:text-[var(--text-primary)]"
                   >
                     {tCommon("user.logout")}
                   </button>
@@ -126,7 +132,7 @@ export function UnifiedMobileNav() {
                 <Link
                   href="/login"
                   onClick={closeMenu}
-                  className="flex items-center rounded-lg px-4 py-3 text-sm text-[var(--console-text-muted,var(--text-secondary))] hover:bg-black/[0.03] hover:text-[var(--text-primary)] transition-colors"
+                  className="flex items-center rounded-lg px-4 py-3 text-sm text-[var(--console-text-muted,var(--text-secondary))] transition-colors hover:bg-[var(--console-accent-soft)] hover:text-[var(--text-primary)]"
                 >
                   {tCommon("user.login")}
                 </Link>
@@ -135,7 +141,7 @@ export function UnifiedMobileNav() {
           </div>
 
           {/* Footer */}
-          <div className="mt-auto p-4 border-t border-black/[0.06]">
+          <div className="mt-auto border-t border-[var(--console-border-subtle)] p-4">
             <Link
               href="/app/notebooks"
               onClick={closeMenu}

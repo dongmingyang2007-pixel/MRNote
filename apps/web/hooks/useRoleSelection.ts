@@ -49,7 +49,9 @@ interface AuthMe {
  *  silent; persona sync is a UX enhancement, not a correctness path. */
 async function probeAuthMe(): Promise<AuthMe | null> {
   try {
-    return await apiGet<AuthMe>("/api/v1/auth/me");
+    return await apiGet<AuthMe>("/api/v1/auth/me", undefined, {
+      suppressUnauthorizedHandling: true,
+    });
   } catch {
     return null;
   }

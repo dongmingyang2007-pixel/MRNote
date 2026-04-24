@@ -1,5 +1,5 @@
 .billing-page {
-  padding: 24px;
+  padding: 28px 32px 40px;
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -7,33 +7,37 @@
   font-size: 24px;
   font-weight: 700;
   margin-bottom: 16px;
+  color: var(--console-text-primary, #0F2F2C);
 }
 .current-sub {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--console-border-subtle, #D6EDE9);
+  border-radius: var(--console-radius-lg, 16px);
   padding: 16px;
   margin-bottom: 16px;
-  background: #f9fafb;
+  background: var(--console-card, rgba(255,255,255,0.82));
+  box-shadow: var(--console-shadow-card);
 }
 .current-sub__renewal {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--console-text-muted, #6E8683);
   margin-top: 4px;
 }
 .current-sub__manage {
   margin-top: 8px;
   padding: 6px 12px;
-  background: #2563eb;
+  background: var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F));
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: pointer;
 }
 .usage-meter {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--console-border-subtle, #D6EDE9);
+  border-radius: var(--console-radius-lg, 16px);
   padding: 16px;
   margin-bottom: 24px;
+  background: var(--console-card, rgba(255,255,255,0.82));
+  box-shadow: var(--console-shadow-card);
 }
 .usage-meter__title {
   font-size: 14px;
@@ -51,16 +55,16 @@
 .usage-meter__label {
   font-size: 12px;
   margin-bottom: 4px;
-  color: #374151;
+  color: var(--console-text-secondary, #415C59);
 }
 .usage-meter__bar {
-  background: #e5e7eb;
+  background: var(--console-border-subtle, #D6EDE9);
   border-radius: 4px;
   height: 6px;
   overflow: hidden;
 }
 .usage-meter__fill {
-  background: #2563eb;
+  background: var(--console-accent-gradient, linear-gradient(135deg, #0D9488, #14B8A6));
   height: 100%;
   transition: width 0.3s;
 }
@@ -68,19 +72,20 @@
   display: inline-flex;
   gap: 0;
   margin-bottom: 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--console-border-subtle, #D6EDE9);
+  border-radius: 999px;
   overflow: hidden;
+  background: rgba(255,255,255,0.75);
 }
 .plans-grid__cycle-toggle button {
   padding: 6px 16px;
-  background: #fff;
+  background: transparent;
   border: none;
   cursor: pointer;
   font-size: 12px;
 }
 .plans-grid__cycle-toggle button[aria-pressed="true"] {
-  background: #2563eb;
+  background: var(--console-accent, #0D9488);
   color: #fff;
 }
 .plans-grid__cards {
@@ -89,14 +94,16 @@
   gap: 16px;
 }
 .plan-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--console-border-subtle, #D6EDE9);
+  border-radius: var(--console-radius-lg, 16px);
   padding: 16px;
   display: flex;
   flex-direction: column;
+  background: var(--console-card, rgba(255,255,255,0.82));
+  box-shadow: var(--console-shadow-card);
 }
 .plan-card--current {
-  border-color: #2563eb;
+  border-color: var(--console-accent, #0D9488);
   border-width: 2px;
 }
 .plan-card__name {
@@ -112,7 +119,7 @@
 .plan-card__cycle {
   font-size: 12px;
   font-weight: 400;
-  color: #6b7280;
+  color: var(--console-text-muted, #6E8683);
 }
 .plan-card__features {
   list-style: none;
@@ -126,21 +133,37 @@
   align-items: center;
   font-size: 12px;
   margin-bottom: 4px;
-  color: #374151;
+  color: var(--console-text-secondary, #415C59);
 }
 .plan-card__upgrade {
   padding: 8px 16px;
-  background: #2563eb;
+  background: var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F));
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: pointer;
   font-weight: 600;
 }
 .plan-card__current-label {
   text-align: center;
   font-size: 12px;
-  color: #2563eb;
+  color: var(--console-accent, #0D9488);
   font-weight: 600;
   padding: 8px;
+}
+
+@media (max-width: 900px) {
+  .plans-grid__cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .billing-page {
+    padding: 20px 16px 80px;
+  }
+
+  .plans-grid__cards {
+    grid-template-columns: 1fr;
+  }
 }

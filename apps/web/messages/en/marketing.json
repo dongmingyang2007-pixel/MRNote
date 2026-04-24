@@ -22,6 +22,17 @@
   "hero.forRole": "Made for {role}",
   "hero.footBadgesLabel": "Key capabilities",
 
+  "mode.eyebrow": "Operating mode",
+  "mode.title": "From capture to reflection, MRNote keeps work inside one operating rhythm.",
+  "mode.capture.title": "Capture",
+  "mode.capture.body": "Pages, PDFs, voice notes, and AI answers land in one notebook before you decide where they belong.",
+  "mode.connect.title": "Connect",
+  "mode.connect.body": "The memory graph extracts concepts, evidence, and sources so scattered clues point back to the same question.",
+  "mode.continue.title": "Continue",
+  "mode.continue.body": "Daily digests and follow-up windows bring yesterday's loose threads back onto the canvas.",
+  "mode.review.title": "Review",
+  "mode.review.body": "Study uploads, flashcards, and weekly reflections turn work into durable memory instead of disposable chat.",
+
   "digest.eyebrow": "Rhythm",
   "digest.title.lineA": "30 seconds each morning to read yourself,",
   "digest.title.lineBPrefix": "once a week ",

@@ -70,10 +70,13 @@ const MemoryWindow = dynamic(() => import("./contents/MemoryWindow"), {
   ssr: false,
   loading: WindowContentFallback,
 });
-const MemoryGraphWindow = dynamic(() => import("./contents/MemoryGraphWindow"), {
-  ssr: false,
-  loading: WindowContentFallback,
-});
+const MemoryGraphWindow = dynamic(
+  () => import("./contents/MemoryGraphWindow"),
+  {
+    ssr: false,
+    loading: WindowContentFallback,
+  },
+);
 const StudyWindow = dynamic(() => import("./contents/StudyWindow"), {
   ssr: false,
   loading: WindowContentFallback,
@@ -141,9 +144,7 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
       );
 
     case "digest":
-      return (
-        <DigestWindow notebookId={windowState.meta.notebookId || ""} />
-      );
+      return <DigestWindow notebookId={windowState.meta.notebookId || ""} />;
 
     case "search":
       return (
@@ -383,40 +384,62 @@ function EmptyState() {
 
   return (
     <div className="wm-empty-state">
-      <Layers size={48} strokeWidth={1.2} className="wm-empty-state-icon" />
-      <div className="wm-empty-state-title">{t("canvas.emptyTitle")}</div>
-      <div className="wm-empty-state-hint">{t("canvas.emptyHint")}</div>
-      <div className="wm-empty-state-actions">
-        {firstPage ? (
+      <div className="wm-empty-state-shell">
+        <div className="wm-empty-state-kicker">
+          <Layers size={14} />
+          {t("home.kicker")}
+        </div>
+        <div className="wm-empty-state-icon-stack" aria-hidden="true">
+          <Layers size={30} strokeWidth={1.3} />
+        </div>
+        <div className="wm-empty-state-title">{t("canvas.emptyTitle")}</div>
+        <div className="wm-empty-state-hint">{t("canvas.emptyHint")}</div>
+
+        <div className="wm-empty-state-actions">
+          {firstPage ? (
+            <button
+              type="button"
+              className="wm-empty-state-action wm-empty-state-action--primary"
+              onClick={handleOpenFirstPage}
+              data-testid="empty-canvas-open-recent-page"
+            >
+              <FileText size={14} />
+              {t("canvas.openRecentPage")}
+            </button>
+          ) : null}
           <button
             type="button"
             className="wm-empty-state-action wm-empty-state-action--primary"
-            onClick={handleOpenFirstPage}
-            data-testid="empty-canvas-open-recent-page"
+            onClick={handleCreatePage}
+            disabled={creating}
+            data-testid="empty-canvas-create-page"
           >
-            <FileText size={12} />
-            {t("canvas.openRecentPage")}
+            <Plus size={14} />
+            {creating ? t("common.loading") : t("canvas.createFirstPage")}
           </button>
-        ) : null}
-        <button
-          type="button"
-          className="wm-empty-state-action wm-empty-state-action--primary"
-          onClick={handleCreatePage}
-          disabled={creating}
-          data-testid="empty-canvas-create-page"
-        >
-          <Plus size={12} />
-          {creating ? t("common.loading") : t("canvas.createFirstPage")}
-        </button>
-        <button
-          type="button"
-          className="wm-empty-state-action"
-          onClick={handleSearch}
-          data-testid="empty-canvas-search"
-        >
-          <SearchIcon size={12} />
-          {t("canvas.search")}
-        </button>
+          <button
+            type="button"
+            className="wm-empty-state-action"
+            onClick={handleSearch}
+            data-testid="empty-canvas-search"
+          >
+            <SearchIcon size={14} />
+            {t("canvas.search")}
+          </button>
+        </div>
+
+        <div className="wm-empty-state-guide" aria-hidden="true">
+          {[
+            { icon: FileText, label: t("notebooks.title") },
+            { icon: Sparkles, label: t("sidebar.openAIPanel") },
+            { icon: SearchIcon, label: t("canvas.search") },
+          ].map((item) => (
+            <div key={item.label} className="wm-empty-state-guide-item">
+              <item.icon size={14} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -445,11 +468,7 @@ export default function WindowCanvas() {
   return (
     <div ref={canvasRef} className="wm-canvas">
       {visibleWindows.map((w) => (
-        <Window
-          key={w.id}
-          windowState={w}
-          titlebarExtras={buildNoteExtras(w)}
-        >
+        <Window key={w.id} windowState={w} titlebarExtras={buildNoteExtras(w)}>
           <WindowContent windowState={w} />
         </Window>
       ))}

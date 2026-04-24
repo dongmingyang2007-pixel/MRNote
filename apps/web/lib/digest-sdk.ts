@@ -174,6 +174,8 @@ export async function fetchDailyDigest(
   try {
     return await apiGet<ServerDailyDigest>(
       `/api/v1/digest/daily?date=${encodeURIComponent(dateISO)}`,
+      undefined,
+      { suppressUnauthorizedHandling: true },
     );
   } catch (err) {
     return swallowSoft404<ServerDailyDigest>(err);
@@ -186,6 +188,8 @@ export async function fetchWeeklyReflection(
   try {
     return await apiGet<ServerWeeklyReflection>(
       `/api/v1/digest/weekly?week=${encodeURIComponent(weekISO)}`,
+      undefined,
+      { suppressUnauthorizedHandling: true },
     );
   } catch (err) {
     return swallowSoft404<ServerWeeklyReflection>(err);

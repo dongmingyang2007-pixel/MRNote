@@ -175,15 +175,15 @@ export function Sidebar() {
                 className="glass-sidebar-nav-item"
                 style={{
                   background:
-                    "var(--console-accent-soft, rgba(37,99,235,0.1))",
-                  color: "var(--console-accent, #2563EB)",
+                    "var(--console-accent-soft, var(--console-accent-soft, rgba(13,148,136,0.1)))",
+                  color: "var(--console-accent, var(--console-accent, #0D9488))",
                 }}
                 aria-label={t("sidebar.newProject")}
                 onClick={handleImmediateCollapse}
               >
                 <span
                   className="glass-sidebar-icon"
-                  style={{ color: "var(--console-accent, #2563EB)" }}
+                  style={{ color: "var(--console-accent, var(--console-accent, #0D9488))" }}
                 >
                   <svg
                     width={18}

@@ -1,7 +1,7 @@
 import type { EdgeStyle, ForceParams, Role, RoleStyle, ViewportState, ViewportBounds } from "./types";
 
 export const ROLE_STYLE: Record<Role, RoleStyle> = {
-  fact:      { fill: "#dbeafe", stroke: "#2563eb", text: "#1e40af", dot: "#2563eb" },
+  fact:      { fill: "#ccfbf1", stroke: "#0D9488", text: "#0f766e", dot: "#0D9488" },
   structure: { fill: "#ede9fe", stroke: "#7c3aed", text: "#5b21b6", dot: "#7c3aed" },
   subject:   { fill: "#d1fae5", stroke: "#10b981", text: "#047857", dot: "#10b981" },
   concept:   { fill: "#ccfbf1", stroke: "#0d9488", text: "#0f766e", dot: "#0d9488" },
@@ -13,7 +13,7 @@ export const EDGE_STYLE: Record<string, EdgeStyle> = {
   center:       { stroke: "#64748b", width: 1.4, style: "solid" },
   supersedes:   { stroke: "#ef4444", width: 1.2, style: "solid" },
   conflict:     { stroke: "#ef4444", width: 1.2, style: "dashed" },
-  prerequisite: { stroke: "#2563eb", width: 1.2, style: "solid" },
+  prerequisite: { stroke: "#0D9488", width: 1.2, style: "solid" },
   evidence:     { stroke: "#10b981", width: 1.2, style: "solid" },
   summary:      { stroke: "#f59e0b", width: 1.2, style: "dashed" },
   related:      { stroke: "#94a3b8", width: 1.0, style: "solid" },

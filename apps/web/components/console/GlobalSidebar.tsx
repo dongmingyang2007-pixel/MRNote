@@ -4,6 +4,11 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, BookOpen, Settings } from "lucide-react";
 
+function normalizeConsolePath(pathname: string): string {
+  const withoutLocale = pathname.replace(/^\/(en|zh)(?=\/|$)/, "") || "/";
+  return withoutLocale.replace(/^\/workspace(?=\/|$)/, "/app");
+}
+
 const NAV_ITEMS = [
   { href: "/app", key: "nav.dashboard", Icon: LayoutDashboard },
   { href: "/app/notebooks", key: "nav.notebooks", Icon: BookOpen },
@@ -12,16 +17,17 @@ const NAV_ITEMS = [
 
 export default function GlobalSidebar() {
   const pathname = usePathname();
+  const consolePath = normalizeConsolePath(pathname);
   const t = useTranslations("console");
   const tCommon = useTranslations("common");
 
   const isActive = (href: string) => {
-    if (href === "/app") return pathname === "/app" || pathname.endsWith("/workspace");
-    return pathname.startsWith(href);
+    if (href === "/app") return consolePath === "/app";
+    return consolePath === href || consolePath.startsWith(`${href}/`);
   };
 
   // Don't render if user is inside a notebook (NotebookSidebar handles that)
-  const isInsideNotebook = /\/notebooks\/[^/]+/.test(pathname);
+  const isInsideNotebook = /\/notebooks\/[^/]+/.test(consolePath);
   if (isInsideNotebook) return null;
 
   return (
@@ -49,7 +55,7 @@ export default function GlobalSidebar() {
         aria-label={tCommon("brand.company")}
         style={{ marginBottom: 16 }}
       >
-        <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{tCommon("brand.glyph")}</span>
+        <span style={{ fontSize: 14, fontWeight: 800, color: "white" }}>{tCommon("brand.glyph")}</span>
       </Link>
 
       {/* Nav items */}

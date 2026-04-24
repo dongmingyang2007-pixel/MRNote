@@ -210,11 +210,11 @@ function CreateNotebookDialogInner({
                       gap: 10,
                       padding: 10,
                       border: `1px solid ${
-                        selected ? "#2563eb" : "rgba(15,23,42,0.12)"
+                        selected ? "var(--console-accent, #0D9488)" : "var(--console-border-subtle, rgba(13,148,136,0.16))"
                       }`,
                       borderRadius: 10,
                       background: selected
-                        ? "rgba(37,99,235,0.08)"
+                        ? "var(--console-accent-soft, rgba(13,148,136,0.1))"
                         : "rgba(255,255,255,0.85)",
                       cursor: "pointer",
                     }}
@@ -268,9 +268,9 @@ function CreateNotebookDialogInner({
                       height: 36,
                       borderRadius: 8,
                       border: `1px solid ${
-                        selected ? "#2563eb" : "rgba(15,23,42,0.1)"
+                        selected ? "var(--console-accent, #0D9488)" : "var(--console-border-subtle, rgba(13,148,136,0.16))"
                       }`,
-                      background: selected ? "rgba(37,99,235,0.1)" : "#fff",
+                      background: selected ? "var(--console-accent-soft, rgba(13,148,136,0.1))" : "#fff",
                       cursor: "pointer",
                       fontSize: 18,
                       lineHeight: "1",
@@ -410,8 +410,8 @@ function CreateNotebookDialogInner({
                 borderRadius: 8,
                 border: "none",
                 background: disableSubmit
-                  ? "rgba(37,99,235,0.5)"
-                  : "linear-gradient(135deg, #2563eb, #0f4bd7)",
+                  ? "color-mix(in srgb, var(--console-accent, #0D9488) 45%, white)"
+                  : "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,
