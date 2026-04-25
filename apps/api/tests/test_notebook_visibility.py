@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-notebook-visibility-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-notebook-visibility-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

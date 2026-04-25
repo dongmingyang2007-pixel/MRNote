@@ -9,6 +9,34 @@
   margin-bottom: 16px;
   color: var(--console-text-primary, #0F2F2C);
 }
+.billing-page__status {
+  border: 1px solid var(--console-border-subtle, #D6EDE9);
+  border-radius: var(--console-radius-md, 12px);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: rgba(255,255,255,0.88);
+  color: var(--console-text-primary, #0F2F2C);
+}
+.billing-page__status strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.billing-page__status p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--console-text-secondary, #415C59);
+}
+.billing-page__status--success {
+  border-color: rgba(13,148,136,0.35);
+  background: rgba(240,253,250,0.86);
+}
+.billing-page__status--cancel {
+  border-color: rgba(249,115,22,0.28);
+  background: rgba(255,247,237,0.88);
+}
 .current-sub {
   border: 1px solid var(--console-border-subtle, #D6EDE9);
   border-radius: var(--console-radius-lg, 16px);

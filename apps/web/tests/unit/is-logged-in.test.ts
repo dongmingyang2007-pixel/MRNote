@@ -25,9 +25,15 @@ describe("isLoggedInFromCookies", () => {
     expect(await isLoggedInFromCookies()).toBe(true);
   });
 
+  it("returns true when the MRNote workspace cookie is set", async () => {
+    cookieStore.get = (name) =>
+      name === "mrnote_workspace_id" ? { value: "ws_123" } : undefined;
+    expect(await isLoggedInFromCookies()).toBe(true);
+  });
+
   it("returns true when a legacy workspace cookie is set", async () => {
     cookieStore.get = (name) =>
-      name === "qihang_workspace_id" ? { value: "ws_123" } : undefined;
+      name === "qihang_workspace_id" ? { value: "ws_legacy" } : undefined;
     expect(await isLoggedInFromCookies()).toBe(true);
   });
 });

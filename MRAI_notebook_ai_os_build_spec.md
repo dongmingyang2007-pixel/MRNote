@@ -1,7 +1,7 @@
 # MRAI AI 笔记系统开发总说明（给 Claude / vibe coding）
 
 > 这份文档是给 Claude/Codex 一类编程助手的直接开发说明。
-> 目标是在**现有 MRAI / QIHANG monorepo**上，增量实现一个 **AI-native 笔记软件 / 个人工作与认知系统**。
+> 目标是在**现有 MRAI / MRNote monorepo**上，增量实现一个 **AI-native 笔记软件 / 个人工作与认知系统**。
 > 不要推翻现有架构，不要重写 Memory V3，不要另起一个新项目。请直接在现有 monorepo 内迭代实现。
 
 ---

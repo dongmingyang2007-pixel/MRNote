@@ -1,5 +1,11 @@
 {
   "page.title": "计费",
+  "checkout.success.title": "付款已完成",
+  "checkout.success.titleWithPlan": "已解锁 {plan}",
+  "checkout.success.body": "你的付费权限已更新，可以继续使用新的套餐能力。",
+  "checkout.success.pendingBody": "付款已完成，套餐状态正在同步，稍后会自动显示最新权限。",
+  "checkout.cancel.title": "付款已取消",
+  "checkout.cancel.body": "你还没有被扣款，可以随时重新选择套餐继续结账。",
   "current.plan": "当前套餐",
   "current.renewal": "续期日期",
   "current.manage": "管理账单",

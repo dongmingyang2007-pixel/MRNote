@@ -11,7 +11,7 @@ from fastapi import WebSocket
 
 from app.core.config import settings
 from app.core.errors import ApiError
-from app.db.session import SessionLocal
+from app.db import session as session_module
 from app.services.dashscope_client import UpstreamServiceError
 from app.services.orchestrator import (
     orchestrate_synthetic_realtime_turn_from_text,
@@ -376,7 +376,7 @@ class ComposedRealtimeSession:
                 orchestrate_kwargs["video_frame_data_urls"] = video_frame_data_urls
                 orchestrate_kwargs["video_fps"] = video_fps
 
-            with SessionLocal() as db:
+            with session_module.SessionLocal() as db:
                 result = await orchestrate_synthetic_realtime_turn_from_text(
                     db,
                     **orchestrate_kwargs,
@@ -415,7 +415,7 @@ class ComposedRealtimeSession:
                     return None
                 await ws.send_json({"type": "response.text", "text": segment})
                 try:
-                    with SessionLocal() as db:
+                    with session_module.SessionLocal() as db:
                         audio_chunk = await synthesize_realtime_speech_for_project(
                             db,
                             project_id=self.project_id,

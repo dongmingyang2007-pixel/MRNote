@@ -48,7 +48,7 @@
   "privacy.s7.title": "Cookie",
   "privacy.s7.body": "我们仅使用少量必要 Cookie 来运营服务：",
   "privacy.s7.item1": "auth_state —— 在浏览器会话之间保持您的登录状态。",
-  "privacy.s7.item2": "mingrun_workspace_id —— 记住您上次使用的工作区。",
+  "privacy.s7.item2": "mrnote_workspace_id —— 记住您上次使用的工作区。",
   "privacy.s7.notrack": "我们不使用第三方追踪 Cookie 或广告像素，也不安装任何来自 Facebook、Google 或类似广告网络的脚本。",
 
   "privacy.s8.title": "联系方式与政策更新",

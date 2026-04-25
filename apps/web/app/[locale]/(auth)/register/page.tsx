@@ -8,15 +8,24 @@ import { gsap } from "@/lib/gsap-register";
 import { MagneticButton } from "@/components/MagneticButton";
 import { apiPost, persistWorkspaceId } from "@/lib/api";
 import { getLocalizedAuthError } from "@/lib/auth-errors";
+import billingSDK from "@/lib/billing-sdk";
+import {
+  clearPendingCheckoutPlan,
+  isPaidCheckoutPlan,
+  parsePendingCheckoutPlan,
+  persistPendingCheckoutPlan,
+  readStoredPendingCheckoutPlan,
+  type PendingCheckoutPlan,
+} from "@/lib/pending-checkout";
 import { getSafeNavigationPath } from "@/lib/security";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import PersonaPickerStep from "@/components/auth/PersonaPickerStep";
 
-function getDefaultConsolePath(): string {
+function getDefaultNotebooksPath(): string {
   if (typeof window !== "undefined" && window.location.pathname.startsWith("/en/")) {
-    return "/en/app";
+    return "/en/app/notebooks";
   }
-  return "/app";
+  return "/app/notebooks";
 }
 
 export default function RegisterPage() {
@@ -39,6 +48,7 @@ export default function RegisterPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const pendingNextPathRef = useRef<string | null>(null);
+  const pendingCheckoutPlanRef = useRef<PendingCheckoutPlan | null>(null);
 
   const t = useTranslations("auth");
   const locale = useLocale();
@@ -53,6 +63,18 @@ export default function RegisterPage() {
       tl.from(".auth-form-card", { opacity: 0, y: 30, duration: 0.6 }, "<0.15");
     }, el);
     return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    const pendingPlan = parsePendingCheckoutPlan(
+      new URLSearchParams(window.location.search),
+    );
+    pendingCheckoutPlanRef.current = pendingPlan;
+    if (pendingPlan) {
+      persistPendingCheckoutPlan(pendingPlan);
+    } else {
+      clearPendingCheckoutPlan();
+    }
   }, []);
 
   useEffect(() => {
@@ -112,21 +134,48 @@ export default function RegisterPage() {
       );
       persistWorkspaceId(auth.workspace.id, auth.access_token_expires_in_seconds);
       // Capture the post-auth destination now so we can honor `?next=` after
-      // the persona step completes. Navigation is deferred to `onResolved`.
-      pendingNextPathRef.current = getSafeNavigationPath(
-        new URLSearchParams(window.location.search).get("next"),
-      );
+      // the persona step completes. If the user came from pricing, preserve
+      // `plan/cycle` so persona completion can start Stripe Checkout.
+      const searchParams = new URLSearchParams(window.location.search);
+      pendingNextPathRef.current = getSafeNavigationPath(searchParams.get("next"));
+      const pendingPlan = parsePendingCheckoutPlan(searchParams);
+      pendingCheckoutPlanRef.current = pendingPlan;
+      if (pendingPlan) {
+        persistPendingCheckoutPlan(pendingPlan);
+      } else {
+        clearPendingCheckoutPlan();
+      }
       setStep("persona");
     } catch (err) {
       setError(getLocalizedAuthError(err, t, "register.error"));
     }
   };
 
-  const handlePersonaResolved = useCallback(() => {
+  const handlePersonaResolved = useCallback(async () => {
     const nextPath = pendingNextPathRef.current;
+    const pendingPlan =
+      pendingCheckoutPlanRef.current ?? readStoredPendingCheckoutPlan();
+
+    if (isPaidCheckoutPlan(pendingPlan)) {
+      persistPendingCheckoutPlan(pendingPlan);
+      const { checkout_url } = await billingSDK.startCheckout({
+        plan: pendingPlan.plan,
+        cycle: pendingPlan.cycle,
+      });
+      if (!checkout_url) {
+        throw new Error(t("register.error"));
+      }
+      window.location.assign(checkout_url);
+      return;
+    }
+
     pendingNextPathRef.current = null;
-    window.location.replace(nextPath || getDefaultConsolePath());
-  }, []);
+    pendingCheckoutPlanRef.current = null;
+    clearPendingCheckoutPlan();
+    const destination =
+      pendingPlan?.plan === "free" ? getDefaultNotebooksPath() : nextPath;
+    window.location.replace(destination || getDefaultNotebooksPath());
+  }, [t]);
 
   const inputClass = "w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors duration-[var(--motion-base)] focus:border-[var(--brand-v2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-v2)]/30 focus-visible:ring-offset-1";
 

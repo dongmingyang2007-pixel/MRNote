@@ -1,5 +1,11 @@
 {
   "page.title": "Billing",
+  "checkout.success.title": "Payment complete",
+  "checkout.success.titleWithPlan": "{plan} unlocked",
+  "checkout.success.body": "Your paid entitlements have been updated. You can keep using the new plan now.",
+  "checkout.success.pendingBody": "Payment is complete. Your plan status is syncing and will update shortly.",
+  "checkout.cancel.title": "Checkout canceled",
+  "checkout.cancel.body": "You have not been charged. Pick a plan again whenever you're ready.",
   "current.plan": "Current plan",
   "current.renewal": "Renews",
   "current.manage": "Manage billing",

@@ -43,6 +43,10 @@ interface NoteEditorProps {
   /** Called whenever the title text changes (every keystroke). Parent windows
    *  use this to keep the window titlebar / page list card in sync. */
   onTitleChange?: (title: string) => void;
+  guestMode?: boolean;
+  initialTitle?: string;
+  initialContent?: Record<string, unknown>;
+  onGuestSaveRequest?: () => void;
 }
 
 interface PageData {
@@ -58,16 +62,27 @@ type SaveStatus = "saved" | "saving" | "unsaved";
 // Component
 // ---------------------------------------------------------------------------
 
-export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }: NoteEditorProps) {
+export default function NoteEditor({
+  pageId,
+  onPlainTextChange,
+  onTitleChange,
+  guestMode = false,
+  initialTitle = "",
+  initialContent,
+  onGuestSaveRequest,
+}: NoteEditorProps) {
   const t = useTranslations("console-notebooks");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(() => (guestMode ? initialTitle : ""));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [loading, setLoading] = useState(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestContentRef = useRef<Record<string, unknown> | null>(null);
+  const guestInitializedRef = useRef(false);
   const titleRef = useRef("");
   const saveStatusRef = useRef<SaveStatus>("saved");
-  const debouncedSaveRef = useRef<(json: Record<string, unknown>) => void>(() => {});
+  const debouncedSaveRef = useRef<(json: Record<string, unknown>) => void>(
+    () => {},
+  );
 
   const setTrackedTitle = useCallback((nextTitle: string) => {
     titleRef.current = nextTitle;
@@ -119,15 +134,18 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
                   return match ? match[1] : null;
                 })(),
               renderHTML: (attrs) => {
-                const language = (attrs as { language?: string | null }).language;
+                const language = (attrs as { language?: string | null })
+                  .language;
                 return language ? { "data-language": language } : {};
               },
             },
             filename: {
               default: null,
-              parseHTML: (element) => element.getAttribute("data-filename") || null,
+              parseHTML: (element) =>
+                element.getAttribute("data-filename") || null,
               renderHTML: (attrs) => {
-                const filename = (attrs as { filename?: string | null }).filename;
+                const filename = (attrs as { filename?: string | null })
+                  .filename;
                 return filename ? { "data-filename": filename } : {};
               },
             },
@@ -144,10 +162,9 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       TaskBlock,
       FlashcardBlock,
       SlashCommand.configure({
-        suggestion: createSuggestionConfig(
-          (key: string) => t(key),
-          { getPageId: () => pageId },
-        ),
+        suggestion: createSuggestionConfig((key: string) => t(key), {
+          getPageId: () => pageId,
+        }),
       }),
     ],
     editorProps: {
@@ -159,7 +176,9 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       const json = ed.getJSON();
       latestContentRef.current = json;
       setTrackedSaveStatus("unsaved");
-      debouncedSaveRef.current(json);
+      if (!guestMode) {
+        debouncedSaveRef.current(json);
+      }
       onPlainTextChange?.(ed.getText());
     },
   });
@@ -167,31 +186,56 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
   // ---- Load page data -----------------------------------------------------
 
   useEffect(() => {
+    if (guestMode) return;
     let cancelled = false;
     setLoading(true);
 
-    void apiGet<PageData>(`/api/v1/pages/${pageId}`).then((data) => {
-      if (cancelled) return;
-      const t0 = data.title || "";
-      setTrackedTitle(t0);
-      // Echo loaded title up so parent window syncs its titlebar to the saved value
-      onTitleChange?.(t0);
-      if (
-        editor &&
-        data.content_json &&
-        typeof data.content_json === "object" &&
-        Object.keys(data.content_json).length > 0
-      ) {
-        latestContentRef.current = data.content_json;
-        editor.commands.setContent(data.content_json);
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    void apiGet<PageData>(`/api/v1/pages/${pageId}`)
+      .then((data) => {
+        if (cancelled) return;
+        const t0 = data.title || "";
+        setTrackedTitle(t0);
+        // Echo loaded title up so parent window syncs its titlebar to the saved value
+        onTitleChange?.(t0);
+        if (
+          editor &&
+          data.content_json &&
+          typeof data.content_json === "object" &&
+          Object.keys(data.content_json).length > 0
+        ) {
+          latestContentRef.current = data.content_json;
+          editor.commands.setContent(data.content_json);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    return () => { cancelled = true; };
-  }, [pageId, editor]);
+    return () => {
+      cancelled = true;
+    };
+  }, [guestMode, pageId, editor, onTitleChange, setTrackedTitle]);
+
+  useEffect(() => {
+    if (!guestMode || !editor || guestInitializedRef.current) return;
+    const content = initialContent ?? { type: "doc", content: [] };
+    latestContentRef.current = content;
+    setTrackedTitle(initialTitle);
+    onTitleChange?.(initialTitle);
+    editor.commands.setContent(content);
+    setTrackedSaveStatus("unsaved");
+    setLoading(false);
+    guestInitializedRef.current = true;
+  }, [
+    editor,
+    guestMode,
+    initialContent,
+    initialTitle,
+    onTitleChange,
+    setTrackedSaveStatus,
+    setTrackedTitle,
+  ]);
 
   // ---- Subscribe to AI Panel "Insert as AI block" events ----------------
 
@@ -220,6 +264,15 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
 
   const saveContent = useCallback(
     async (contentJson: Record<string, unknown>, nextTitle?: string) => {
+      if (guestMode) {
+        latestContentRef.current = contentJson;
+        if (nextTitle !== undefined) {
+          titleRef.current = nextTitle;
+        }
+        setTrackedSaveStatus("unsaved");
+        onGuestSaveRequest?.();
+        return;
+      }
       setTrackedSaveStatus("saving");
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000);
@@ -236,7 +289,7 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
         clearTimeout(timeoutId);
       }
     },
-    [pageId, setTrackedSaveStatus],
+    [guestMode, onGuestSaveRequest, pageId, setTrackedSaveStatus],
   );
 
   const debouncedSave = useCallback(
@@ -260,9 +313,11 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    const content = latestContentRef.current
-      ?? (editor?.getJSON() as Record<string, unknown> | undefined)
-      ?? { type: "doc", content: [] };
+    const content = latestContentRef.current ??
+      (editor?.getJSON() as Record<string, unknown> | undefined) ?? {
+        type: "doc",
+        content: [],
+      };
     void saveContent(content);
   }, [saveContent, editor]);
 
@@ -286,15 +341,27 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       setTrackedTitle(nextTitle);
       setTrackedSaveStatus("unsaved");
       onTitleChange?.(nextTitle);
+      if (guestMode) {
+        return;
+      }
       // Always debounce-save on title change — even when the body is still empty
       // (new page, user only typed a title). Fall back to the editor's current
       // doc, then to an empty Tiptap doc so the server gets a valid payload.
-      const content = latestContentRef.current
-        ?? (editor?.getJSON() as Record<string, unknown> | undefined)
-        ?? { type: "doc", content: [] };
+      const content = latestContentRef.current ??
+        (editor?.getJSON() as Record<string, unknown> | undefined) ?? {
+          type: "doc",
+          content: [],
+        };
       debouncedSave(content, nextTitle);
     },
-    [debouncedSave, editor, onTitleChange, setTrackedSaveStatus, setTrackedTitle],
+    [
+      debouncedSave,
+      editor,
+      guestMode,
+      onTitleChange,
+      setTrackedSaveStatus,
+      setTrackedTitle,
+    ],
   );
 
   // ---- Title Enter → focus editor ----------------------------------------
@@ -316,13 +383,14 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
+      if (guestMode) return;
       // Flush any unsaved content synchronously before unmount
       const pendingContent = latestContentRef.current;
       if (pendingContent && saveStatusRef.current !== "saved") {
         void saveContent(pendingContent, titleRef.current);
       }
     };
-  }, [pageId, saveContent]);
+  }, [guestMode, pageId, saveContent]);
 
   // ---- Render -------------------------------------------------------------
 
@@ -354,12 +422,18 @@ export default function NoteEditor({ pageId, onPlainTextChange, onTitleChange }:
             title={t("pages.saveNow") + " (⌘S)"}
             aria-label={t("pages.saveNow")}
             style={{
-              marginLeft: 8, padding: "4px 10px",
-              fontSize: 12, fontWeight: 500,
+              marginLeft: 8,
+              padding: "4px 10px",
+              fontSize: 12,
+              fontWeight: 500,
               borderRadius: 6,
               border: "1px solid var(--border, rgba(15,42,45,0.12))",
-              background: saveStatus === "unsaved" ? "var(--accent, #0d9488)" : "transparent",
-              color: saveStatus === "unsaved" ? "#fff" : "var(--text-secondary)",
+              background:
+                saveStatus === "unsaved"
+                  ? "var(--accent, #0d9488)"
+                  : "transparent",
+              color:
+                saveStatus === "unsaved" ? "#fff" : "var(--text-secondary)",
               cursor: saveStatus === "saving" ? "wait" : "pointer",
               transition: "all 150ms ease",
             }}

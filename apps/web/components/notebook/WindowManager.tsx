@@ -10,16 +10,22 @@ import {
   useRef,
 } from "react";
 import type { ReactNode } from "react";
-import {
-  loadPersistedLayout,
-  savePersistedLayout,
-} from "./window-persistence";
+import { loadPersistedLayout, savePersistedLayout } from "./window-persistence";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WindowType = "note" | "ai_panel" | "file" | "memory" | "memory_graph" | "study" | "digest" | "search";
+export type WindowType =
+  | "note"
+  | "guest_note"
+  | "ai_panel"
+  | "file"
+  | "memory"
+  | "memory_graph"
+  | "study"
+  | "digest"
+  | "search";
 
 export interface WindowState {
   id: string;
@@ -63,7 +69,12 @@ type WindowAction =
   | { kind: "MOVE"; id: string; x: number; y: number }
   | { kind: "RESIZE"; id: string; width: number; height: number }
   | { kind: "RENAME"; id: string; title: string }
-  | { kind: "RENAME_BY_META"; metaKey: string; metaValue: string; title: string }
+  | {
+      kind: "RENAME_BY_META";
+      metaKey: string;
+      metaValue: string;
+      title: string;
+    }
   | { kind: "HYDRATE"; windows: WindowState[] };
 
 // ---------------------------------------------------------------------------
@@ -72,6 +83,7 @@ type WindowAction =
 
 const DEFAULT_SIZES: Record<WindowType, { width: number; height: number }> = {
   note: { width: 780, height: 600 },
+  guest_note: { width: 780, height: 600 },
   ai_panel: { width: 480, height: 620 },
   file: { width: 700, height: 500 },
   memory: { width: 500, height: 600 },
@@ -100,7 +112,9 @@ function maxZIndex(windows: WindowState[]): number {
 /** Re-normalize all zIndex values to [1..N] to prevent unbounded growth. */
 function normalizeZIndexes(windows: WindowState[]): WindowState[] {
   const sorted = [...windows].sort((a, b) => a.zIndex - b.zIndex);
-  return sorted.map((w, i) => (w.zIndex === i + 1 ? w : { ...w, zIndex: i + 1 }));
+  return sorted.map((w, i) =>
+    w.zIndex === i + 1 ? w : { ...w, zIndex: i + 1 },
+  );
 }
 
 const Z_INDEX_NORMALIZE_THRESHOLD = 10000;
@@ -123,28 +137,32 @@ function windowReducer(
       // focus-existing and require `force_new=true` (e.g. Shift+Click) to stack.
       const supportsMultiOpen = type === "file" || type === "ai_panel";
 
-      const existing = force_new || supportsMultiOpen
-        ? undefined
-        : state.find((w) => {
-            if (w.type !== type) return false;
-            // For `note` windows, de-dup by pageId only. Other meta fields
-            // may differ (e.g. scroll offset) but the same page means the
-            // same window.
-            if (type === "note") {
-              const existingPage = w.meta.pageId;
-              const targetPage = meta.pageId;
-              return !!existingPage && existingPage === targetPage;
-            }
-            return JSON.stringify(w.meta) === JSON.stringify(meta);
-          });
+      const existing =
+        force_new || supportsMultiOpen
+          ? undefined
+          : state.find((w) => {
+              if (w.type !== type) return false;
+              // For `note` windows, de-dup by pageId only. Other meta fields
+              // may differ (e.g. scroll offset) but the same page means the
+              // same window.
+              if (type === "note") {
+                const existingPage = w.meta.pageId;
+                const targetPage = meta.pageId;
+                return !!existingPage && existingPage === targetPage;
+              }
+              if (type === "guest_note") {
+                const existingPage = w.meta.guestPageId;
+                const targetPage = meta.guestPageId;
+                return !!existingPage && existingPage === targetPage;
+              }
+              return JSON.stringify(w.meta) === JSON.stringify(meta);
+            });
       if (existing) {
         // Just focus it — also un-minimize so clicking a minimized page
         // restores it (previously minimized notes were invisible after click).
         const top = maxZIndex(state) + 1;
         return state.map((w) =>
-          w.id === existing.id
-            ? { ...w, zIndex: top, minimized: false }
-            : w,
+          w.id === existing.id ? { ...w, zIndex: top, minimized: false } : w,
         );
       }
 
@@ -184,7 +202,12 @@ function windowReducer(
     case "RESTORE":
       return state.map((w) =>
         w.id === action.id
-          ? { ...w, minimized: false, maximized: false, zIndex: maxZIndex(state) + 1 }
+          ? {
+              ...w,
+              minimized: false,
+              maximized: false,
+              zIndex: maxZIndex(state) + 1,
+            }
           : w,
       );
 
@@ -206,7 +229,9 @@ function windowReducer(
 
     case "RENAME":
       return state.map((w) =>
-        w.id === action.id && w.title !== action.title ? { ...w, title: action.title } : w,
+        w.id === action.id && w.title !== action.title
+          ? { ...w, title: action.title }
+          : w,
       );
 
     case "RENAME_BY_META":
@@ -241,7 +266,11 @@ interface WindowManagerContextValue {
   openWindow: (payload: OpenWindowPayload) => void;
   closeWindow: (id: string) => void;
   renameWindow: (id: string, title: string) => void;
-  renameWindowByMeta: (metaKey: string, metaValue: string, title: string) => void;
+  renameWindowByMeta: (
+    metaKey: string,
+    metaValue: string,
+    title: string,
+  ) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
   restoreWindow: (id: string) => void;
@@ -315,8 +344,7 @@ export function WindowManagerProvider({
     [],
   );
   const moveWindow = useCallback(
-    (id: string, x: number, y: number) =>
-      dispatch({ kind: "MOVE", id, x, y }),
+    (id: string, x: number, y: number) => dispatch({ kind: "MOVE", id, x, y }),
     [],
   );
   const resizeWindow = useCallback(

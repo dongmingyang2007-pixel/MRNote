@@ -7,7 +7,7 @@ import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-s1-retrieval-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-s1-retrieval-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

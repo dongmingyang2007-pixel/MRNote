@@ -42,7 +42,7 @@ describe("useOnboardingStatus", () => {
   });
 
   it("does not reuse onboarding completion across users in the same browser", async () => {
-    document.cookie = "mingrun_workspace_id=ws-1; Path=/";
+    document.cookie = "mrnote_workspace_id=ws-1; Path=/";
     window.localStorage.setItem(
       getScopedOnboardingKey("user-1", "ws-1"),
       "1",
@@ -61,7 +61,7 @@ describe("useOnboardingStatus", () => {
   });
 
   it("persists onboarding completion to a user+workspace scoped key", async () => {
-    document.cookie = "mingrun_workspace_id=ws-9; Path=/";
+    document.cookie = "mrnote_workspace_id=ws-9; Path=/";
     apiGet.mockResolvedValue({
       id: "user-9",
       onboarding_completed_at: null,

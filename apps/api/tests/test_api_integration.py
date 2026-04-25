@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-api-tests-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-api-tests-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 
 DB_PATH = TEST_TEMP_DIR / "test_api.db"
@@ -40,6 +40,39 @@ config_module.settings = config_module.get_settings()
 import app.db.session as session_module
 
 importlib.reload(session_module)
+
+_APP_MODULES_TO_RELOAD = (
+    "app.core.deps",
+    "app.core.entitlements",
+    "app.core.notebook_access",
+    "app.routers.utils",
+    "app.routers.ai_actions",
+    "app.routers.attachments",
+    "app.routers.auth",
+    "app.routers.billing",
+    "app.routers.blocks",
+    "app.routers.chat",
+    "app.routers.datasets",
+    "app.routers.digest",
+    "app.routers.memory",
+    "app.routers.memory_stream",
+    "app.routers.model_catalog",
+    "app.routers.models",
+    "app.routers.notebook_ai",
+    "app.routers.notebooks",
+    "app.routers.pipeline",
+    "app.routers.proactive",
+    "app.routers.projects",
+    "app.routers.realtime",
+    "app.routers.search",
+    "app.routers.study",
+    "app.routers.study_ai",
+    "app.routers.study_decks",
+    "app.routers.uploads",
+)
+
+for module_name in _APP_MODULES_TO_RELOAD:
+    importlib.reload(importlib.import_module(module_name))
 
 import app.main as main_module
 
@@ -224,9 +257,9 @@ def upload_fixture(filename: str) -> tuple[bytes, str]:
     if suffix == ".pdf":
         return (b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n", "application/pdf")
     if suffix == ".txt":
-        return (b"hello from qihang\n", "text/plain")
+        return (b"hello from mrnote\n", "text/plain")
     if suffix == ".md":
-        return (b"# qihang\n", "text/markdown")
+        return (b"# mrnote\n", "text/markdown")
     if suffix == ".docx":
         return (b"PK\x03\x04\x14\x00\x00\x00\x08\x00", _DOCX_MEDIA_TYPE)
     raise AssertionError(f"Unsupported test fixture for {filename}")
@@ -464,8 +497,11 @@ def test_realtime_ws_ticket_allows_cookie_free_websocket_session(monkeypatch) ->
         "Ticket Voice",
     )
 
-    ticket_response = client.get("/api/v1/realtime/ws-ticket", headers=public_headers())
-    assert ticket_response.status_code == 200
+    ticket_response = client.get(
+        "/api/v1/realtime/ws-ticket",
+        headers={**public_headers(), "x-workspace-id": workspace_id},
+    )
+    assert ticket_response.status_code == 200, ticket_response.text
     ticket = ticket_response.json()["ticket"]
 
     shadow = TestClient(main_module.app)
@@ -502,7 +538,10 @@ def test_realtime_ws_ticket_is_single_use(monkeypatch) -> None:
         "Ticket Voice Once",
     )
 
-    ticket_response = client.get("/api/v1/realtime/ws-ticket", headers=public_headers())
+    ticket_response = client.get(
+        "/api/v1/realtime/ws-ticket",
+        headers={**public_headers(), "x-workspace-id": workspace_id},
+    )
     assert ticket_response.status_code == 200
     ticket = ticket_response.json()["ticket"]
 

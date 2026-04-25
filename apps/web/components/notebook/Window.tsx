@@ -34,6 +34,7 @@ import { clampWindowPosition } from "./window-bounds";
 
 const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   note: FileText,
+  guest_note: FileText,
   ai_panel: Sparkles,
   file: FileUp,
   memory: Brain,

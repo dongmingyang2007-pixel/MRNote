@@ -9,8 +9,8 @@
 这个仓库里同时存在三套命名，需要先看懂：
 
 - `MRAI`：仓库 / 工作区 / 顶层产品方案名称
-- `MRNote`：当前 Web 端面向用户的产品名称，前端文案和营销页主要使用它
-- `qihang` / `QIHANG`：后端 Python package、数据库名、Docker/环境变量、部分历史 bucket 和默认值仍在沿用这套旧命名
+- `MRNote`：当前 Web 端面向用户的产品名称，也是默认数据库、Docker/环境变量、bucket 和 Python package 命名
+- `Mingrun Tech / 铭润科技`：公司 / 法务主体名称，主要出现在法律页、邮件发件方和站点页脚
 
 它们不是三个不同系统，而是同一个代码库在不同阶段留下的命名层。
 
@@ -167,9 +167,10 @@
 
 ### 前端
 
-- Next.js `16.1.6`
-- React `18`
-- TypeScript
+- Next.js `16.2.4`
+- React `19.2`
+- TypeScript `5.9`
+- npm `11.12.1` / `package-lock.json`
 - next-intl
 - TipTap
 - Radix UI
@@ -211,10 +212,11 @@
 
 建议准备：
 
-- Node.js `>=20.9.0`
+- Node.js `24.15.0`
+- npm `11.12.1`
 - Python `>=3.11`
 - Docker
-- `uv` 可选，但强烈建议安装
+- `uv`
 
 先复制环境文件：
 
@@ -242,10 +244,10 @@ cp .env.example .env
 - `postgres` / `redis` / `minio` 通过 Docker Compose 启动
 - `api` / `worker` / `beat` / `web` 作为本地进程启动
 - API 使用 `uvicorn --reload`
-- Web 使用 `next dev --webpack`
+- Web 使用 `next dev`
 - 脚本会自动安装依赖：
-  - API 优先走 `uv`
-  - Web 当前默认走 `npm`，如果未来出现 `pnpm-lock.yaml` 会优先尝试 `pnpm`
+  - API 走 `uv sync --locked --extra dev`
+  - Web 走 `npm@11.12.1` + `npm ci`
 
 启动后默认地址：
 
@@ -276,24 +278,15 @@ cp .env.example .env
 
 ```bash
 cd apps/api
-uv venv .venv
-uv pip install --python .venv/bin/python -e '.[dev]'
+uv sync --locked --extra dev
 .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-如果没有 `uv`，也可以改用：
-
-```bash
-cd apps/api
-python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
 ```
 
 ### Worker
 
 ```bash
 cd apps/api
-.venv/bin/celery -A app.tasks.celery_app:celery_app worker -l INFO -Q celery,data,cleanup,inference
+.venv/bin/celery -A app.tasks.celery_app:celery_app worker -l INFO -Q celery,data,cleanup,inference,memory
 ```
 
 ### Beat
@@ -307,7 +300,8 @@ cd apps/api
 
 ```bash
 cd apps/web
-npm install
+npm --version  # should be 11.12.1
+npm ci
 npm run dev
 ```
 
@@ -337,8 +331,8 @@ cd apps/api
 
 compose 初始化脚本会创建：
 
-- `qihang-private`
-- `qihang-demo`
+- `mrnote-private`
+- `mrnote-demo`
 
 API 启动时还会按需确保这些 bucket 存在：
 
@@ -554,6 +548,6 @@ cd apps/api
 - 前台是 `MRNote` 形式的 notebook AI workspace
 - 中台是 notebooks / pages / search / study / digests / billing / auth
 - 底层长期能力仍然是 `Memory V3`
-- 基础设施和部分模型/数据集能力保留了早期 `qihang` 结构
+- 基础设施和后端 package 默认命名已经收敛到 `mrnote`
 
 如果你要在这个仓库继续开发，最稳妥的思路不是“再造一个新模块”，而是顺着现有 notebook-centric 架构，把页面、AI、study、search 和 memory 的闭环继续打通。

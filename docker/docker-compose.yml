@@ -2,7 +2,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg15}
     environment:
-      POSTGRES_DB: qihang
+      POSTGRES_DB: mrnote
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -10,7 +10,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d qihang"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mrnote"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -52,18 +52,18 @@ services:
       - ../.env
     environment:
       ENV: local
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/qihang
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/mrnote
       JWT_SECRET: local-development-only-jwt-secret-20260307
       JWT_EXPIRE_MINUTES: 60
       JWT_REFRESH_EXPIRE_DAYS: 14
       REDIS_URL: redis://redis:6379/0
-      REDIS_NAMESPACE: qihang
+      REDIS_NAMESPACE: mrnote
       S3_ENDPOINT: http://minio:9000
       S3_PRESIGN_ENDPOINT: http://localhost:9000
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
-      S3_PRIVATE_BUCKET: qihang-private
-      S3_DEMO_BUCKET: qihang-demo
+      S3_PRIVATE_BUCKET: mrnote-private
+      S3_DEMO_BUCKET: mrnote-demo
       S3_REGION: us-east-1
       COOKIE_DOMAIN: ""
       COOKIE_SECURE: "false"
@@ -107,15 +107,15 @@ services:
       - ../.env
     environment:
       ENV: local
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/qihang
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/mrnote
       JWT_SECRET: local-development-only-jwt-secret-20260307
       REDIS_URL: redis://redis:6379/0
-      REDIS_NAMESPACE: qihang
+      REDIS_NAMESPACE: mrnote
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
-      S3_PRIVATE_BUCKET: qihang-private
-      S3_DEMO_BUCKET: qihang-demo
+      S3_PRIVATE_BUCKET: mrnote-private
+      S3_DEMO_BUCKET: mrnote-demo
       S3_REGION: us-east-1
       DEMO_MODE: "true"
       DEMO_INFER_ENABLED: "false"
@@ -142,9 +142,9 @@ services:
       - ../.env
     environment:
       ENV: local
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/qihang
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/mrnote
       REDIS_URL: redis://redis:6379/0
-      REDIS_NAMESPACE: qihang
+      REDIS_NAMESPACE: mrnote
     depends_on:
       redis:
         condition: service_healthy
@@ -155,7 +155,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.web
       args:
-        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-bookworm-slim}
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:24.15.0-bookworm-slim}
         NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org/}
         NPM_CONFIG_FETCH_RETRIES: ${NPM_CONFIG_FETCH_RETRIES:-5}
         NPM_CONFIG_FETCH_RETRY_FACTOR: ${NPM_CONFIG_FETCH_RETRY_FACTOR:-2}
@@ -163,17 +163,17 @@ services:
         NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT: ${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}
         NPM_CONFIG_FETCH_TIMEOUT: ${NPM_CONFIG_FETCH_TIMEOUT:-300000}
         INTERNAL_API_BASE_URL: http://api:8000
-        QIHANG_LOCAL_STACK: "true"
+        MRNOTE_LOCAL_STACK: "true"
         NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
         NEXT_PUBLIC_ASSET_ORIGIN: http://localhost:9000
-        NEXT_PUBLIC_APP_NAME: QIHANG
+        NEXT_PUBLIC_APP_NAME: MRNote
         NEXT_PUBLIC_DEMO_MAX_IMAGE_MB: 10
     environment:
       INTERNAL_API_BASE_URL: http://api:8000
-      QIHANG_LOCAL_STACK: "true"
+      MRNOTE_LOCAL_STACK: "true"
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
       NEXT_PUBLIC_ASSET_ORIGIN: http://localhost:9000
-      NEXT_PUBLIC_APP_NAME: QIHANG
+      NEXT_PUBLIC_APP_NAME: MRNote
       NEXT_PUBLIC_DEMO_MAX_IMAGE_MB: 10
     depends_on:
       api:
@@ -196,9 +196,9 @@ services:
       until (/usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin) do
         echo 'waiting for minio...' && sleep 2;
       done;
-      /usr/bin/mc mb -p local/qihang-private || true;
-      /usr/bin/mc mb -p local/qihang-demo || true;
-      /usr/bin/mc ilm rule add --expire-days 1 local/qihang-demo || true;
+      /usr/bin/mc mb -p local/mrnote-private || true;
+      /usr/bin/mc mb -p local/mrnote-demo || true;
+      /usr/bin/mc ilm rule add --expire-days 1 local/mrnote-demo || true;
       exit 0;
       "
 

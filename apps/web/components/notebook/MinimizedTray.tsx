@@ -21,6 +21,7 @@ import type { WindowType } from "./WindowManager";
 
 const TRAY_ICONS: Record<WindowType, typeof FileText> = {
   note: FileText,
+  guest_note: FileText,
   ai_panel: Sparkles,
   file: FileUp,
   memory: Brain,
@@ -41,7 +42,10 @@ export default function MinimizedTray() {
   // mount avoids the "<div> inside <a>"-style mismatch that surfaces
   // when the surrounding Sidebar re-orders sibling nodes.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const t = useTranslations("console-notebooks");
   const windows = useWindows();

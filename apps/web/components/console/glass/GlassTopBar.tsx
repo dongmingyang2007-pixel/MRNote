@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
+import { ArrowRight } from "lucide-react";
 import { logout } from "@/lib/api";
 import { useMobileMenu } from "@/components/MobileMenuProvider";
 
@@ -11,7 +12,11 @@ function normalizeConsolePath(pathname: string): string {
   return withoutLocale.replace(/^\/workspace(?=\/|$)/, "/app");
 }
 
-export function GlassTopBar() {
+interface GlassTopBarProps {
+  guestMode?: boolean;
+}
+
+export function GlassTopBar({ guestMode = false }: GlassTopBarProps) {
   const locale = useLocale();
   const pathname = usePathname();
   const consolePath = normalizeConsolePath(pathname);
@@ -177,92 +182,130 @@ export function GlassTopBar() {
             {targetLabel}
           </Link>
 
-          <div ref={userMenuRef} style={{ position: "relative" }}>
-            <button
-              className="glass-topbar-avatar"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={userMenuOpen}
-              aria-label="User menu"
-              onClick={() => setUserMenuOpen((open) => !open)}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                background:
-                  "linear-gradient(135deg, var(--console-accent), var(--console-accent-secondary))",
-                border: "1px solid rgba(255,255,255,0.75)",
-                color: "#fff",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              U
-            </button>
-            {userMenuOpen ? (
-              <div
-                role="menu"
-                className="glass-topbar-user-menu"
+          {guestMode ? (
+            <>
+              <Link
+                href="/login?next=/app/notebooks"
                 style={{
-                  position: "absolute",
-                  top: "calc(100% + 10px)",
-                  right: 0,
-                  minWidth: 156,
-                  padding: 6,
-                  borderRadius: 14,
-                  border: "1px solid var(--console-border-subtle)",
-                  background: "rgba(255, 255, 255, 0.94)",
-                  boxShadow: "0 24px 60px rgba(15, 118, 110, 0.16)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  zIndex: 70,
+                  fontSize: 12,
+                  color: "var(--console-text-secondary)",
+                  textDecoration: "none",
+                  padding: "8px 10px",
+                  borderRadius: 999,
+                  fontWeight: 700,
                 }}
               >
-                <Link
-                  href="/app/settings"
-                  role="menuitem"
-                  onClick={() => setUserMenuOpen(false)}
+                {tCommon("user.login")}
+              </Link>
+              <Link
+                href="/register?next=/app/notebooks"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  minHeight: 36,
+                  borderRadius: 999,
+                  background: "var(--console-accent-gradient)",
+                  color: "#fff",
+                  padding: "0 14px",
+                  textDecoration: "none",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  boxShadow: "var(--console-shadow-primary)",
+                }}
+              >
+                {locale === "en" ? "Save with account" : "注册后保存"}
+                <ArrowRight size={14} />
+              </Link>
+            </>
+          ) : (
+            <div ref={userMenuRef} style={{ position: "relative" }}>
+              <button
+                className="glass-topbar-avatar"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                aria-label="User menu"
+                onClick={() => setUserMenuOpen((open) => !open)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background:
+                    "linear-gradient(135deg, var(--console-accent), var(--console-accent-secondary))",
+                  border: "1px solid rgba(255,255,255,0.75)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                U
+              </button>
+              {userMenuOpen ? (
+                <div
+                  role="menu"
+                  className="glass-topbar-user-menu"
                   style={{
-                    display: "block",
-                    borderRadius: 10,
-                    padding: "9px 10px",
-                    color: "var(--console-text-primary)",
-                    textDecoration: "none",
-                    fontSize: 13,
-                    fontWeight: 700,
+                    position: "absolute",
+                    top: "calc(100% + 10px)",
+                    right: 0,
+                    minWidth: 156,
+                    padding: 6,
+                    borderRadius: 14,
+                    border: "1px solid var(--console-border-subtle)",
+                    background: "rgba(255, 255, 255, 0.94)",
+                    boxShadow: "0 24px 60px rgba(15, 118, 110, 0.16)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    zIndex: 70,
                   }}
                 >
-                  {tCommon("user.settings")}
-                </Link>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    void logout();
-                  }}
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    borderRadius: 10,
-                    background: "transparent",
-                    padding: "9px 10px",
-                    color: "var(--console-text-secondary)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textAlign: "left",
-                  }}
-                >
-                  {tCommon("user.logout")}
-                </button>
-              </div>
-            ) : null}
-          </div>
+                  <Link
+                    href="/app/settings"
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                    style={{
+                      display: "block",
+                      borderRadius: 10,
+                      padding: "9px 10px",
+                      color: "var(--console-text-primary)",
+                      textDecoration: "none",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {tCommon("user.settings")}
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      void logout();
+                    }}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderRadius: 10,
+                      background: "transparent",
+                      padding: "9px 10px",
+                      color: "var(--console-text-secondary)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textAlign: "left",
+                    }}
+                  >
+                    {tCommon("user.logout")}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 

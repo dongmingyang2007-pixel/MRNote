@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(_ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
     env: str = "local"
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/qihang"
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/mrnote"
 
     jwt_secret: str = "CHANGE_ME"
     jwt_expire_minutes: int = 60
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     csrf_ttl_seconds: int = 3600
 
     redis_url: str = "redis://localhost:6379/0"
-    redis_namespace: str = "qihang"
+    redis_namespace: str = "mrnote"
     redis_connect_timeout_seconds: float = 1.0
     trust_forwarded_for: bool = False
 
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     s3_presign_endpoint: str = ""
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"
-    s3_private_bucket: str = "qihang-private"
+    s3_private_bucket: str = "mrnote-private"
     s3_ai_action_payloads_bucket: str = "ai-action-payloads"
     s3_notebook_attachments_bucket: str = "notebook-attachments"
     notebook_attachment_max_bytes: int = 50 * 1024 * 1024
@@ -136,15 +136,15 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = Field(default="", env="STRIPE_WEBHOOK_SECRET")
     stripe_publishable_key: str = Field(default="", env="STRIPE_PUBLISHABLE_KEY")
     stripe_billing_portal_return_url: str = Field(
-        default="http://localhost:3000/workspace/settings/billing",
+        default="http://localhost:3000/app/settings/billing",
         env="STRIPE_BILLING_PORTAL_RETURN_URL",
     )
     stripe_checkout_success_url: str = Field(
-        default="http://localhost:3000/workspace/settings/billing?status=success",
+        default="http://localhost:3000/app/settings/billing?status=success",
         env="STRIPE_CHECKOUT_SUCCESS_URL",
     )
     stripe_checkout_cancel_url: str = Field(
-        default="http://localhost:3000/workspace/settings/billing?status=cancel",
+        default="http://localhost:3000/app/settings/billing?status=cancel",
         env="STRIPE_CHECKOUT_CANCEL_URL",
     )
     stripe_price_pro_monthly: str = Field(

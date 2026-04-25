@@ -3,6 +3,10 @@
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { billingSDK } from "@/lib/billing-sdk";
+import {
+  clearPendingCheckoutPlan,
+  persistPendingCheckoutPlan,
+} from "@/lib/pending-checkout";
 
 export interface PlanDescriptor {
   id: "free" | "pro" | "power" | "team";
@@ -25,9 +29,11 @@ export default function PlanCard({ plan, cycle, isCurrent }: Props) {
   const handleUpgrade = async () => {
     if (plan.id === "free") return;
     try {
+      persistPendingCheckoutPlan({ plan: plan.id, cycle });
       const data = await billingSDK.startCheckout({ plan: plan.id, cycle });
       window.location.href = data.checkout_url;
     } catch (e) {
+      clearPendingCheckoutPlan();
       const err = e as { response?: { data?: { error?: { code?: string } } } };
       if (err?.response?.data?.error?.code === "billing_not_configured") {
         alert(t("plan.notConfigured"));

@@ -4,8 +4,9 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { Sparkles, Link2 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import { useTranslations } from "next-intl";
 import { useWindowManager } from "@/components/notebook/WindowManager";
 
 interface AIOutputAttrs {
@@ -24,7 +25,64 @@ function extractNotebookId(): string | null {
 
 function AIOutputBlockView(props: NodeViewProps) {
   const attrs = props.node.attrs as AIOutputAttrs;
+  const t = useTranslations("console-notebooks");
   const { openWindow } = useWindowManager();
+  const actionTypeLabels = useMemo<Record<string, string>>(
+    () => ({
+      ask: t("aiActions.actionType.ask"),
+      brainstorm: t("aiActions.actionType.brainstorm"),
+      expand: t("ai.actions.expand"),
+      explain: t("ai.actions.explain"),
+      explain_code: t("ai.actions.explainCode"),
+      explain_formula: t("ai.actions.explainFormula"),
+      fix_grammar: t("ai.actions.fixGrammar"),
+      rewrite: t("ai.actions.rewrite"),
+      study_qa: t("aiActions.actionType.studyQa"),
+      summarize: t("ai.actions.summarize"),
+      to_list: t("ai.actions.toList"),
+      translate_en: t("ai.actions.translateEn"),
+      translate_zh: t("ai.actions.translateZh"),
+      "study.ask": t("study.progress.actionType.study.ask"),
+      "study.flashcards": t("study.progress.actionType.study.flashcards"),
+      "study.quiz": t("study.progress.actionType.study.quiz"),
+      "study.review_card": t("study.progress.actionType.study.review_card"),
+    }),
+    [t],
+  );
+  const sourceTypeLabels = useMemo<Record<string, string>>(
+    () => ({
+      document_chunk: t("aiOutput.source.document"),
+      memory: t("aiOutput.source.memory"),
+      page: t("aiOutput.source.page"),
+      related_page: t("aiOutput.source.page"),
+      study_chunk: t("aiOutput.source.study"),
+    }),
+    [t],
+  );
+
+  const formatActionType = useCallback(
+    (actionType: string) => {
+      const normalized = actionType.trim();
+      return (
+        actionTypeLabels[normalized] ||
+        normalized.replace(/[._-]+/g, " ") ||
+        t("aiActions.actionType.unknown")
+      );
+    },
+    [actionTypeLabels, t],
+  );
+
+  const formatSourceType = useCallback(
+    (sourceType: string) => {
+      const normalized = sourceType.trim();
+      return (
+        sourceTypeLabels[normalized] ||
+        normalized.replace(/[._-]+/g, " ") ||
+        t("aiOutput.source.unknown")
+      );
+    },
+    [sourceTypeLabels, t],
+  );
 
   const handleViewTrace = useCallback(() => {
     if (!attrs.action_log_id) return;
@@ -52,7 +110,10 @@ function AIOutputBlockView(props: NodeViewProps) {
           title: source.title || "Page",
           meta: { notebookId, pageId: source.id },
         });
-      } else if (source.type === "document_chunk" || source.type === "study_chunk") {
+      } else if (
+        source.type === "document_chunk" ||
+        source.type === "study_chunk"
+      ) {
         openWindow({
           type: "study",
           title: source.title || "Study",
@@ -68,8 +129,8 @@ function AIOutputBlockView(props: NodeViewProps) {
       <div className="ai-output-block__header">
         <Sparkles size={14} />
         <span className="ai-output-block__badge">
-          AI
-          {attrs.action_type ? ` · ${attrs.action_type}` : ""}
+          {t("aiOutput.badge")}
+          {attrs.action_type ? ` · ${formatActionType(attrs.action_type)}` : ""}
           {attrs.model_id ? ` · ${attrs.model_id}` : ""}
         </span>
         {attrs.action_log_id && (
@@ -79,7 +140,7 @@ function AIOutputBlockView(props: NodeViewProps) {
             onClick={handleViewTrace}
             data-testid="ai-output-view-trace"
           >
-            View trace
+            {t("aiOutput.viewTrace")}
           </button>
         )}
       </div>
@@ -87,7 +148,7 @@ function AIOutputBlockView(props: NodeViewProps) {
         {attrs.content_markdown ? (
           <ReactMarkdown>{attrs.content_markdown}</ReactMarkdown>
         ) : (
-          <p className="ai-output-block__empty">(empty AI block — use AI Panel to fill)</p>
+          <p className="ai-output-block__empty">{t("aiOutput.empty")}</p>
         )}
       </div>
       {Array.isArray(attrs.sources) && attrs.sources.length > 0 && (
@@ -100,7 +161,7 @@ function AIOutputBlockView(props: NodeViewProps) {
               onClick={() => handleSourceClick(s)}
               data-testid="ai-output-source"
             >
-              <Link2 size={12} /> {s.type} · {s.title}
+              <Link2 size={12} /> {formatSourceType(s.type)} · {s.title}
             </button>
           ))}
         </div>
@@ -121,7 +182,9 @@ const AIOutputBlock = Node.create({
       action_type: { default: "" },
       action_log_id: { default: "" },
       model_id: { default: null as string | null },
-      sources: { default: [] as Array<{ type: string; id: string; title: string }> },
+      sources: {
+        default: [] as Array<{ type: string; id: string; title: string }>,
+      },
     };
   },
 
@@ -130,7 +193,10 @@ const AIOutputBlock = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "ai_output" })];
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { "data-type": "ai_output" }),
+    ];
   },
 
   addNodeView() {

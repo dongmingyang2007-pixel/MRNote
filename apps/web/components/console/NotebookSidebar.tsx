@@ -18,19 +18,32 @@ import {
   X,
 } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
-import { useWindowManager, useWindows } from "@/components/notebook/WindowManager";
+import {
+  useWindowManager,
+  useWindows,
+} from "@/components/notebook/WindowManager";
 import { useDigestUnreadCount } from "@/hooks/useDigestUnreadCount";
 import { useBillingMe } from "@/hooks/useBillingMe";
 import MinimizedTray from "@/components/notebook/MinimizedTray";
+import { requestGuestRegisterGate } from "@/components/console/GuestRegisterGate";
 import {
   NOTEBOOK_PAGES_CHANGED_EVENT,
   dispatchNotebookPagesChanged,
 } from "@/lib/notebook-events";
 
-type SideTab = "pages" | "ai_panel" | "memory" | "memory_graph" | "learn" | "digest" | "search" | null;
+type SideTab =
+  | "pages"
+  | "ai_panel"
+  | "memory"
+  | "memory_graph"
+  | "learn"
+  | "digest"
+  | "search"
+  | null;
 
 interface NotebookSidebarProps {
   notebookId: string;
+  guestMode?: boolean;
 }
 
 const TABS = [
@@ -43,7 +56,209 @@ const TABS = [
   { id: "digest" as const, Icon: Bell, key: "nav.digest" },
 ] as const;
 
-export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
+export default function NotebookSidebar(props: NotebookSidebarProps) {
+  if (props.guestMode) {
+    return <GuestNotebookSidebar notebookId={props.notebookId} />;
+  }
+  return <AuthenticatedNotebookSidebar notebookId={props.notebookId} />;
+}
+
+function GuestNotebookSidebar({ notebookId }: { notebookId: string }) {
+  const t = useTranslations("console");
+  const tn = useTranslations("console-notebooks");
+  const { openWindow } = useWindowManager();
+
+  const openDraft = useCallback(() => {
+    openWindow({
+      type: "guest_note",
+      title: tn("pages.untitled"),
+      meta: { notebookId, guestPageId: "guest-draft" },
+    });
+  }, [notebookId, openWindow, tn]);
+
+  return (
+    <div style={{ display: "flex", height: "100%" }}>
+      <nav
+        className="glass-sidebar glass-sidebar--collapsed"
+        style={{
+          position: "fixed",
+          top: 56,
+          left: 0,
+          bottom: 0,
+          width: 56,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: 12,
+          paddingBottom: 12,
+          gap: 4,
+          flexShrink: 0,
+          zIndex: 40,
+        }}
+      >
+        <Link
+          href="/app/notebooks"
+          prefetch={false}
+          className="glass-sidebar-nav-item"
+          title={t("nav.back")}
+          aria-label={t("nav.back")}
+          style={{ marginBottom: 12 }}
+        >
+          <ArrowLeft size={20} strokeWidth={1.8} />
+        </Link>
+
+        <button
+          type="button"
+          className="glass-sidebar-nav-item is-active"
+          title={t("nav.pages")}
+          aria-label={t("nav.pages")}
+          onClick={openDraft}
+        >
+          <FileText size={20} strokeWidth={2} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.search")}
+          aria-label={t("nav.search")}
+          onClick={() => requestGuestRegisterGate("search")}
+        >
+          <Search size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.aiPanel")}
+          aria-label={t("nav.aiPanel")}
+          onClick={() => requestGuestRegisterGate("ai")}
+        >
+          <Sparkles size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.memory")}
+          aria-label={t("nav.memory")}
+          onClick={() => requestGuestRegisterGate("memory")}
+        >
+          <Brain size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.memoryGraph")}
+          aria-label={t("nav.memoryGraph")}
+          onClick={() => requestGuestRegisterGate("memory")}
+        >
+          <Network size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.learn")}
+          aria-label={t("nav.learn")}
+          onClick={() => requestGuestRegisterGate("upload")}
+        >
+          <BookOpen size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.digest")}
+          aria-label={t("nav.digest")}
+          onClick={() => requestGuestRegisterGate("digest")}
+        >
+          <Bell size={20} strokeWidth={1.8} />
+        </button>
+
+        <div style={{ flex: 1 }} />
+        <MinimizedTray />
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.notebookSettings")}
+          aria-label={t("nav.notebookSettings")}
+          onClick={() => requestGuestRegisterGate("settings")}
+        >
+          <Settings size={20} strokeWidth={1.8} />
+        </button>
+      </nav>
+
+      <div
+        className="notebook-side-panel"
+        style={{
+          width: 240,
+          borderRight: "1px solid var(--console-border, rgba(255,255,255,0.7))",
+          background: "rgba(255, 255, 255, 0.55)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          overflowY: "auto",
+          padding: "16px 12px",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: "0.6875rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            color: "var(--console-text-muted, #6b7280)",
+            marginBottom: 12,
+          }}
+        >
+          {t("nav.pages")}
+        </div>
+        <button
+          type="button"
+          onClick={openDraft}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 8,
+            color: "var(--console-text-primary, #1a1a2e)",
+            background: "rgba(13, 148, 136, 0.1)",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+            fontWeight: 700,
+            width: "100%",
+            textAlign: "left",
+          }}
+        >
+          <FileText size={14} />
+          {tn("pages.untitled")}
+        </button>
+        <button
+          type="button"
+          onClick={() => requestGuestRegisterGate("newPage")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: 6,
+            color: "var(--console-accent, #0D9488)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+            marginTop: 8,
+            width: "100%",
+            textAlign: "left",
+          }}
+        >
+          + {tn("pages.create")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AuthenticatedNotebookSidebar({ notebookId }: NotebookSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("console");
   const tn = useTranslations("console-notebooks");
@@ -55,11 +270,17 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
     try {
       const v = localStorage.getItem("mrai.notebook-sidebar.collapsed");
       if (v === "1") setCollapsed(true);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
   const setCollapsedPersist = useCallback((next: boolean) => {
     setCollapsed(next);
-    try { localStorage.setItem("mrai.notebook-sidebar.collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("mrai.notebook-sidebar.collapsed", next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
   }, []);
   const [pages, setPages] = useState<
     Array<{ id: string; title: string; page_type: string }>
@@ -120,10 +341,14 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
     if (creatingPage) return;
     setCreatingPage(true);
     try {
-      const page = await apiPost<{ id: string; title: string; page_type: string }>(
-        `/api/v1/notebooks/${notebookId}/pages`,
-        { title: "", page_type: "document" },
-      );
+      const page = await apiPost<{
+        id: string;
+        title: string;
+        page_type: string;
+      }>(`/api/v1/notebooks/${notebookId}/pages`, {
+        title: "",
+        page_type: "document",
+      });
       setPages((prev) => [page, ...prev]);
       dispatchNotebookPagesChanged(notebookId);
       openWindow({
@@ -150,9 +375,7 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
       if (tabId === "ai_panel") {
         // Spec §4.7 — find the focused, non-minimized note window.
         const focusedNote = [...windows]
-          .filter(
-            (w) => w.type === "note" && !w.minimized && w.meta.pageId,
-          )
+          .filter((w) => w.type === "note" && !w.minimized && w.meta.pageId)
           .sort((a, b) => b.zIndex - a.zIndex)[0];
         if (!focusedNote) {
           console.warn(
@@ -218,9 +441,13 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         aria-label={t("nav.expandSidebar")}
         style={{
           position: "fixed",
-          top: 64, left: 8,
-          width: 32, height: 32,
-          display: "flex", alignItems: "center", justifyContent: "center",
+          top: 64,
+          left: 8,
+          width: 32,
+          height: 32,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(12px)",
           border: "1px solid rgba(15,42,45,0.1)",
@@ -348,10 +575,15 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
             <span
               data-testid="sidebar-plan-badge"
               style={{
-                position: "absolute", bottom: 4, right: 4,
-                background: "var(--console-accent, #0D9488)", color: "#fff",
-                fontSize: 8, fontWeight: 700,
-                padding: "1px 4px", borderRadius: 3,
+                position: "absolute",
+                bottom: 4,
+                right: 4,
+                background: "var(--console-accent, #0D9488)",
+                color: "#fff",
+                fontSize: 8,
+                fontWeight: 700,
+                padding: "1px 4px",
+                borderRadius: 3,
                 lineHeight: 1,
               }}
             >
@@ -378,7 +610,9 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
         >
           <div
             style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               fontSize: "0.6875rem",
               fontWeight: 600,
               textTransform: "uppercase",
@@ -395,9 +629,15 @@ export default function NotebookSidebar({ notebookId }: NotebookSidebarProps) {
               title={tn("sidebar.closePanel")}
               aria-label={tn("sidebar.closePanel")}
               style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 22, height: 22, border: "none", borderRadius: 6,
-                background: "transparent", cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                border: "none",
+                borderRadius: 6,
+                background: "transparent",
+                cursor: "pointer",
                 color: "var(--console-text-muted, #6b7280)",
               }}
             >

@@ -9,9 +9,6 @@ import {
   Clock3,
   FileText,
   Plus,
-  Settings,
-  Sparkles,
-  type LucideIcon,
 } from "lucide-react";
 
 import {
@@ -30,37 +27,8 @@ import {
   formatNotebookDate,
   getNotebookHomeMetrics,
   type FocusItem,
-  type HomeAIAction,
   type HomePageItem,
 } from "@/lib/notebook-home";
-
-type DashboardActivityItem =
-  | {
-      kind: "page";
-      id: string;
-      timestamp: string;
-      title: string;
-      label: string;
-      preview: string;
-      page: HomePageItem;
-    }
-  | {
-      kind: "ai";
-      id: string;
-      timestamp: string;
-      title: string;
-      label: string;
-      preview: string;
-      action: HomeAIAction;
-    };
-
-interface CommandCard {
-  key: string;
-  title: string;
-  body: string;
-  Icon: LucideIcon;
-  onClick: () => void;
-}
 
 export function WorkspaceDashboard() {
   const t = useTranslations("console-notebooks");
@@ -71,7 +39,39 @@ export function WorkspaceDashboard() {
 
   const metrics = useMemo(() => getNotebookHomeMetrics(home), [home]);
   const primaryPage = home.continue_writing[0] ?? home.recent_pages[0] ?? null;
-  const primaryAsset = home.recent_study_assets[0] ?? null;
+  const recentPages = home.recent_pages.slice(0, 5);
+  const studyAssets = home.recent_study_assets.slice(0, 4);
+  const focusItems = useMemo(
+    () =>
+      [
+        ...home.work_themes.map((item) => ({
+          item,
+          source: "work",
+        })),
+        ...home.long_term_focus.map((item) => ({
+          item,
+          source: "focus",
+        })),
+      ].slice(0, 5),
+    [home.long_term_focus, home.work_themes],
+  );
+
+  const lastUpdatedAt = useMemo(() => {
+    const candidates = [
+      ...home.recent_pages.map(
+        (page) => page.last_edited_at || page.updated_at,
+      ),
+      ...home.recent_study_assets.map((asset) => asset.created_at),
+      ...home.ai_today.recent_actions.map((action) => action.created_at),
+      ...home.notebooks.map((notebook) => notebook.updated_at),
+    ].filter((value): value is string => Boolean(value));
+
+    return (
+      candidates.sort(
+        (a, b) => new Date(b).getTime() - new Date(a).getTime(),
+      )[0] ?? null
+    );
+  }, [home]);
 
   const openCreateDialog = useCallback(() => {
     setCreateOpen(true);
@@ -87,21 +87,6 @@ export function WorkspaceDashboard() {
   const openNotebook = useCallback(
     (notebookId: string) => {
       router.push(`/app/notebooks/${notebookId}`);
-    },
-    [router],
-  );
-
-  const openAction = useCallback(
-    (action: HomeAIAction) => {
-      if (action.notebook_id && action.page_id) {
-        router.push(
-          `/app/notebooks/${action.notebook_id}?openPage=${action.page_id}`,
-        );
-        return;
-      }
-      if (action.notebook_id) {
-        router.push(`/app/notebooks/${action.notebook_id}`);
-      }
     },
     [router],
   );
@@ -133,79 +118,33 @@ export function WorkspaceDashboard() {
     [creating, reload, router, t],
   );
 
-  const activityItems = useMemo<DashboardActivityItem[]>(() => {
-    const pages = home.recent_pages.map((page) => ({
-      kind: "page" as const,
-      id: page.id,
-      timestamp: page.last_edited_at || page.updated_at,
-      title: page.title || t("pages.untitled"),
-      label: `${t("dashboard.activityPageLabel")} · ${
-        page.notebook_title || t("home.noNotebook")
-      }`,
-      preview: page.plain_text_preview,
-      page,
-    }));
-    const actions = home.ai_today.recent_actions.map((action) => ({
-      kind: "ai" as const,
-      id: action.id,
-      timestamp: action.created_at,
-      title: action.page_title || action.action_type,
-      label: `${t("dashboard.activityAiLabel")} · ${
-        action.notebook_title || t("home.noNotebook")
-      }`,
-      preview: action.output_summary || action.action_type,
-      action,
-    }));
-
-    return [...pages, ...actions]
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      )
-      .slice(0, 7);
-  }, [home, t]);
-
-  const commandCards = useMemo<CommandCard[]>(
-    () => [
-      {
-        key: "library",
-        title: t("dashboard.commands.libraryTitle"),
-        body: t("dashboard.commands.libraryBody"),
-        Icon: BookOpen,
-        onClick: () => router.push("/app/notebooks"),
-      },
-      {
-        key: "settings",
-        title: t("dashboard.commands.settingsTitle"),
-        body: t("dashboard.commands.settingsBody"),
-        Icon: Settings,
-        onClick: () => router.push("/app/settings"),
-      },
-      {
-        key: "new",
-        title: t("dashboard.commands.newTitle"),
-        body: t("dashboard.commands.newBody"),
-        Icon: Plus,
-        onClick: openCreateDialog,
-      },
-    ],
-    [openCreateDialog, router, t],
-  );
-
   const renderFocusSummary = (item: FocusItem) =>
     t("home.focus.summary", {
       pages: item.page_count,
       assets: item.study_asset_count,
       ai: item.ai_action_count,
     });
+  const lastUpdatedLabel = lastUpdatedAt
+    ? formatNotebookDate(lastUpdatedAt)
+    : t("dashboard.noRecentUpdate");
 
   return (
     <PageTransition>
       <div className="console-page-shell workspace-dashboard-page">
         <ConsolePageHeader
+          className="workspace-today-bar"
           eyebrow={t("dashboard.kicker")}
           title={t("dashboard.title")}
-          description={t("dashboard.description")}
+          description={
+            <span className="workspace-today-copy">
+              <span>{t("dashboard.description")}</span>
+              <span>
+                {loading
+                  ? t("common.loading")
+                  : t("dashboard.lastUpdated", { value: lastUpdatedLabel })}
+              </span>
+            </span>
+          }
           metrics={[
             { label: t("home.metrics.notebooks"), value: metrics.notebooks },
             { label: t("home.metrics.pages"), value: metrics.pages },
@@ -238,228 +177,193 @@ export function WorkspaceDashboard() {
           }
         />
 
-        <div className="workspace-overview-grid">
-          <section className="workspace-panel workspace-priority-panel">
-            <div className="workspace-panel-copy">
-              <p className="workspace-panel-kicker">
-                {t("dashboard.nowKicker")}
-              </p>
-              <h2>{t("dashboard.nowTitle")}</h2>
-              <p>{t("dashboard.nowBody")}</p>
-            </div>
-
-            {loading ? (
-              <div className="workspace-empty-inline">
-                {t("common.loading")}
-              </div>
-            ) : primaryPage ? (
-              <button
-                type="button"
-                className="workspace-priority-card"
-                onClick={() => openPage(primaryPage)}
-              >
-                <span className="workspace-icon-badge">
-                  <FileText size={19} />
-                </span>
-                <span className="workspace-priority-copy">
-                  <strong>{primaryPage.title || t("pages.untitled")}</strong>
-                  <span>
-                    {primaryPage.notebook_title || t("home.noNotebook")}
-                  </span>
-                  {primaryPage.plain_text_preview ? (
-                    <small>{primaryPage.plain_text_preview}</small>
-                  ) : null}
-                </span>
-                <ArrowRight size={18} />
-              </button>
-            ) : (
-              <ConsoleEmptyState
-                icon={<Sparkles size={24} />}
-                title={t("home.onboarding.title")}
-                description={t("home.onboarding.body")}
-                action={
-                  <GlassButton
-                    type="button"
-                    onClick={openCreateDialog}
-                    disabled={creating}
-                  >
-                    <Plus size={16} />
-                    {t("home.onboarding.cta")}
-                  </GlassButton>
-                }
-              />
-            )}
-          </section>
-
-          <div className="workspace-command-grid">
-            {commandCards.map((card) => (
-              <button
-                key={card.key}
-                type="button"
-                className="workspace-command-card"
-                onClick={card.onClick}
-              >
-                <span className="workspace-icon-badge">
-                  <card.Icon size={18} />
-                </span>
-                <span>
-                  <strong>{card.title}</strong>
-                  <small>{card.body}</small>
-                </span>
-                <ArrowRight size={16} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="workspace-main-grid">
-          <section className="workspace-panel">
-            <div className="workspace-panel-header">
-              <div className="workspace-panel-copy">
-                <p className="workspace-panel-kicker">
-                  {t("dashboard.activityKicker")}
-                </p>
-                <h2>{t("dashboard.activityTitle")}</h2>
-                <p>{t("dashboard.activityBody")}</p>
-              </div>
-            </div>
-
-            <div className="workspace-activity-list">
-              {activityItems.map((item) => (
-                <button
-                  key={`${item.kind}-${item.id}`}
-                  type="button"
-                  className="workspace-activity-item"
-                  onClick={() =>
-                    item.kind === "page"
-                      ? openPage(item.page)
-                      : openAction(item.action)
-                  }
-                >
-                  <span
-                    className={`workspace-activity-kind is-${item.kind}`}
-                    aria-hidden="true"
-                  >
-                    {item.kind === "page" ? (
-                      <FileText size={15} />
-                    ) : (
-                      <Sparkles size={15} />
-                    )}
-                  </span>
-                  <span className="workspace-activity-copy">
-                    <strong>{item.title}</strong>
-                    <span>
-                      {item.label} · {formatNotebookDate(item.timestamp)}
-                    </span>
-                    {item.preview ? <small>{item.preview}</small> : null}
-                  </span>
-                </button>
-              ))}
-              {!loading && activityItems.length === 0 ? (
-                <div className="workspace-empty-inline">
-                  {t("dashboard.emptyActivity")}
+        <div className="workspace-workbench-grid">
+          <main className="workspace-content-column">
+            <section className="workspace-panel workspace-continue-panel">
+              <div className="workspace-panel-header workspace-panel-header--tight">
+                <div className="workspace-panel-copy">
+                  <p className="workspace-panel-kicker">
+                    {t("dashboard.nowKicker")}
+                  </p>
+                  <h2>{t("dashboard.nowTitle")}</h2>
+                  <p>{t("dashboard.nowBody")}</p>
                 </div>
-              ) : null}
-            </div>
-          </section>
+              </div>
 
-          <aside className="workspace-rail-stack">
-            <section className="workspace-panel workspace-compact-panel">
-              <div className="workspace-panel-copy">
-                <p className="workspace-panel-kicker">
-                  {t("dashboard.todayKicker")}
-                </p>
-                <h2>{t("dashboard.todayTitle")}</h2>
-                <p>
-                  {t("home.sections.aiTodayBody", {
-                    count: home.ai_today.actions_today,
-                  })}
-                </p>
-              </div>
-              <div className="workspace-pill-row">
-                {home.ai_today.top_action_types.length > 0 ? (
-                  home.ai_today.top_action_types.map((item) => (
-                    <span key={item.action_type} className="workspace-pill">
-                      {item.action_type}
-                      <strong>{item.count}</strong>
-                    </span>
-                  ))
-                ) : (
-                  <span className="workspace-empty-inline">
-                    {t("aiActions.empty")}
-                  </span>
-                )}
-              </div>
-            </section>
-
-            <section className="workspace-panel workspace-compact-panel">
-              <div className="workspace-panel-copy">
-                <p className="workspace-panel-kicker">
-                  {t("dashboard.studyKicker")}
-                </p>
-                <h2>{t("home.sections.study")}</h2>
-              </div>
-              {primaryAsset ? (
+              {loading ? (
+                <div className="workspace-empty-inline">
+                  {t("common.loading")}
+                </div>
+              ) : primaryPage ? (
                 <button
                   type="button"
-                  className="workspace-focus-item"
-                  onClick={() => openNotebook(primaryAsset.notebook_id)}
+                  className="workspace-priority-card workspace-priority-card--compact"
+                  onClick={() => openPage(primaryPage)}
                 >
-                  <Brain size={16} />
-                  <span>
-                    <strong>{primaryAsset.title}</strong>
-                    <small>
-                      {primaryAsset.notebook_title || t("home.noNotebook")} ·{" "}
-                      {t("study.assets.chunks", {
-                        count: primaryAsset.total_chunks,
-                      })}
-                    </small>
+                  <span className="workspace-icon-badge">
+                    <FileText size={18} />
                   </span>
+                  <span className="workspace-priority-copy">
+                    <strong>{primaryPage.title || t("pages.untitled")}</strong>
+                    <span>
+                      {primaryPage.notebook_title || t("home.noNotebook")} ·{" "}
+                      {formatNotebookDate(
+                        primaryPage.last_edited_at || primaryPage.updated_at,
+                      )}
+                    </span>
+                    {primaryPage.plain_text_preview ? (
+                      <small>{primaryPage.plain_text_preview}</small>
+                    ) : null}
+                  </span>
+                  <ArrowRight size={17} />
                 </button>
               ) : (
-                <div className="workspace-empty-inline">
-                  {t("home.empty.study")}
-                </div>
+                <ConsoleEmptyState
+                  icon={<FileText size={22} />}
+                  title={t("home.onboarding.title")}
+                  description={t("home.onboarding.body")}
+                  action={
+                    <GlassButton
+                      type="button"
+                      onClick={openCreateDialog}
+                      disabled={creating}
+                    >
+                      <Plus size={16} />
+                      {t("home.onboarding.cta")}
+                    </GlassButton>
+                  }
+                />
               )}
             </section>
 
+            <section className="workspace-panel workspace-list-panel">
+              <div className="workspace-panel-header workspace-panel-header--tight">
+                <div className="workspace-panel-copy">
+                  <p className="workspace-panel-kicker">
+                    {t("dashboard.recentPagesKicker")}
+                  </p>
+                  <h2>{t("dashboard.recentPagesTitle")}</h2>
+                  <p>{t("dashboard.recentPagesBody")}</p>
+                </div>
+              </div>
+
+              <div className="workspace-row-list">
+                {loading ? (
+                  <div className="workspace-empty-inline">
+                    {t("common.loading")}
+                  </div>
+                ) : (
+                  recentPages.map((page) => (
+                    <button
+                      key={page.id}
+                      type="button"
+                      className="workspace-row-item"
+                      onClick={() => openPage(page)}
+                    >
+                      <span className="workspace-row-icon">
+                        <FileText size={15} />
+                      </span>
+                      <span className="workspace-row-copy">
+                        <strong>{page.title || t("pages.untitled")}</strong>
+                        <small>
+                          {page.notebook_title || t("home.noNotebook")} ·{" "}
+                          {formatNotebookDate(
+                            page.last_edited_at || page.updated_at,
+                          )}
+                        </small>
+                        {page.plain_text_preview ? (
+                          <span>{page.plain_text_preview}</span>
+                        ) : null}
+                      </span>
+                      <ArrowRight size={15} />
+                    </button>
+                  ))
+                )}
+                {!loading && recentPages.length === 0 ? (
+                  <div className="workspace-empty-inline">
+                    {t("home.empty.pages")}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="workspace-panel workspace-list-panel">
+              <div className="workspace-panel-header workspace-panel-header--tight">
+                <div className="workspace-panel-copy">
+                  <p className="workspace-panel-kicker">
+                    {t("dashboard.studyKicker")}
+                  </p>
+                  <h2>{t("home.sections.study")}</h2>
+                  <p>{t("dashboard.recentAssetsBody")}</p>
+                </div>
+              </div>
+
+              <div className="workspace-row-list">
+                {loading ? (
+                  <div className="workspace-empty-inline">
+                    {t("common.loading")}
+                  </div>
+                ) : (
+                  studyAssets.map((asset) => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      className="workspace-row-item"
+                      onClick={() => openNotebook(asset.notebook_id)}
+                    >
+                      <span className="workspace-row-icon">
+                        <Brain size={15} />
+                      </span>
+                      <span className="workspace-row-copy">
+                        <strong>{asset.title}</strong>
+                        <small>
+                          {asset.notebook_title || t("home.noNotebook")} ·{" "}
+                          {t("study.assets.chunks", {
+                            count: asset.total_chunks,
+                          })}{" "}
+                          · {formatNotebookDate(asset.created_at)}
+                        </small>
+                      </span>
+                      <ArrowRight size={15} />
+                    </button>
+                  ))
+                )}
+                {!loading && studyAssets.length === 0 ? (
+                  <div className="workspace-empty-inline">
+                    {t("home.empty.study")}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </main>
+
+          <aside className="workspace-rail-stack workspace-context-rail">
             <section className="workspace-panel workspace-compact-panel">
               <div className="workspace-panel-copy">
                 <p className="workspace-panel-kicker">
-                  {t("home.sections.themes")}
+                  {t("dashboard.contextKicker")}
                 </p>
                 <h2>{t("dashboard.focusTitle")}</h2>
+                <p>{t("dashboard.contextBody")}</p>
               </div>
               <div className="workspace-focus-list">
-                {[
-                  ...home.work_themes.map((item) => ({
-                    item,
-                    source: "work",
-                  })),
-                  ...home.long_term_focus.map((item) => ({
-                    item,
-                    source: "focus",
-                  })),
-                ]
-                  .slice(0, 4)
-                  .map(({ item, source }, index) => (
-                    <button
-                      key={`${source}-${item.notebook_id}-${index}`}
-                      type="button"
-                      className="workspace-focus-item"
-                      onClick={() => openNotebook(item.notebook_id)}
-                    >
-                      <Clock3 size={16} />
-                      <span>
-                        <strong>
-                          {item.notebook_title || t("notebooks.untitled")}
-                        </strong>
-                        <small>{renderFocusSummary(item)}</small>
-                      </span>
-                    </button>
-                  ))}
-                {!loading &&
-                home.work_themes.length + home.long_term_focus.length === 0 ? (
+                {focusItems.map(({ item, source }, index) => (
+                  <button
+                    key={`${source}-${item.notebook_id}-${index}`}
+                    type="button"
+                    className="workspace-focus-item"
+                    onClick={() => openNotebook(item.notebook_id)}
+                  >
+                    <Clock3 size={16} />
+                    <span>
+                      <strong>
+                        {item.notebook_title || t("notebooks.untitled")}
+                      </strong>
+                      <small>{renderFocusSummary(item)}</small>
+                    </span>
+                  </button>
+                ))}
+                {!loading && focusItems.length === 0 ? (
                   <div className="workspace-empty-inline">
                     {t("dashboard.emptyFocus")}
                   </div>

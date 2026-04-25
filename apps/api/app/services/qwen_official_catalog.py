@@ -787,7 +787,8 @@ def _fetch(url: str) -> str:
 def generate_snapshot(source_payloads: Mapping[str, str] | None = None) -> dict[str, Any]:
     payloads = {key: value for key, value in (source_payloads or {}).items()}
     for key, url in SOURCE_URLS.items():
-        payloads.setdefault(key, _fetch(url))
+        if key not in payloads:
+            payloads[key] = _fetch(url)
 
     raw_models = _parse_models_page(payloads["models"])
     _augment_from_chat_api(payloads["chat_api"], raw_models)

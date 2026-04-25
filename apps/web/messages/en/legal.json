@@ -48,7 +48,7 @@
   "privacy.s7.title": "Cookies",
   "privacy.s7.body": "We use a small number of essential cookies to run the service:",
   "privacy.s7.item1": "auth_state — keeps you logged in across browser sessions.",
-  "privacy.s7.item2": "mingrun_workspace_id — remembers which workspace you last used.",
+  "privacy.s7.item2": "mrnote_workspace_id — remembers which workspace you last used.",
   "privacy.s7.notrack": "We do not use third-party tracking cookies or advertising pixels. We don't install anything from Facebook, Google, or similar ad networks.",
 
   "privacy.s8.title": "Contact and Updates",

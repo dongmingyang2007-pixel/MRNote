@@ -1,5 +1,8 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
+
 import { ProjectProvider } from "@/lib/ProjectContext";
 import { DevModeProvider } from "@/lib/developer-mode";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
@@ -14,8 +17,57 @@ import { GlassTopBar, GlassStatusBar } from "@/components/console/glass";
 import UpgradeModal from "@/components/billing/UpgradeModal";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import DigestDrawer from "@/components/app/DigestDrawer";
+import {
+  getAuthStateClientSnapshot,
+  getAuthStateHydrationSnapshot,
+  subscribeAuthState,
+} from "@/lib/auth-state";
 
-export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
+function isPublicDraftPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  const normalizedPath = pathname.replace(/\/$/, "");
+  return (
+    normalizedPath === "/app/notebooks" ||
+    normalizedPath === "/app/notebooks/guest" ||
+    normalizedPath === "/en/app/notebooks" ||
+    normalizedPath === "/en/app/notebooks/guest" ||
+    normalizedPath === "/zh/app/notebooks" ||
+    normalizedPath === "/zh/app/notebooks/guest" ||
+    normalizedPath === "/workspace/notebooks" ||
+    normalizedPath === "/workspace/notebooks/guest" ||
+    normalizedPath === "/en/workspace/notebooks" ||
+    normalizedPath === "/en/workspace/notebooks/guest" ||
+    normalizedPath === "/zh/workspace/notebooks" ||
+    normalizedPath === "/zh/workspace/notebooks/guest"
+  );
+}
+
+export default function ConsoleLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const isAuthenticated = useSyncExternalStore(
+    subscribeAuthState,
+    getAuthStateClientSnapshot,
+    getAuthStateHydrationSnapshot,
+  );
+
+  if (isPublicDraftPath(pathname) && isAuthenticated !== true) {
+    return (
+      <MobileMenuProvider>
+        <ModalProvider>
+          <div data-theme="console">
+            <GlassTopBar guestMode />
+            <ConsoleShell>{children}</ConsoleShell>
+            <Toaster />
+          </div>
+        </ModalProvider>
+      </MobileMenuProvider>
+    );
+  }
+
   return (
     <ProjectProvider>
       <DevModeProvider>
@@ -24,9 +76,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
             <div data-theme="console">
               <DigestDrawer />
               <GlassTopBar />
-              <ConsoleShell>
-                {children}
-              </ConsoleShell>
+              <ConsoleShell>{children}</ConsoleShell>
               <GlassStatusBar />
               <UnifiedMobileNav />
               <MobileTabBar />

@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
+import { requestGuestRegisterGate } from "@/components/console/GuestRegisterGate";
 import {
   NOTEBOOK_PAGES_CHANGED_EVENT,
   dispatchNotebookPagesChanged,
@@ -58,6 +59,13 @@ const NoteWindow = dynamic(() => import("./contents/NoteWindow"), {
   ssr: false,
   loading: WindowContentFallback,
 });
+const GuestLocalNoteWindow = dynamic(
+  () => import("./contents/GuestLocalNoteWindow"),
+  {
+    ssr: false,
+    loading: WindowContentFallback,
+  },
+);
 const AIPanelWindow = dynamic(() => import("./contents/AIPanelWindow"), {
   ssr: false,
   loading: WindowContentFallback,
@@ -98,6 +106,9 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
   switch (windowState.type) {
     case "note":
       return <NoteWindow pageId={windowState.meta.pageId || ""} />;
+
+    case "guest_note":
+      return <GuestLocalNoteWindow />;
 
     case "ai_panel":
       return (
@@ -312,6 +323,7 @@ function EmptyState() {
   const t = useTranslations("console-notebooks");
   const params = useParams<{ notebookId?: string }>();
   const notebookId = params?.notebookId || "";
+  const isGuestNotebook = notebookId === "guest";
   const { openWindow } = useWindowManager();
   const [firstPage, setFirstPage] = useState<{
     id: string;
@@ -320,6 +332,7 @@ function EmptyState() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
+    if (isGuestNotebook) return;
     if (!notebookId) return;
     let cancelled = false;
     void apiGet<{
@@ -336,7 +349,15 @@ function EmptyState() {
     return () => {
       cancelled = true;
     };
-  }, [notebookId]);
+  }, [isGuestNotebook, notebookId]);
+
+  const handleOpenGuestDraft = useCallback(() => {
+    openWindow({
+      type: "guest_note",
+      title: t("pages.untitled"),
+      meta: { notebookId, guestPageId: "guest-draft" },
+    });
+  }, [notebookId, openWindow, t]);
 
   const handleOpenFirstPage = useCallback(() => {
     if (!firstPage || !notebookId) return;
@@ -350,6 +371,10 @@ function EmptyState() {
   }, [firstPage, notebookId, openWindow, t]);
 
   const handleCreatePage = useCallback(async () => {
+    if (isGuestNotebook) {
+      requestGuestRegisterGate("newPage");
+      return;
+    }
     if (!notebookId || creating) return;
     setCreating(true);
     try {
@@ -372,15 +397,19 @@ function EmptyState() {
     } finally {
       setCreating(false);
     }
-  }, [notebookId, creating, openWindow, t]);
+  }, [isGuestNotebook, notebookId, creating, openWindow, t]);
 
   const handleSearch = useCallback(() => {
+    if (isGuestNotebook) {
+      requestGuestRegisterGate("search");
+      return;
+    }
     openWindow({
       type: "search",
       title: t("search.windowTitle"),
       meta: { notebookId },
     });
-  }, [notebookId, openWindow, t]);
+  }, [isGuestNotebook, notebookId, openWindow, t]);
 
   return (
     <div className="wm-empty-state">
@@ -405,6 +434,17 @@ function EmptyState() {
             >
               <FileText size={14} />
               {t("canvas.openRecentPage")}
+            </button>
+          ) : null}
+          {isGuestNotebook ? (
+            <button
+              type="button"
+              className="wm-empty-state-action wm-empty-state-action--primary"
+              onClick={handleOpenGuestDraft}
+              data-testid="empty-canvas-open-guest-draft"
+            >
+              <FileText size={14} />
+              {t("canvas.createFirstPage")}
             </button>
           ) : null}
           <button

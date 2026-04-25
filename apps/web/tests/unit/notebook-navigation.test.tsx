@@ -25,8 +25,15 @@ vi.mock("@/lib/api", () => ({
   apiDelete: vi.fn(),
 }));
 
+vi.mock("@/lib/auth-state", () => ({
+  subscribeAuthState: () => () => {},
+  getAuthStateClientSnapshot: () => true,
+  getAuthStateHydrationSnapshot: () => true,
+}));
+
 vi.mock("@/components/notebook/WindowManager", () => ({
   useWindowManager: () => ({ openWindow }),
+  useWindows: () => [],
 }));
 
 vi.mock("@/components/notebook/WindowCanvas", () => ({

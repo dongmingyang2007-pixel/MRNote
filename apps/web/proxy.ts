@@ -85,6 +85,14 @@ function isProtectedConsolePath(pathname: string): boolean {
   return pathname === "/app" || pathname.startsWith("/app/");
 }
 
+function isPublicNotebookDraftPath(pathname: string): boolean {
+  const normalizedPath = pathname.replace(/\/$/, "");
+  return (
+    normalizedPath === "/app/notebooks" ||
+    normalizedPath === "/app/notebooks/guest"
+  );
+}
+
 function isDiscoverPath(pathname: string): boolean {
   return pathname === "/app/discover" || pathname.startsWith("/app/discover/");
 }
@@ -163,7 +171,11 @@ export function proxy(request: NextRequest) {
   }
 
   // Auth check
-  if (isProtectedConsolePath(strippedPath) && !hasAccessToken) {
+  if (
+    isProtectedConsolePath(strippedPath) &&
+    !isPublicNotebookDraftPath(strippedPath) &&
+    !hasAccessToken
+  ) {
     const loginUrl = new URL(`${localePrefix}/login`, request.url);
     loginUrl.searchParams.set(
       "next",
@@ -177,7 +189,9 @@ export function proxy(request: NextRequest) {
   }
 
   const isLocalHost = isLoopbackHost(request.nextUrl.hostname);
-  const isLocalStack = process.env.QIHANG_LOCAL_STACK === "true";
+  const isLocalStack =
+    process.env.MRNOTE_LOCAL_STACK === "true" ||
+    process.env.QIHANG_LOCAL_STACK === "true";
   const useNonceCsp =
     process.env.NODE_ENV === "production" && !isLocalHost && !isLocalStack;
   let nonce: string | null = null;

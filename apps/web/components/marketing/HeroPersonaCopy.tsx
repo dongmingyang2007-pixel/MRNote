@@ -1,7 +1,13 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { ArrowRight, BookOpen, Network, PlayCircle, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Network,
+  PlayCircle,
+  Sparkles,
+} from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import HeroCanvasStage from "./HeroCanvasStage";
 
@@ -52,39 +58,35 @@ const PERSONAS: Persona[] = [
     labelEn: "Student",
     icon: <BookOpen size={13} aria-hidden="true" />,
     focusWin: "study",
-    kickerZh: "为备考、论文、组会同时打开的你",
-    kickerEn: "For when exams, papers, and lab meetings all pile up",
+    kickerZh: "先把要写的东西放下来",
+    kickerEn: "Start with the page in front of you",
     titleZh: (
       <>
-        把整学期的<em>讲义、AI 问答与复习</em>，
+        讲义、摘录、复习题，
         <br />
-        留在<mark>一块永不关闭的画布上</mark>。
+        先放进<mark>同一张 notebook</mark>。
       </>
     ),
     titleEn: (
       <>
-        Keep a whole semester of <em>lectures, AI Q&amp;A, and revision</em>
+        Lectures, quotes, and revision notes
         <br />
-        on <mark>one canvas that never closes</mark>.
+        belong in <mark>one notebook</mark>.
       </>
     ),
     subZh:
-      "把教材、笔记、flashcard 和对助教的 AI 追问拖到同一块 notebook 上。考前一天打开，就是上周学到哪儿。",
+      "先写一页，试试手感。等你想保存、上传资料或整理复习卡时，再创建账号也来得及。",
     subEn:
-      "Drop textbooks, notes, flashcards, and AI follow-ups onto one notebook. The day before the exam, it opens exactly where last week left off.",
-    ctaPrimaryZh: "学生免费开始",
-    ctaPrimaryEn: "Start free for students",
-    ctaSecondaryZh: "看 2 分钟学生演示",
-    ctaSecondaryEn: "Watch 2-min student demo",
-    footZh: [
-      "edu 邮箱永久 Pro 免费",
-      "期末自动生成复习包",
-      "flashcards 按 FSRS 自动排期",
-    ],
+      "Write a page first and see how it feels. Create an account only when you want to save, upload sources, or build review cards.",
+    ctaPrimaryZh: "先写一页",
+    ctaPrimaryEn: "Start writing",
+    ctaSecondaryZh: "看看工作台",
+    ctaSecondaryEn: "See the workspace",
+    footZh: ["试写无需注册", "保存时再创建账号", "资料和复习卡留到工作区"],
     footEn: [
-      ".edu email unlocks Pro free",
-      "Auto-built revision packs at term end",
-      "FSRS-scheduled flashcards",
+      "No account to start",
+      "Sign up when saving",
+      "Sources and cards stay in workspace",
     ],
   },
   {
@@ -93,39 +95,35 @@ const PERSONAS: Persona[] = [
     labelEn: "Researcher",
     icon: <Network size={13} aria-hidden="true" />,
     focusWin: "memory",
-    kickerZh: "给需要跨论文、跨实验串线的你",
-    kickerEn: "For threading ideas across papers and experiments",
+    kickerZh: "写论文之前，先把线索摆好",
+    kickerEn: "Lay out the thread before the paper",
     titleZh: (
       <>
-        让论文、实验与灵感
+        论文、实验和灵感，
         <br />
-        在<mark>同一张记忆图谱</mark>里<em>自己长出边</em>。
+        应该<mark>能互相找到</mark>。
       </>
     ),
     titleEn: (
       <>
-        Let papers, experiments, and ideas
+        Papers, experiments, and ideas
         <br />
-        <em>grow their own edges</em> on <mark>one memory graph</mark>.
+        should <mark>find each other</mark>.
       </>
     ),
     subZh:
-      "PDF、实验记录、对 AI 的追问都可追溯到源页面。每一个结论都挂着 evidence，下周再读也认得出自己的思路。",
+      "先在草稿页里写下问题和证据。等需要保存、引用来源或打开图谱时，再把它放进你的账号。",
     subEn:
-      "PDFs, lab notes, and AI follow-ups all trace back to the source page. Every conclusion is attached to evidence so next week still feels like your own thinking.",
-    ctaPrimaryZh: "研究者免费开始",
-    ctaPrimaryEn: "Start free as a researcher",
-    ctaSecondaryZh: "阅读 Memory V3 白皮书",
-    ctaSecondaryEn: "Read the Memory V3 paper",
-    footZh: [
-      "支持 PDF / LaTeX / Zotero",
-      "引用级 evidence 追溯",
-      "私有部署可选",
-    ],
+      "Start by writing the question and evidence. When you need to save, cite sources, or open the graph, move it into your account.",
+    ctaPrimaryZh: "打开一张草稿",
+    ctaPrimaryEn: "Open a draft",
+    ctaSecondaryZh: "看图谱怎么工作",
+    ctaSecondaryEn: "See how the graph works",
+    footZh: ["草稿先在浏览器里", "保存后进入 notebook", "图谱按来源继续生长"],
     footEn: [
-      "PDF · LaTeX · Zotero support",
-      "Citation-level evidence trail",
-      "Self-hosting available",
+      "Draft locally first",
+      "Save into a notebook",
+      "Graph grows from sources",
     ],
   },
   {
@@ -134,39 +132,35 @@ const PERSONAS: Persona[] = [
     labelEn: "Product Manager",
     icon: <Sparkles size={13} aria-hidden="true" />,
     focusWin: "ai",
-    kickerZh: "给一天同时推进 6 个方向的你",
-    kickerEn: "For the PM pushing six directions at once",
+    kickerZh: "少一点仪式感，多一点继续写",
+    kickerEn: "Less ceremony. More getting back to the page.",
     titleZh: (
       <>
-        别再一遍遍给新会议
+        打开工作台，
         <br />
-        <em>重述上下文</em>。<mark>让 notebook 替你记得。</mark>
+        直接写下一步。
       </>
     ),
     titleEn: (
       <>
-        Stop <em>re-explaining context</em>
+        Open the workspace
         <br />
-        at every new meeting. <mark>Let the notebook remember.</mark>
+        and write the next thing.
       </>
     ),
     subZh:
-      "spec、用研、反馈和 AI 摘要都留在这个 project 的 notebook。新成员打开，5 分钟就能读懂这事为什么这么定。",
+      "MRNote 不急着要你注册。先写页面；等你要保存、上传资料、让助手整理或继续到下一次，再登录。",
     subEn:
-      "Specs, user research, feedback, and AI summaries all live on the project notebook. A new teammate opens it and understands why it's shaped this way in five minutes.",
-    ctaPrimaryZh: "免费开始，无需信用卡",
-    ctaPrimaryEn: "Start free — no credit card",
-    ctaSecondaryZh: "看 PM 工作流演示",
-    ctaSecondaryEn: "Watch the PM workflow demo",
-    footZh: [
-      "spec / research / RFC 统一画布",
-      "每日 digest 防止跟进遗漏",
-      "团队共享上下文",
-    ],
+      "MRNote does not ask for signup first. Write the page; log in when you want to save, upload sources, clean it up, or come back later.",
+    ctaPrimaryZh: "先写一页",
+    ctaPrimaryEn: "Start writing",
+    ctaSecondaryZh: "看看真实界面",
+    ctaSecondaryEn: "See the real interface",
+    footZh: ["不用注册也能试写", "保存时注册", "工作区接住后续动作"],
     footEn: [
-      "Spec · research · RFC on one canvas",
-      "Daily digest catches every follow-up",
-      "Shared team context",
+      "Try writing without signup",
+      "Sign up when saving",
+      "Workspace holds the follow-up",
     ],
   },
 ];
@@ -226,7 +220,7 @@ export default function HeroPersonaCopy({ locale }: { locale: "zh" | "en" }) {
 
       <div className="marketing-hero__cta-row">
         <Link
-          href="/register"
+          href="/app/notebooks"
           className="marketing-btn marketing-btn--primary marketing-btn--lg"
         >
           {ctaPrimary}

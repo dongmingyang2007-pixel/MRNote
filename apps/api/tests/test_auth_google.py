@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-api-oauth-tests-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-api-oauth-tests-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 
 DB_PATH = TEST_TEMP_DIR / "test_oauth.db"

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeState } from "./useRealtimeVoiceBase";
 import type { RealtimeCameraDevice } from "./useRealtimeCamera";
 
-const CAMERA_STORAGE_KEY = "qihang.synthetic.camera.deviceId";
+const CAMERA_STORAGE_KEY = "mrnote.synthetic.camera.deviceId";
 const FRAME_INTERVAL_MS = 1000;
 const MAX_FRAME_BYTES = 500 * 1024;
 const FRAME_MAX_LONG_EDGES = [1280, 960, 720];

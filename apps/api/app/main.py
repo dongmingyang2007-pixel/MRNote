@@ -21,7 +21,7 @@ from app.core.errors import (
 from app.core.http_security import SecurityHeadersMiddleware
 from app.core.request_id import RequestIDMiddleware
 from app.db.base import Base
-from app.db.session import SessionLocal, engine
+from app.db import session as session_module
 from app.routers import (
     ai_actions, attachments, auth, billing, blocks, chat, datasets, digest,
     memory, memory_stream, model_catalog, models, notebook_ai, notebooks,
@@ -38,10 +38,11 @@ from app.services.runtime_state import runtime_state
 
 
 def _should_use_direct_schema_bootstrap() -> bool:
-    return settings.env == "test" or engine.dialect.name == "sqlite"
+    return settings.env == "test" or session_module.engine.dialect.name == "sqlite"
 
 
 def _run_direct_schema_bootstrap() -> None:
+    engine = session_module.engine
     Base.metadata.create_all(bind=engine)
     ensure_project_chat_mode_schema(engine)
     ensure_embedding_schema(engine)
@@ -65,7 +66,7 @@ async def lifespan(_: FastAPI):
         _run_direct_schema_bootstrap()
     else:
         _run_alembic_upgrades()
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         seed_model_catalog(db)
     finally:
@@ -110,7 +111,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="QIHANG API",
+    title="MRNote API",
     version="0.1.0",
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",

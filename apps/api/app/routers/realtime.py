@@ -23,7 +23,7 @@ from app.core.deps import (
 )
 from app.core.entitlements import require_entitlement, resolve_entitlement
 from app.core.errors import ApiError
-from app.db.session import SessionLocal
+from app.db import session as session_module
 from app.models import Conversation, Membership, Message, ModelCatalog, Project, User
 from app.schemas.conversation import MessageOut
 from app.services.context_loader import (
@@ -82,7 +82,7 @@ async def _ensure_voice_entitlement(ws: WebSocket, *, workspace_id: str) -> bool
     HTTP routes. Returns False after sending error + closing the ws so
     callers should return immediately.
     """
-    db: Session = SessionLocal()
+    db: Session = session_module.SessionLocal()
     try:
         allowed = resolve_entitlement(db, workspace_id=workspace_id, key="voice.enabled")
     finally:
@@ -133,7 +133,7 @@ async def _authenticate_websocket(ws: WebSocket) -> tuple[User, dict[str, object
                 elif isinstance(ticket_user_id, str) and ticket_user_id:
                     # No cookie: authenticate the user directly via the
                     # ticket record instead of a JWT.
-                    db: Session = SessionLocal()
+                    db: Session = session_module.SessionLocal()
                     try:
                         user = db.get(User, ticket_user_id)
                     finally:
@@ -144,7 +144,7 @@ async def _authenticate_websocket(ws: WebSocket) -> tuple[User, dict[str, object
     if not access_token:
         raise ApiError("unauthorized", "Authentication required", status_code=401)
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         return authenticate_access_token(db=db, access_token=access_token)
     finally:
@@ -329,7 +329,7 @@ async def _refresh_realtime_context_and_request_response(
     system_prompt: str | None = None
     session._active_turn_retrieval_trace = None
     try:
-        db: Session = SessionLocal()
+        db: Session = session_module.SessionLocal()
         try:
             system_prompt = await _build_realtime_context(
                 db,
@@ -439,7 +439,7 @@ async def _post_turn_tasks(
         return
 
     # Persist messages to database
-    db_save: Session = SessionLocal()
+    db_save: Session = session_module.SessionLocal()
     assistant_payload: dict[str, object] | None = None
     user_payload: dict[str, object] | None = None
     try:
@@ -509,7 +509,7 @@ async def _post_turn_tasks(
     # memories, summaries, and relevant linked documents.
     if session.turn_count % settings.realtime_rag_refresh_turns == 0:
         try:
-            db: Session = SessionLocal()
+            db: Session = session_module.SessionLocal()
             try:
                 system_prompt = await _build_realtime_context(
                     db,
@@ -553,7 +553,7 @@ async def _persist_composed_turn(
     if not user_text or not ai_text:
         return
 
-    db: Session = SessionLocal()
+    db: Session = session_module.SessionLocal()
     user_payload: dict[str, object] | None = None
     assistant_payload: dict[str, object] | None = None
     try:
@@ -763,7 +763,7 @@ async def realtime_dictate(ws: WebSocket) -> None:
             await ws.close()
             return
 
-        db: Session = SessionLocal()
+        db: Session = session_module.SessionLocal()
         try:
             conversation, _membership = _load_authorized_conversation(
                 db,
@@ -949,7 +949,7 @@ async def realtime_voice(ws: WebSocket) -> None:
             await ws.close()
             return
 
-        db: Session = SessionLocal()
+        db: Session = session_module.SessionLocal()
         try:
             conversation, membership = _load_authorized_conversation(
                 db,
@@ -1279,7 +1279,7 @@ async def composed_realtime_voice(ws: WebSocket) -> None:
             await ws.close()
             return
 
-        db: Session = SessionLocal()
+        db: Session = session_module.SessionLocal()
         try:
             conversation, membership = _load_authorized_conversation(
                 db,

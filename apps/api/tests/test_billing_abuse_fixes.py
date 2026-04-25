@@ -20,7 +20,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-a4-abuse-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-a4-abuse-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

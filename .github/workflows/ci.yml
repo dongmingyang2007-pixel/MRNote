@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  web:
+    name: Web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Verify npm
+        run: test "$(npm --version)" = "11.12.1"
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.18"
+
+      - name: Install API dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Run pytest
+        run: uv run pytest
+
+  docker:
+    name: Docker builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f docker/Dockerfile.api .
+
+      - name: Build worker image
+        run: docker build -f docker/Dockerfile.worker .
+
+      - name: Build web image
+        run: docker build -f docker/Dockerfile.web .

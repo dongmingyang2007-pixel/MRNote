@@ -28,6 +28,14 @@ export function getAuthStateServerSnapshot(): boolean {
   return false;
 }
 
+export function getAuthStateClientSnapshot(): boolean | null {
+  return getAuthStateSnapshot();
+}
+
+export function getAuthStateHydrationSnapshot(): boolean | null {
+  return null;
+}
+
 export function setAuthState(maxAgeSeconds?: number): void {
   writeCookie(AUTH_STATE_COOKIE, "1", maxAgeSeconds);
   emitAuthStateChange();

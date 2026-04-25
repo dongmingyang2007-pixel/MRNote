@@ -822,7 +822,7 @@ async function setAuthenticatedCookies(page: Page, workspaceId: string): Promise
         sameSite: "Lax" as const,
       },
       {
-        name: "mingrun_workspace_id",
+        name: "mrnote_workspace_id",
         value: workspaceId,
         url: origin,
         sameSite: "Lax" as const,

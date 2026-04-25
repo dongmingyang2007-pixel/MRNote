@@ -59,21 +59,39 @@ export default function MobileNav({
 
       {open && (
         <div className="marketing-mobile-panel" role="dialog" aria-modal="true">
-          <Link href="/#features" className="marketing-mobile-panel__link" onClick={close}>
+          <Link
+            href="/#features"
+            className="marketing-mobile-panel__link"
+            onClick={close}
+          >
             {featuresLabel}
           </Link>
-          <Link href="/pricing" className="marketing-mobile-panel__link" onClick={close}>
+          <Link
+            href="/pricing"
+            className="marketing-mobile-panel__link"
+            onClick={close}
+          >
             {pricingLabel}
           </Link>
           {loggedIn ? (
             <>
-              <Link href="/app/settings" className="marketing-mobile-panel__link" onClick={close}>
+              <Link
+                href="/app/settings"
+                className="marketing-mobile-panel__link"
+                onClick={close}
+              >
                 {settingsLabel}
               </Link>
               <button
                 type="button"
                 className="marketing-mobile-panel__link"
-                style={{ background: "none", border: "none", textAlign: "left", cursor: "pointer", width: "100%" }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
                 onClick={() => {
                   close();
                   void logout();
@@ -92,11 +110,15 @@ export default function MobileNav({
             </>
           ) : (
             <>
-              <Link href="/login" className="marketing-mobile-panel__link" onClick={close}>
+              <Link
+                href="/login"
+                className="marketing-mobile-panel__link"
+                onClick={close}
+              >
                 {loginLabel}
               </Link>
               <Link
-                href="/register"
+                href="/app/notebooks"
                 className="marketing-btn marketing-btn--primary marketing-btn--lg"
                 style={{ marginTop: 16 }}
                 onClick={close}

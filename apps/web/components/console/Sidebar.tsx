@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -20,7 +21,7 @@ import {
 interface NavItem {
   href: string;
   key: string;
-  Icon: () => JSX.Element;
+  Icon: () => ReactElement;
 }
 
 /* ── Icons ── */

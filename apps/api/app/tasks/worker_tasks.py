@@ -10,7 +10,7 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.session import SessionLocal
+from app.db import session as session_module
 from app.models import (
     Conversation,
     DataItem,
@@ -79,7 +79,7 @@ def delete_object(*, bucket_name: str, object_key: str) -> None:
 
 @celery_app.task(name="app.tasks.worker_tasks.process_data_item")
 def process_data_item(data_item_id: str) -> None:
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     write_run = None
     try:
         item = db.get(DataItem, data_item_id)
@@ -140,7 +140,7 @@ def cleanup_pending_upload_session(
 ) -> None:
     session = runtime_state.get_json(f"upload:{upload_id}", "session")
     clear_session = True
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         resolved_data_item_id = data_item_id
         resolved_object_key = object_key
@@ -196,7 +196,7 @@ def cleanup_pending_model_artifact_upload(
             resolved_object_key = session_object_key
 
     if resolved_object_key:
-        db = SessionLocal()
+        db = session_module.SessionLocal()
         try:
             live_reference = (
                 db.query(ModelVersion.id)
@@ -228,7 +228,7 @@ def cleanup_pending_model_artifact_upload(
 
 @celery_app.task(name="app.tasks.worker_tasks.cleanup_deleted_dataset")
 def cleanup_deleted_dataset(dataset_id: str) -> None:
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         dataset = db.get(Dataset, dataset_id)
         if not dataset:
@@ -251,7 +251,7 @@ def cleanup_deleted_dataset(dataset_id: str) -> None:
 
 @celery_app.task(name="app.tasks.worker_tasks.cleanup_deleted_project")
 def cleanup_deleted_project(project_id: str) -> None:
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         project = db.get(Project, project_id)
         if not project:
@@ -283,7 +283,7 @@ def purge_stale_records() -> None:
 
     Scheduled via Celery Beat (daily at 03:00).
     """
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         # 1. Purge old audit logs
         cutoff_audit = sql_text(
@@ -363,7 +363,7 @@ def index_data_item(
 
     logger.info("index_data_item started: item_id=%s, filename=%s", data_item_id, filename)
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         item = db.get(DataItem, data_item_id)
         if not item or item.deleted_at is not None:
@@ -547,7 +547,7 @@ def _persist_memory_extraction_failure(
     if not assistant_message_id and not run_id:
         return
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         if run_id:
             run = db.get(MemoryWriteRun, run_id)
@@ -685,7 +685,8 @@ def run_memory_extraction(
 
     write_run_id: str | None = None
     learning_run_id: str | None = None
-    db = SessionLocal()
+    previous_pipeline_hooks: dict[str, object] | None = None
+    db = session_module.SessionLocal()
     try:
         project = (
             db.query(Project)
@@ -794,15 +795,23 @@ def run_memory_extraction(
             source_user_msg = None
 
         # ── Delegate to unified pipeline ──
-        unified_memory_pipeline.triage_memory = triage_memory
-        unified_memory_pipeline._resolve_concept_parent = _resolve_concept_parent
-        unified_memory_pipeline._extract_facts_heuristically = _extract_facts_heuristically
-        unified_memory_pipeline._plan_concept_parent = _plan_concept_parent
-        unified_memory_pipeline._validate_append_parent = _validate_append_parent
-        unified_memory_pipeline._upsert_auto_memory_edge = _upsert_auto_memory_edge
-        unified_memory_pipeline._extract_subject_hint = _extract_subject_hint
-        unified_memory_pipeline._is_deictic_subject_reference = _is_deictic_subject_reference
-        unified_memory_pipeline._canonicalize_fact_text_for_storage = _canonicalize_fact_text_for_storage
+        pipeline_hooks = {
+            "triage_memory": triage_memory,
+            "_resolve_concept_parent": _resolve_concept_parent,
+            "_extract_facts_heuristically": _extract_facts_heuristically,
+            "_plan_concept_parent": _plan_concept_parent,
+            "_validate_append_parent": _validate_append_parent,
+            "_upsert_auto_memory_edge": _upsert_auto_memory_edge,
+            "_extract_subject_hint": _extract_subject_hint,
+            "_is_deictic_subject_reference": _is_deictic_subject_reference,
+            "_canonicalize_fact_text_for_storage": _canonicalize_fact_text_for_storage,
+        }
+        previous_pipeline_hooks = {
+            name: getattr(unified_memory_pipeline, name)
+            for name in pipeline_hooks
+        }
+        for name, hook in pipeline_hooks.items():
+            setattr(unified_memory_pipeline, name, hook)
 
         conversation_meta = conversation.metadata_json if isinstance(conversation.metadata_json, dict) else {}
         pipeline_input = PipelineInput(
@@ -993,6 +1002,9 @@ def run_memory_extraction(
         )
         return False
     finally:
+        if previous_pipeline_hooks is not None:
+            for name, hook in previous_pipeline_hooks.items():
+                setattr(unified_memory_pipeline, name, hook)
         db.close()
 
 
@@ -1025,7 +1037,7 @@ def extract_notebook_page_memories(
     """Run the full UnifiedMemoryPipeline on a notebook page (async Celery task)."""
     from app.services.note_memory_bridge import extract_memory_candidates_sync
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         extraction = extract_memory_candidates_sync(
             db,
@@ -1057,7 +1069,7 @@ def ingest_study_asset_task(asset_id: str, workspace_id: str, user_id: str) -> N
     from app.models import StudyAsset
     from app.services.study_pipeline import ingest_study_asset
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         asyncio.run(
             ingest_study_asset(db, asset_id=asset_id, workspace_id=workspace_id, user_id=user_id),
@@ -1081,7 +1093,7 @@ def repair_project_memory_graph_task(
 ) -> None:
     from app.services.memory_graph_repair import repair_project_memory_graph
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         repair_summary = repair_project_memory_graph(
             db,
@@ -1119,7 +1131,7 @@ def compact_project_memories_task(
 ) -> None:
     from app.services.memory_compaction import compact_project_memories
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         compaction_summary = asyncio.run(
             compact_project_memories(
@@ -1272,7 +1284,7 @@ def _run_project_memory_sleep_cycle(
     from app.services.memory_compaction import compact_project_memories
     from app.services.memory_graph_repair import repair_project_memory_graph
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         compaction_summary = asyncio.run(
             compact_project_memories(
@@ -1383,7 +1395,7 @@ def run_project_memory_sleep_cycle_task(
 
 @celery_app.task(name="app.tasks.worker_tasks.run_nightly_memory_sleep_cycle")
 def run_nightly_memory_sleep_cycle_task() -> dict[str, int]:
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         projects = (
             db.query(Project.workspace_id, Project.id)
@@ -1417,7 +1429,7 @@ def backfill_project_memory_v2_task(
 ) -> dict[str, int]:
     from app.services.memory_backfill import backfill_project_memory_v2
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         summary = backfill_project_memory_v2(
             db,
@@ -1462,7 +1474,7 @@ def process_whiteboard_memories(
 
     from app.services.whiteboard_service import extract_whiteboard_memories
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         result = asyncio.run(
             extract_whiteboard_memories(
@@ -1510,7 +1522,7 @@ def process_study_confusion_task(
         SourceContext,
     )
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         card = db.get(StudyCard, card_id)
         if not card:
@@ -1594,7 +1606,7 @@ def generate_proactive_digest_task(
     period_start = _dt.fromisoformat(period_start_iso.replace("Z", "+00:00"))
     period_end = _dt.fromisoformat(period_end_iso.replace("Z", "+00:00"))
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         project = db.get(Project, project_id)
         if not project:
@@ -1778,7 +1790,7 @@ def _active_project_ids(window_hours: int) -> list[str]:
     """Return project IDs that had any AIActionLog OR NotebookPage edit
     in the last ``window_hours`` hours."""
     from app.models import AIActionLog, Notebook, NotebookPage
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         threshold = datetime.now(timezone.utc) - timedelta(hours=window_hours)
         subq_action = (
@@ -1836,7 +1848,7 @@ def generate_weekly_reflections_task() -> dict[str, int]:
 def _projects_with_memory_matching(predicate) -> list[str]:
     """Return project IDs where at least one active memory satisfies predicate."""
     from app.models import Memory
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         memories = (
             db.query(Memory)
@@ -1909,7 +1921,7 @@ def backfill_notebook_page_embeddings_task(
     import asyncio as _asyncio
     from app.models import Notebook, NotebookPage
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         q = (
             db.query(NotebookPage)
@@ -1967,7 +1979,7 @@ def regenerate_notebook_page_embedding_task(page_id: str) -> str | None:
     import asyncio as _asyncio
     from app.models import Notebook, NotebookPage
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         page = db.get(NotebookPage, page_id)
         if page is None:
@@ -2013,7 +2025,7 @@ def expire_one_time_subscriptions_task() -> dict[str, int]:
     from app.core.entitlements import refresh_workspace_entitlements
     from app.models import Subscription, Workspace
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         now = datetime.now(timezone.utc)
         all_rows = (
@@ -2076,7 +2088,7 @@ def notebook_page_plaintext_task(page_id: str) -> dict[str, object]:
     from app.models import NotebookPage
     from app.routers.notebooks import extract_plain_text
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         page = db.get(NotebookPage, page_id)
         if page is None:
@@ -2104,7 +2116,7 @@ def notebook_page_summary_task(page_id: str) -> dict[str, object]:
     """
     from app.models import NotebookPage
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         page = db.get(NotebookPage, page_id)
         if page is None:
@@ -2164,7 +2176,7 @@ def unified_memory_extract_task(
         PipelineInput, SourceContext, run_pipeline,
     )
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         pipeline_input = PipelineInput(
             source_type=source_type,  # type: ignore[arg-type]
@@ -2216,7 +2228,7 @@ def notebook_page_memory_link_task(page_id: str) -> dict[str, object]:
         NotebookSelectionMemoryLink,
     )
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         page = db.get(NotebookPage, page_id)
         if page is None:
@@ -2268,7 +2280,7 @@ def notebook_page_relevance_refresh_task(page_id: str) -> dict[str, object]:
     from app.models import Notebook, NotebookPage
     from app.services.related_pages import get_related
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         page = db.get(NotebookPage, page_id)
         if page is None:
@@ -2338,7 +2350,7 @@ def document_memory_extract_task(
         PipelineInput, SourceContext, run_pipeline,
     )
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         chunk = db.get(StudyChunk, chunk_id)
         if chunk is None:
@@ -2421,7 +2433,7 @@ def study_asset_deck_generate_task(
     import uuid
     from app.models import Notebook, StudyAsset, StudyCard, StudyChunk, StudyDeck
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         asset = db.get(StudyAsset, asset_id)
         if asset is None:
@@ -2493,7 +2505,7 @@ def study_asset_memory_extract_task(
     """
     from app.models import StudyChunk
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         chunk_ids = [
             row[0]
@@ -2536,7 +2548,7 @@ def study_asset_review_recommendation_task(
 
     from app.models import Notebook, StudyCard, StudyDeck
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         horizon = datetime.now(timezone.utc) + _td(hours=24)
         due = (
@@ -2574,7 +2586,7 @@ def usage_rollup_task() -> dict[str, object]:
 
     from app.models import AIUsageEvent
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         # Simple monthly rollup — group by workspace_id.
         since = datetime.now(timezone.utc) - timedelta(days=30)
@@ -2610,7 +2622,7 @@ def subscription_sync_repair_task() -> dict[str, object]:
     """
     from app.models import Subscription
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         now = datetime.now(timezone.utc)
         rows = (
@@ -2682,7 +2694,7 @@ def daily_digest_generate_task(user_id: str | None = None) -> dict[str, object]:
     from app.services.digest_email import send_daily_digest_email
     from app.services.digest_generation import generate_daily_digest_payload
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         now_utc = datetime.now(timezone.utc)
         forced = user_id is not None
@@ -2780,7 +2792,7 @@ def weekly_reflection_generate_task(user_id: str | None = None) -> dict[str, obj
         iso_week_for_date,
     )
 
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         now_utc = datetime.now(timezone.utc)
         forced = user_id is not None

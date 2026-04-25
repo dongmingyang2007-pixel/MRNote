@@ -1,17 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import { Check } from "lucide-react";
 
-import MemoryMock from "./mocks/MemoryMock";
-import FollowupMock from "./mocks/FollowupMock";
-import DigestMock from "./mocks/DigestMock";
-
-// Map feature index → mock component. Kept here (not in mocks/) so
-// the feature→mock pairing is visible at the call site.
-const FEATURE_MOCKS = {
-  1: MemoryMock,
-  2: FollowupMock,
-  3: DigestMock,
-} as const;
+import {
+  MarketingGraphPreview,
+  MarketingStudyPreview,
+  MarketingWorkspacePreview,
+} from "./ProductPreviews";
 
 // Chrome file-name captions are derived from translations of the mock
 // titles — the prototype shows a faux "page 12 · notebook" header above
@@ -29,9 +23,8 @@ type FeatureKey = 1 | 2 | 3;
  *
  * Each feature is a full-bleed row with alternating bg tones
  * (`--mkt-bg-base` / `--mkt-bg-surface`) and reversed columns on even
- * rows. The right-side "demo frame" wraps the existing mocks in a 4:3
- * framed viewport (dotted canvas + chrome bar) to match the prototype
- * scaffolding without disturbing the mock internals.
+ * rows. The right-side frame now uses code-native product surfaces that
+ * mirror the real workspace, memory graph, and study workspace.
  */
 export default async function FeaturesSection() {
   const t = await getTranslations("marketing");
@@ -40,7 +33,6 @@ export default async function FeaturesSection() {
   return (
     <div id="features">
       {features.map((i) => {
-        const Mock = FEATURE_MOCKS[i];
         const chrome = CHROME_LABELS[i];
         const reverse = i % 2 === 0;
         return (
@@ -61,27 +53,15 @@ export default async function FeaturesSection() {
                 </p>
                 <ul className="marketing-feature-row__bullets">
                   <li>
-                    <Check
-                      size={16}
-                      strokeWidth={2.4}
-                      aria-hidden="true"
-                    />
+                    <Check size={16} strokeWidth={2.4} aria-hidden="true" />
                     <span>{t(`feature${i}.bullets.0`)}</span>
                   </li>
                   <li>
-                    <Check
-                      size={16}
-                      strokeWidth={2.4}
-                      aria-hidden="true"
-                    />
+                    <Check size={16} strokeWidth={2.4} aria-hidden="true" />
                     <span>{t(`feature${i}.bullets.1`)}</span>
                   </li>
                   <li>
-                    <Check
-                      size={16}
-                      strokeWidth={2.4}
-                      aria-hidden="true"
-                    />
+                    <Check size={16} strokeWidth={2.4} aria-hidden="true" />
                     <span>{t(`feature${i}.bullets.2`)}</span>
                   </li>
                 </ul>
@@ -96,8 +76,17 @@ export default async function FeaturesSection() {
                     <strong>{chrome.label}</strong>
                     <span>/ {chrome.path}</span>
                   </div>
-                  <div className="marketing-demo-frame__mock">
-                    <Mock />
+                  <div className="marketing-demo-frame__mock marketing-demo-frame__mock--screen">
+                    {i === 1 ? (
+                      <MarketingGraphPreview surface="feature" />
+                    ) : i === 2 ? (
+                      <MarketingWorkspacePreview
+                        focus="editor"
+                        surface="feature"
+                      />
+                    ) : (
+                      <MarketingStudyPreview surface="feature" />
+                    )}
                   </div>
                 </div>
               </div>

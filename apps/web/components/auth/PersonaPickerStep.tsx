@@ -15,7 +15,7 @@ interface PersonaPickerStepProps {
   /** Called after the picker is resolved (either a persona was persisted
    *  server-side, or the user chose skip). Parent handles the navigation
    *  so the same component can be reused from settings in the future. */
-  onResolved: (persona: PersonaKey | null) => void;
+  onResolved: (persona: PersonaKey | null) => void | Promise<void>;
   locale: "zh" | "en";
 }
 
@@ -66,11 +66,10 @@ export default function PersonaPickerStep({ onResolved, locale }: PersonaPickerS
         if (value) {
           writeCookie(PERSONA_COOKIE_NAME, value, THIRTY_DAYS_SECONDS);
         }
-        onResolved(value);
+        await onResolved(value);
       } catch (err) {
-        // Don't block progress on persona save — the user can set it in
-        // settings. But tell them what happened so they know the homepage
-        // may look generic the first time around.
+        // Keep the user on this step if persona save or the next post-auth
+        // action fails, so they can retry without losing the selected role.
         const fallback = t("register.persona.error");
         setError(
           isApiRequestError(err) && err.message ? err.message : fallback,

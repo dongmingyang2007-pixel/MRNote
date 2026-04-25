@@ -15,6 +15,7 @@ LOCAL_PID_DIR="$LOCAL_STATE_DIR/pids"
 LOCAL_LOG_DIR="$LOCAL_STATE_DIR/logs"
 LOCAL_API_DEPS_STAMP="$LOCAL_STATE_DIR/api-deps.stamp"
 LOCAL_WEB_DEPS_STAMP="$LOCAL_STATE_DIR/web-deps.stamp"
+WEB_NPM_VERSION="11.12.1"
 
 MODE="local"
 REBUILD=0
@@ -334,6 +335,16 @@ ensure_command() {
   fi
 }
 
+ensure_npm_version() {
+  local current_version
+  current_version="$(npm --version)"
+  if [ "$current_version" != "$WEB_NPM_VERSION" ]; then
+    echo "npm $WEB_NPM_VERSION is required for the web workspace; found $current_version" >&2
+    echo "Install it with: npm install -g npm@$WEB_NPM_VERSION" >&2
+    exit 1
+  fi
+}
+
 show_local_service_log() {
   local service="$1"
   local log_file="$LOCAL_LOG_DIR/$service.log"
@@ -492,7 +503,7 @@ normalize_local_database_url() {
   local current="${DATABASE_URL:-}"
 
   if [ -z "$current" ]; then
-    printf '%s\n' "postgresql+psycopg://postgres:postgres@localhost:5432/qihang"
+    printf '%s\n' "postgresql+psycopg://postgres:postgres@localhost:5432/mrnote"
     return 0
   fi
 
@@ -510,13 +521,13 @@ apply_local_env_defaults() {
   COOKIE_SAMESITE="${COOKIE_SAMESITE:-lax}"
   CSRF_TTL_SECONDS="${CSRF_TTL_SECONDS:-3600}"
   REDIS_URL="$(normalize_local_url "${REDIS_URL:-}" "redis://redis:6379/0" "redis://localhost:6379/0")"
-  REDIS_NAMESPACE="${REDIS_NAMESPACE:-qihang}"
+  REDIS_NAMESPACE="${REDIS_NAMESPACE:-mrnote}"
   S3_ENDPOINT="$(normalize_local_url "${S3_ENDPOINT:-}" "http://minio:9000" "http://localhost:9000")"
   S3_PRESIGN_ENDPOINT="$(normalize_local_url "${S3_PRESIGN_ENDPOINT:-}" "http://minio:9000" "http://localhost:9000")"
   S3_ACCESS_KEY="${S3_ACCESS_KEY:-minioadmin}"
   S3_SECRET_KEY="${S3_SECRET_KEY:-minioadmin}"
-  S3_PRIVATE_BUCKET="${S3_PRIVATE_BUCKET:-qihang-private}"
-  S3_DEMO_BUCKET="${S3_DEMO_BUCKET:-qihang-demo}"
+  S3_PRIVATE_BUCKET="${S3_PRIVATE_BUCKET:-mrnote-private}"
+  S3_DEMO_BUCKET="${S3_DEMO_BUCKET:-mrnote-demo}"
   S3_REGION="${S3_REGION:-us-east-1}"
   ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1,testserver,api}"
   CORS_ORIGINS="${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"
@@ -528,9 +539,10 @@ apply_local_env_defaults() {
   INTERNAL_API_BASE_URL="$(normalize_local_url "${INTERNAL_API_BASE_URL:-}" "http://api:8000" "http://localhost:8000")"
   NEXT_PUBLIC_API_BASE_URL="$(normalize_local_url "${NEXT_PUBLIC_API_BASE_URL:-}" "http://api:8000" "http://localhost:8000")"
   NEXT_PUBLIC_ASSET_ORIGIN="$(normalize_local_url "${NEXT_PUBLIC_ASSET_ORIGIN:-}" "http://minio:9000" "http://localhost:9000")"
-  NEXT_PUBLIC_APP_NAME="${NEXT_PUBLIC_APP_NAME:-QIHANG}"
+  NEXT_PUBLIC_APP_NAME="${NEXT_PUBLIC_APP_NAME:-MRNote}"
   NEXT_PUBLIC_DEMO_MAX_IMAGE_MB="${NEXT_PUBLIC_DEMO_MAX_IMAGE_MB:-10}"
-  QIHANG_LOCAL_STACK="true"
+  MRNOTE_LOCAL_STACK="true"
+  QIHANG_LOCAL_STACK="${QIHANG_LOCAL_STACK:-$MRNOTE_LOCAL_STACK}"
   NEXT_TELEMETRY_DISABLED=1
 
   export ENV
@@ -562,6 +574,7 @@ apply_local_env_defaults() {
   export NEXT_PUBLIC_ASSET_ORIGIN
   export NEXT_PUBLIC_APP_NAME
   export NEXT_PUBLIC_DEMO_MAX_IMAGE_MB
+  export MRNOTE_LOCAL_STACK
   export QIHANG_LOCAL_STACK
   export NEXT_TELEMETRY_DISABLED
 }
@@ -573,6 +586,8 @@ ensure_api_dependencies() {
     should_install=1
   elif [ ! -f "$LOCAL_API_DEPS_STAMP" ] || [ "$ROOT_DIR/apps/api/pyproject.toml" -nt "$LOCAL_API_DEPS_STAMP" ]; then
     should_install=1
+  elif [ "$ROOT_DIR/apps/api/uv.lock" -nt "$LOCAL_API_DEPS_STAMP" ]; then
+    should_install=1
   fi
 
   if [ "$should_install" -eq 0 ]; then
@@ -580,24 +595,10 @@ ensure_api_dependencies() {
   fi
 
   echo "Ensuring local API dependencies are installed..."
-  if command -v uv >/dev/null 2>&1; then
-    (
-      cd "$ROOT_DIR/apps/api"
-      if [ ! -d .venv ]; then
-        uv venv .venv
-      fi
-      uv pip install --python .venv/bin/python -e '.[dev]'
-    )
-  else
-    (
-      cd "$ROOT_DIR/apps/api"
-      if [ ! -d .venv ]; then
-        python3 -m venv .venv
-      fi
-      .venv/bin/pip install --upgrade pip
-      .venv/bin/pip install -e '.[dev]'
-    )
-  fi
+  (
+    cd "$ROOT_DIR/apps/api"
+    uv sync --locked --extra dev
+  )
 
   touch "$LOCAL_API_DEPS_STAMP"
 }
@@ -608,8 +609,6 @@ ensure_web_dependencies() {
   if [ "$REBUILD" -eq 1 ] || [ ! -d "$ROOT_DIR/apps/web/node_modules" ]; then
     should_install=1
   elif [ ! -f "$LOCAL_WEB_DEPS_STAMP" ]; then
-    should_install=1
-  elif [ -f "$ROOT_DIR/apps/web/pnpm-lock.yaml" ] && [ "$ROOT_DIR/apps/web/pnpm-lock.yaml" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
     should_install=1
   elif [ -f "$ROOT_DIR/apps/web/package-lock.json" ] && [ "$ROOT_DIR/apps/web/package-lock.json" -nt "$LOCAL_WEB_DEPS_STAMP" ]; then
     should_install=1
@@ -622,27 +621,7 @@ ensure_web_dependencies() {
   fi
 
   echo "Ensuring local web dependencies are installed..."
-
-  # Prefer pnpm when a pnpm lockfile exists, fall back to npm
-  if [ -f "$ROOT_DIR/apps/web/pnpm-lock.yaml" ]; then
-    local pnpm_bin=""
-    if command -v pnpm >/dev/null 2>&1; then
-      pnpm_bin="pnpm"
-    elif command -v npx >/dev/null 2>&1; then
-      pnpm_bin="npx pnpm"
-    fi
-
-    if [ -n "$pnpm_bin" ]; then
-      (cd "$ROOT_DIR/apps/web" && $pnpm_bin install --frozen-lockfile 2>/dev/null || $pnpm_bin install)
-    else
-      echo "Warning: pnpm-lock.yaml found but pnpm is not installed. Falling back to npm..." >&2
-      (cd "$ROOT_DIR/apps/web" && npm install)
-    fi
-  elif [ ! -d "$ROOT_DIR/apps/web/node_modules" ]; then
-    (cd "$ROOT_DIR/apps/web" && npm ci)
-  else
-    (cd "$ROOT_DIR/apps/web" && npm install)
-  fi
+  (cd "$ROOT_DIR/apps/web" && npm ci)
 
   touch "$LOCAL_WEB_DEPS_STAMP"
 }
@@ -696,7 +675,7 @@ start_local_worker() {
     -A app.tasks.celery_app:celery_app \
     worker \
     -l INFO \
-    -Q celery,data,cleanup,inference
+    -Q celery,data,cleanup,inference,memory
 
   echo "Starting local beat scheduler..."
   start_local_process \
@@ -762,7 +741,9 @@ start_local_mode() {
   ensure_command curl
   ensure_command node
   ensure_command npm
+  ensure_npm_version
   ensure_command python3
+  ensure_command uv
 
   ensure_directory_layout
   load_env_file_exports
@@ -815,7 +796,7 @@ start_local_mode() {
   fi
 
   echo
-  echo "QIHANG local fast stack is ready:"
+  echo "MRNote local fast stack is ready:"
   echo "  Web:    http://localhost:3000"
   echo "  API:    http://localhost:8000/health"
   echo "  MinIO:  http://localhost:9001"
@@ -911,7 +892,7 @@ start_docker_mode() {
   save_fingerprints
 
   echo
-  echo "QIHANG docker stack is ready:"
+  echo "MRNote docker stack is ready:"
   echo "  Web:    http://localhost:3000"
   echo "  API:    http://localhost:8000/health"
   echo "  MinIO:  http://localhost:9001"

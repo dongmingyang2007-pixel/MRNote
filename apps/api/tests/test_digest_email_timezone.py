@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-digest-tz-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-digest-tz-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

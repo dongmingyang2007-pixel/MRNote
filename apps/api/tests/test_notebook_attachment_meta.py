@@ -2,7 +2,7 @@
 import atexit, os, shutil, tempfile
 from pathlib import Path
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-s2-att-meta-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-s2-att-meta-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

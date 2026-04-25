@@ -10,18 +10,22 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.errors import ApiError
 from app.core.security import decode_token
-from app.db.session import get_db
+from app.db import session as session_module
 from app.models import Membership, User
 from app.services.runtime_state import runtime_state
 
 _AUTH_TOKEN_STATE_SCOPE = "auth_token_state"
 _WORKSPACE_WRITE_ROLES = {"owner", "admin", "editor"}
 _WORKSPACE_PRIVILEGED_ROLES = {"owner", "admin"}
-_WORKSPACE_COOKIE_NAMES = ("mingrun_workspace_id", "qihang_workspace_id")
+_WORKSPACE_COOKIE_NAMES = (
+    "mrnote_workspace_id",
+    "mingrun_workspace_id",
+    "qihang_workspace_id",
+)
 
 
 def get_db_session() -> Generator[Session, None, None]:
-    yield from get_db()
+    yield from session_module.get_db()
 
 
 def authenticate_access_token(

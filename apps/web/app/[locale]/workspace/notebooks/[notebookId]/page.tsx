@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useWindowManager } from "@/components/notebook/WindowManager";
+import { useWindows } from "@/components/notebook/WindowManager";
 import WindowCanvas from "@/components/notebook/WindowCanvas";
 
 export default function NotebookDetailPage() {
@@ -13,9 +14,31 @@ export default function NotebookDetailPage() {
   const router = useRouter();
   const t = useTranslations("console-notebooks");
   const { openWindow } = useWindowManager();
+  const windows = useWindows();
   const handledOpenTargetRef = useRef("");
+  const handledGuestOpenRef = useRef(false);
 
   useEffect(() => {
+    if (params.notebookId !== "guest" || handledGuestOpenRef.current) {
+      return;
+    }
+    const existingGuestDraft = windows.some(
+      (windowState) =>
+        windowState.type === "guest_note" &&
+        windowState.meta.guestPageId === "guest-draft",
+    );
+    if (!existingGuestDraft) {
+      openWindow({
+        type: "guest_note",
+        title: t("pages.untitled"),
+        meta: { notebookId: "guest", guestPageId: "guest-draft" },
+      });
+    }
+    handledGuestOpenRef.current = true;
+  }, [openWindow, params.notebookId, t, windows]);
+
+  useEffect(() => {
+    if (params.notebookId === "guest") return;
     const openPageId = searchParams.get("openPage");
     const openTarget = openPageId ? `${params.notebookId}:${openPageId}` : "";
     if (!openPageId || handledOpenTargetRef.current === openTarget) {

@@ -73,7 +73,7 @@ export default async function PublicHeader() {
                 {t("nav.login")}
               </Link>
               <Link
-                href="/register"
+                href="/app/notebooks"
                 className="marketing-btn marketing-btn--primary marketing-btn--sm"
               >
                 {t("nav.start")}

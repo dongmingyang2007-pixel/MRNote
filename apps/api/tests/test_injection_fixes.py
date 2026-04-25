@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="qihang-a3-injection-"))
+TEST_TEMP_DIR = Path(tempfile.mkdtemp(prefix="mrnote-a3-injection-"))
 atexit.register(lambda: shutil.rmtree(TEST_TEMP_DIR, ignore_errors=True))
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_TEMP_DIR / 'test.db'}"
 os.environ["ENV"] = "test"

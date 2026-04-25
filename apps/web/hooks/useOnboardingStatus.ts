@@ -6,8 +6,11 @@ import { readCookie } from "@/lib/cookie";
 
 export const ONBOARDING_COMPLETION_KEY_PREFIX = "mrnote_onboarding_completed";
 const LEGACY_LS_KEY = "mrnote_onboarding_completed";
-const WORKSPACE_COOKIE_NAME = "mingrun_workspace_id";
-const LEGACY_WORKSPACE_COOKIE_NAME = "qihang_workspace_id";
+const WORKSPACE_COOKIE_NAME = "mrnote_workspace_id";
+const LEGACY_WORKSPACE_COOKIE_NAMES = [
+  "mingrun_workspace_id",
+  "qihang_workspace_id",
+] as const;
 
 type MeResponse = {
   id: string;
@@ -15,7 +18,11 @@ type MeResponse = {
 };
 
 function getWorkspaceId(): string | null {
-  return readCookie(WORKSPACE_COOKIE_NAME) || readCookie(LEGACY_WORKSPACE_COOKIE_NAME);
+  return (
+    readCookie(WORKSPACE_COOKIE_NAME) ||
+    LEGACY_WORKSPACE_COOKIE_NAMES.map((name) => readCookie(name)).find(Boolean) ||
+    null
+  );
 }
 
 export function getScopedOnboardingKey(

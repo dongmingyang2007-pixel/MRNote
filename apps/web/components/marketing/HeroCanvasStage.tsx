@@ -2,11 +2,15 @@
 
 import { useMemo } from "react";
 import { BookOpen, Layers, Mouse, Plus, Settings } from "lucide-react";
-import MemoryMock from "./mocks/MemoryMock";
-import FollowupMock from "./mocks/FollowupMock";
-import DigestMock from "./mocks/DigestMock";
+import {
+  MarketingWorkspacePreview,
+  type WorkspaceFocus,
+} from "./ProductPreviews";
 import { useRoleContext } from "@/lib/marketing/RoleContext";
-import { ROLE_CONTENT, type FocusWin as RoleFocusWin } from "@/lib/marketing/role-content";
+import {
+  ROLE_CONTENT,
+  type FocusWin as RoleFocusWin,
+} from "@/lib/marketing/role-content";
 
 /**
  * Hero canvas stage — macOS-styled viewport with three mock windows
@@ -37,7 +41,9 @@ const PERSONA_FOCUS_TO_SLOT: Record<
   study: "c",
 };
 
-export default function HeroCanvasStage({ focusWin }: HeroCanvasStageProps = {}) {
+export default function HeroCanvasStage({
+  focusWin,
+}: HeroCanvasStageProps = {}) {
   const { role } = useRoleContext();
 
   const focusSlot = useMemo<"a" | "b" | "c" | null>(() => {
@@ -47,14 +53,24 @@ export default function HeroCanvasStage({ focusWin }: HeroCanvasStageProps = {})
     return win ? ROLE_FOCUS_TO_SLOT[win] : null;
   }, [focusWin, role]);
 
-  const slotClass = (id: "a" | "b" | "c") =>
-    [
-      "marketing-canvas-stage__slot",
-      `marketing-canvas-stage__slot--${id}`,
-      focusSlot === id ? "is-focused" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+  const workspaceFocus = useMemo<WorkspaceFocus | null>(() => {
+    if (focusWin === "memory") return "graph";
+    if (focusWin === "ai") return "ai";
+    if (focusWin === "study") return "study";
+    if (!role) return null;
+    const win = ROLE_CONTENT[role].hero?.focusWin;
+    if (win === "memory") return "graph";
+    if (win === "page") return "editor";
+    if (win === "ai") return "ai";
+    if (win === "study") return "study";
+    return focusSlot === "a"
+      ? "graph"
+      : focusSlot === "b"
+        ? "ai"
+        : focusSlot === "c"
+          ? "study"
+          : null;
+  }, [focusSlot, focusWin, role]);
 
   return (
     <div
@@ -89,15 +105,7 @@ export default function HeroCanvasStage({ focusWin }: HeroCanvasStageProps = {})
       </div>
 
       <div className="marketing-canvas-stage__viewport">
-        <div className={slotClass("a")}>
-          <MemoryMock />
-        </div>
-        <div className={slotClass("b")}>
-          <FollowupMock />
-        </div>
-        <div className={slotClass("c")}>
-          <DigestMock />
-        </div>
+        <MarketingWorkspacePreview focus={workspaceFocus} surface="hero" />
       </div>
 
       <div className="marketing-canvas-stage__hint">

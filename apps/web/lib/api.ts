@@ -4,9 +4,12 @@ import { readCookie, writeCookie, clearCookie } from "@/lib/cookie";
 import ERROR_ZH from "@/messages/zh/error.json";
 import ERROR_EN from "@/messages/en/error.json";
 
-const WORKSPACE_COOKIE_NAME = "mingrun_workspace_id";
-const LEGACY_WORKSPACE_COOKIE_NAME = "qihang_workspace_id";
-export const AUTH_SESSION_EXPIRED_EVENT = "mingrun:auth-session-expired";
+const WORKSPACE_COOKIE_NAME = "mrnote_workspace_id";
+const LEGACY_WORKSPACE_COOKIE_NAMES = [
+  "mingrun_workspace_id",
+  "qihang_workspace_id",
+] as const;
+export const AUTH_SESSION_EXPIRED_EVENT = "mrnote:auth-session-expired";
 
 let cachedCsrfToken: string | null = null;
 let authSessionRedirectScheduled = false;
@@ -68,7 +71,11 @@ function toApiRequestError(error: unknown, apiBaseUrl: string): ApiRequestError 
 
 
 function readWorkspaceId(): string | null {
-  return readCookie(WORKSPACE_COOKIE_NAME) || readCookie(LEGACY_WORKSPACE_COOKIE_NAME);
+  return (
+    readCookie(WORKSPACE_COOKIE_NAME) ||
+    LEGACY_WORKSPACE_COOKIE_NAMES.map((name) => readCookie(name)).find(Boolean) ||
+    null
+  );
 }
 
 function clearCachedSecurityState(): void {
@@ -377,13 +384,13 @@ export function buildPresignedUploadInit(
 
 export function persistWorkspaceId(workspaceId: string, authStateMaxAgeSeconds?: number): void {
   writeCookie(WORKSPACE_COOKIE_NAME, workspaceId);
-  clearCookie(LEGACY_WORKSPACE_COOKIE_NAME);
+  LEGACY_WORKSPACE_COOKIE_NAMES.forEach((name) => clearCookie(name));
   setAuthState(authStateMaxAgeSeconds);
 }
 
 export function clearWorkspaceId(): void {
   clearCookie(WORKSPACE_COOKIE_NAME);
-  clearCookie(LEGACY_WORKSPACE_COOKIE_NAME);
+  LEGACY_WORKSPACE_COOKIE_NAMES.forEach((name) => clearCookie(name));
 }
 
 export async function logout(): Promise<boolean> {

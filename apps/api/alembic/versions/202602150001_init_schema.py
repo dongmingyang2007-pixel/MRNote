@@ -1,4 +1,4 @@
-"""init schema from QIHANG spec
+"""init schema from MRNote spec
 
 Revision ID: 202602150001
 Revises: 
