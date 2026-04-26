@@ -25,8 +25,8 @@ from app.db import session as session_module
 from app.routers import (
     ai_actions, attachments, auth, billing, blocks, chat, datasets, digest,
     memory, memory_stream, model_catalog, models, notebook_ai, notebooks,
-    pipeline, proactive, projects, realtime, search, study, study_ai,
-    study_decks, uploads,
+    onlyoffice, pipeline, proactive, projects, realtime, references, search,
+    study, study_ai, study_decks, uploads, workspace,
 )
 from app.services.chat_modes import ensure_project_chat_mode_schema
 from app.services.embedding import ensure_embedding_schema
@@ -176,6 +176,9 @@ app.include_router(chat.router)
 app.include_router(study.router)
 app.include_router(study.router_aliased)
 app.include_router(study.asset_router)
+app.include_router(references.router)
+app.include_router(onlyoffice.router)
+app.include_router(workspace.router)
 app.include_router(realtime.router)
 app.include_router(ai_actions.pages_router)
 app.include_router(ai_actions.detail_router)

@@ -9,6 +9,48 @@
 
 import { beforeEach, vi } from "vitest";
 
+// jsdom doesn't ship ResizeObserver, but several runtime libs (notably
+// react-three/fiber's Canvas via react-use-measure) crash hard if it's
+// missing — taking down the entire test file. Provide a no-op stub so
+// components mount cleanly inside tests; tests that care about resize
+// behavior install their own observable mock.
+class NoopResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (typeof globalThis.ResizeObserver === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).ResizeObserver = NoopResizeObserver;
+}
+if (typeof window !== "undefined" && typeof window.ResizeObserver === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).ResizeObserver = NoopResizeObserver;
+}
+
+// jsdom also lacks IntersectionObserver. Same crash pattern when components
+// observe lazy-loaded children. Default to "always intersecting" so list
+// renderers don't infinite-loop waiting for visibility.
+class NoopIntersectionObserver {
+  root = null;
+  rootMargin = "";
+  thresholds: number[] = [];
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+}
+if (typeof globalThis.IntersectionObserver === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).IntersectionObserver = NoopIntersectionObserver;
+}
+if (typeof window !== "undefined" && typeof window.IntersectionObserver === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).IntersectionObserver = NoopIntersectionObserver;
+}
+
 // Components use next-intl's useTranslations everywhere after the UI
 // polish i18n sweep. Vitest runs outside NextIntlClientProvider, so we
 // mock next-intl to return an identity translator that just echoes the

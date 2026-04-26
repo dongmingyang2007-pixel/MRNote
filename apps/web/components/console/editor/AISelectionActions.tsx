@@ -18,6 +18,7 @@ import {
   Link2,
   Book,
   ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
 import { apiStream } from "@/lib/api-stream";
 import { isApiRequestError } from "@/lib/api";
@@ -60,14 +61,14 @@ interface TextAction {
   kind: "text";
   key: string;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 interface StructuralAction {
   kind: "structural";
   key: "to_task" | "extract_memory" | "find_related_pages" | "find_related_memories";
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 type ActionItem = TextAction | StructuralAction;

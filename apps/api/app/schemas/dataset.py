@@ -70,6 +70,18 @@ class DataItemOut(BaseModel):
     annotations: list[AnnotationOut] = Field(default_factory=list)
 
 
+class DataItemContentOut(BaseModel):
+    id: str
+    filename: str
+    media_type: str
+    content: str
+    editable: bool = True
+
+
+class DataItemContentUpdate(BaseModel):
+    content: str = Field(max_length=2_000_000)
+
+
 class DatasetCommitRequest(BaseModel):
     commit_message: str | None = None
     freeze_filter: dict[str, Any] | None = None

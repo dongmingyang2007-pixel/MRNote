@@ -89,6 +89,20 @@ const StudyWindow = dynamic(() => import("./contents/StudyWindow"), {
   ssr: false,
   loading: WindowContentFallback,
 });
+const ReferenceLibraryWindow = dynamic(
+  () => import("./contents/ReferenceLibraryWindow"),
+  {
+    ssr: false,
+    loading: WindowContentFallback,
+  },
+);
+const ReferenceDocumentWindow = dynamic(
+  () => import("./contents/ReferenceDocumentWindow"),
+  {
+    ssr: false,
+    loading: WindowContentFallback,
+  },
+);
 const DigestWindow = dynamic(() => import("./contents/DigestWindow"), {
   ssr: false,
   loading: WindowContentFallback,
@@ -151,6 +165,18 @@ function WindowContent({ windowState }: { windowState: WindowState }) {
         <StudyWindow
           notebookId={windowState.meta.notebookId || ""}
           initialAssetId={windowState.meta.assetId}
+        />
+      );
+
+    case "references":
+      return <ReferenceLibraryWindow notebookId={windowState.meta.notebookId || ""} />;
+
+    case "reference_document":
+      return (
+        <ReferenceDocumentWindow
+          notebookId={windowState.meta.notebookId || ""}
+          assetId={windowState.meta.assetId || ""}
+          dataItemId={windowState.meta.dataItemId || ""}
         />
       );
 

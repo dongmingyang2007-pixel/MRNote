@@ -24,6 +24,7 @@ from app.schemas.study import (
     PaginatedStudyChunks,
     StudyAssetCreate,
     StudyAssetOut,
+    StudyAssetTagsUpdate,
     StudyChunkOut,
     StudyInsightsOut,
 )
@@ -162,6 +163,7 @@ def list_study_assets(
     notebook_id: str,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    tag: str | None = Query(default=None),
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workspace_id: str = Depends(get_current_workspace_id),
@@ -180,9 +182,19 @@ def list_study_assets(
             StudyAsset.notebook_id == notebook_id,
             StudyAsset.status != "deleted",
         )
+        .order_by(StudyAsset.created_at.desc())
     )
-    total = query.count()
-    items = query.order_by(StudyAsset.created_at.desc()).offset(offset).limit(limit).all()
+    if tag:
+        # JSON containment varies between Postgres (JSONB ?/@>) and SQLite
+        # (no native operator). Mirroring datasets.list_items, we do the
+        # tag filter in Python so behaviour is identical across both.
+        all_items = query.all()
+        filtered = [a for a in all_items if tag in (a.tags or [])]
+        total = len(filtered)
+        items = filtered[offset : offset + limit]
+    else:
+        total = query.count()
+        items = query.offset(offset).limit(limit).all()
     return PaginatedStudyAssets(
         items=[StudyAssetOut.model_validate(item, from_attributes=True) for item in items],
         total=total,
@@ -278,6 +290,30 @@ def get_study_asset(
         current_user_id=str(current_user.id),
         workspace_role=workspace_role,
     )
+    return StudyAssetOut.model_validate(asset, from_attributes=True)
+
+
+@router.patch("/{asset_id}/tags", response_model=StudyAssetOut)
+def update_study_asset_tags(
+    notebook_id: str,
+    asset_id: str,
+    payload: StudyAssetTagsUpdate,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    workspace_role: str = Depends(get_current_workspace_role),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _: None = Depends(require_csrf_protection),
+) -> StudyAssetOut:
+    asset = _get_asset_or_404(
+        db, notebook_id, asset_id, workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=workspace_role,
+    )
+    asset.tags = payload.tags
+    asset.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(asset)
     return StudyAssetOut.model_validate(asset, from_attributes=True)
 
 
@@ -377,6 +413,9 @@ router_aliased.add_api_route(
 )
 router_aliased.add_api_route(
     "/{asset_id}", get_study_asset, methods=["GET"], response_model=StudyAssetOut,
+)
+router_aliased.add_api_route(
+    "/{asset_id}/tags", update_study_asset_tags, methods=["PATCH"], response_model=StudyAssetOut,
 )
 router_aliased.add_api_route(
     "/{asset_id}/chunks", list_study_chunks, methods=["GET"],

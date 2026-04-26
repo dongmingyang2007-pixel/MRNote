@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { getSafeNavigationPath } from "@/lib/security";
 
 interface Props {
   /** "signin" shows on /login + /register (default).
@@ -44,7 +45,7 @@ export default function GoogleSignInButton({
 }: Props) {
   const t = useTranslations("auth");
   const searchParams = useSearchParams();
-  const next = searchParams?.get("next") ?? "/app";
+  const next = getSafeNavigationPath(searchParams?.get("next")) ?? "/app";
   const href =
     `/api/v1/auth/google/authorize?mode=${mode}` +
     `&next=${encodeURIComponent(next)}`;

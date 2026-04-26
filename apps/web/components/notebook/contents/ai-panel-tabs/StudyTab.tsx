@@ -19,26 +19,35 @@ interface StudyTabProps {
 
 export default function StudyTab({ notebookId }: StudyTabProps) {
   const t = useTranslations("console-notebooks");
-  const [assets, setAssets] = useState<StudyAssetLite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<{
+    notebookId: string;
+    assets: StudyAssetLite[];
+    loading: boolean;
+  }>(() => ({ notebookId, assets: [], loading: true }));
+
+  if (state.notebookId !== notebookId) {
+    setState({ notebookId, assets: [], loading: true });
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     apiGet<{ items: StudyAssetLite[] }>(`/api/v1/notebooks/${notebookId}/study`)
       .then((data) => {
-        if (!cancelled) setAssets(data.items || []);
+        if (!cancelled) {
+          setState({ notebookId, assets: data.items || [], loading: false });
+        }
       })
       .catch(() => {
-        if (!cancelled) setAssets([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setState({ notebookId, assets: [], loading: false });
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [notebookId]);
+
+  const { assets, loading } = state;
 
   if (loading) {
     return (

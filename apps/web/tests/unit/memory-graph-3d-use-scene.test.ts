@@ -7,7 +7,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("useThreeScene", () => {
   it("returns a scene handle even with no mount", () => {
     const { result } = renderHook(() => useThreeScene({
-      mountRef: { current: null } as React.RefObject<HTMLDivElement>,
+      mountRef: { current: null } as unknown as React.RefObject<HTMLDivElement>,
       nodes: [], edges: [],
       onHover: () => {}, onSelect: () => {},
     }));
@@ -16,7 +16,7 @@ describe("useThreeScene", () => {
 
   it("exposes handle methods", () => {
     const { result } = renderHook(() => useThreeScene({
-      mountRef: { current: null } as React.RefObject<HTMLDivElement>,
+      mountRef: { current: null } as unknown as React.RefObject<HTMLDivElement>,
       nodes: [], edges: [],
       onHover: () => {}, onSelect: () => {},
     }));

@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -65,7 +66,10 @@ class Subscription(
             name="ck_subscriptions_billing_cycle",
         ),
         CheckConstraint(
-            "status IN ('active','past_due','canceled','trialing','manual','incomplete')",
+            "status IN ("
+            "'active','past_due','canceled','trialing','manual','incomplete',"
+            "'incomplete_expired','unpaid','paused'"
+            ")",
             name="ck_subscriptions_status",
         ),
         CheckConstraint(
@@ -159,7 +163,10 @@ class Entitlement(
         index=True,
     )
     key: Mapped[str] = mapped_column(String(80), nullable=False)
-    value_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # BigInteger (8-byte) so byte-quota entitlements (e.g.
+    # `storage.bytes.max` at 50 GB / 500 GB) fit. Counts (notebooks,
+    # pages, AI actions) still happily live in this column.
+    value_int: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     value_bool: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -191,10 +198,92 @@ class BillingEvent(
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class QuotaCounter(
+    Base,
+    UUIDPrimaryKeyMixin,
+    TimestampMixin,
+    UpdatedAtMixin,
+):
+    __tablename__ = "quota_counters"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "key",
+            "period_start",
+            name="uq_quota_counters_workspace_key_period",
+        ),
+        CheckConstraint("used_count >= 0", name="ck_quota_counters_used_nonnegative"),
+    )
+
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    period_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    used_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class StorageReservation(
+    Base,
+    UUIDPrimaryKeyMixin,
+    TimestampMixin,
+    UpdatedAtMixin,
+):
+    __tablename__ = "storage_reservations"
+    __table_args__ = (
+        UniqueConstraint("upload_id", name="uq_storage_reservations_upload_id"),
+        UniqueConstraint("data_item_id", name="uq_storage_reservations_data_item_id"),
+        CheckConstraint(
+            "status IN ('pending','completed','released')",
+            name="ck_storage_reservations_status",
+        ),
+        CheckConstraint(
+            "bytes_reserved >= 0",
+            name="ck_storage_reservations_bytes_nonnegative",
+        ),
+    )
+
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    upload_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    data_item_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    bytes_reserved: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    released_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+
 __all__ = [
     "CustomerAccount",
     "Subscription",
     "SubscriptionItem",
     "Entitlement",
     "BillingEvent",
+    "QuotaCounter",
+    "StorageReservation",
 ]

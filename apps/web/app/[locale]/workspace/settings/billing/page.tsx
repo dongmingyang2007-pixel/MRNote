@@ -21,15 +21,17 @@ function normalizeCheckoutStatus(value: string | null): CheckoutStatus {
 
 export default function BillingSettingsPage() {
   const t = useTranslations("billing");
-  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>(null);
+  const [checkoutStatus] = useState<CheckoutStatus>(() => {
+    if (typeof window === "undefined") return null;
+    return normalizeCheckoutStatus(
+      new URLSearchParams(window.location.search).get("status"),
+    );
+  });
   const [confirmedPlan, setConfirmedPlan] = useState<PlanId | null>(null);
   const [loadingConfirmation, setLoadingConfirmation] = useState(false);
 
   useEffect(() => {
-    const status = normalizeCheckoutStatus(
-      new URLSearchParams(window.location.search).get("status"),
-    );
-    setCheckoutStatus(status);
+    const status = checkoutStatus;
 
     if (status === "cancel") {
       clearPendingCheckoutPlan();
@@ -55,7 +57,7 @@ export default function BillingSettingsPage() {
       })
       .catch(() => undefined)
       .finally(() => setLoadingConfirmation(false));
-  }, []);
+  }, [checkoutStatus]);
 
   const confirmedPlanLabel = confirmedPlan
     ? t(`plan.${confirmedPlan}.name`)

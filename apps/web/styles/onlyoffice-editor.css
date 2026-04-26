@@ -1,0 +1,52 @@
+/* ------------------------------------------------------------------ */
+/* ONLYOFFICE Editor — embeds DocsAPI inside a notebook window         */
+/* ------------------------------------------------------------------ */
+
+.onlyoffice-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #fff;
+  min-height: 0;
+}
+
+.onlyoffice-editor--center {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  color: var(--console-text-muted, #64748b);
+}
+
+.onlyoffice-editor--center strong {
+  font-size: 0.9375rem;
+  color: var(--console-text-primary, #0f172a);
+}
+
+.onlyoffice-editor--center span {
+  max-width: 380px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.onlyoffice-editor--center button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+  color: var(--console-text-primary, #0f172a);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.onlyoffice-editor__frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}

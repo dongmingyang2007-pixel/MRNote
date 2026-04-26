@@ -101,6 +101,7 @@ def test_checkout_session_completed_payment_creates_one_time() -> None:
         "data": {"object": {
             "mode": "payment",
             "customer": "cus_b",
+            "payment_status": "paid",
             "metadata": {"mrai_workspace_id": ws,
                          "mrai_plan": "pro", "mrai_cycle": "yearly",
                          "mrai_one_time": "1"},

@@ -11,6 +11,7 @@ import {
   BookOpen,
   Bell,
   Search,
+  FolderOpen,
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowType } from "./WindowManager";
@@ -27,6 +28,8 @@ const TRAY_ICONS: Record<WindowType, typeof FileText> = {
   memory: Brain,
   memory_graph: Network,
   study: BookOpen,
+  references: FolderOpen,
+  reference_document: FileText,
   digest: Bell,
   search: Search,
 };

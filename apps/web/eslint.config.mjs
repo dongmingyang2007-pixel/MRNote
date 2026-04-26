@@ -12,6 +12,8 @@ export default defineConfig([
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    "public/pdf.worker.min.mjs",
+    "public/pdfjs-cmaps/**",
     "test-results/**",
   ]),
 ]);

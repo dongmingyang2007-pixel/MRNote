@@ -27,7 +27,10 @@ from app.services.ai_action_logger import action_log_context
 from app.services.quota_counters import count_ai_actions_this_month
 from app.services.dashscope_client import chat_completion
 from app.services.dashscope_stream import chat_completion_stream
-from app.services.study_context import assemble_study_context
+from app.services.study_context import (
+    assemble_notebook_study_context,
+    assemble_study_context,
+)
 
 router = APIRouter(prefix="/api/v1/ai/study", tags=["study-ai"])
 
@@ -96,6 +99,29 @@ def _load_source_text(
             not_found_message="Chunk not found",
         )
         return (chunk.content or "")[:8000], None, nb.id
+    if source_type == "asset":
+        # `source_id` is a study asset id; concatenate its chunks as the
+        # text. Used when the user wants flashcards spanning a whole doc.
+        asset = db.query(StudyAsset).filter_by(id=source_id).first()
+        if not asset:
+            raise ApiError("not_found", "Asset not found", status_code=404)
+        nb = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
+            not_found_message="Asset not found",
+        )
+        chunks = (
+            db.query(StudyChunk)
+            .filter(StudyChunk.asset_id == asset.id)
+            .order_by(StudyChunk.chunk_index)
+            .limit(20)
+            .all()
+        )
+        text = "\n\n".join((c.content or "") for c in chunks)
+        return text[:8000], None, nb.id
     raise ApiError("invalid_input", f"Unknown source_type {source_type}", status_code=400)
 
 
@@ -117,12 +143,39 @@ async def generate_flashcards(
     if count < 1 or count > 20:
         raise ApiError("invalid_input", "count must be 1-20", status_code=400)
 
-    text, page_id, notebook_id = _load_source_text(
-        db, source_type=source_type, source_id=source_id,
-        workspace_id=workspace_id,
-        current_user_id=str(current_user.id),
-        workspace_role=workspace_role,
-    )
+    if source_type == "text":
+        # Selection-based flashcard generation: caller passes raw text plus
+        # the notebook id (in `source_id`) for ownership / quota scoping.
+        raw_text = str(payload.get("text") or "").strip()
+        if not raw_text:
+            raise ApiError(
+                "invalid_input", "text is required for source_type=text", status_code=400,
+            )
+        nb = (
+            db.query(Notebook)
+            .filter(
+                Notebook.id == source_id,
+                Notebook.workspace_id == workspace_id,
+            )
+            .first()
+        )
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+            not_found_message="Notebook not found",
+        )
+        text = raw_text[:8000]
+        page_id = None
+        notebook_id = nb.id
+    else:
+        text, page_id, notebook_id = _load_source_text(
+            db, source_type=source_type, source_id=source_id,
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+        )
 
     prompt = (
         f"Produce exactly {count} flashcards from the following text.\n\n{text}"
@@ -173,7 +226,12 @@ async def generate_flashcards(
                 workspace_role=workspace_role,
                 not_found_message="Deck not found",
             )
-            src_type = "page_ai" if source_type == "page" else "chunk_ai"
+            if source_type == "page":
+                src_type = "page_ai"
+            elif source_type == "text":
+                src_type = "selection_ai"
+            else:
+                src_type = "chunk_ai"
             card_rows: list[StudyCard] = []
             for c in cards:
                 card_rows.append(StudyCard(
@@ -294,32 +352,75 @@ async def study_ask(
     _csrf: None = Depends(require_csrf_protection),
     _ai_quota: None = Depends(require_entitlement("ai.actions.monthly", counter=count_ai_actions_this_month)),
 ) -> StreamingResponse:
-    asset_id = str(payload.get("asset_id", ""))
+    asset_id = str(payload.get("asset_id", "") or "")
+    notebook_id_in = str(payload.get("notebook_id", "") or "")
+    scope = str(payload.get("scope", "") or "").lower()
     message = str(payload.get("message", "")).strip()
     history = payload.get("history") or []
-    if not asset_id or not message:
-        raise ApiError("invalid_input", "asset_id and message are required", status_code=400)
+    if not message:
+        raise ApiError("invalid_input", "message is required", status_code=400)
+    if not asset_id and not notebook_id_in:
+        raise ApiError(
+            "invalid_input",
+            "asset_id or notebook_id is required",
+            status_code=400,
+        )
+    if not scope:
+        scope = "notebook" if notebook_id_in and not asset_id else "asset"
+    if scope not in {"asset", "notebook"}:
+        raise ApiError("invalid_input", "scope must be asset or notebook", status_code=400)
 
-    asset = db.query(StudyAsset).filter_by(id=asset_id).first()
-    if not asset:
-        raise ApiError("not_found", "Asset not found", status_code=404)
-    nb = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
-    assert_notebook_readable(
-        nb,
-        workspace_id=workspace_id,
-        current_user_id=str(current_user.id),
-        workspace_role=workspace_role,
-        not_found_message="Asset not found",
-    )
-
-    ctx, sources = assemble_study_context(
-        db,
-        asset_id=asset_id,
-        workspace_id=str(workspace_id),
-        project_id=str(nb.project_id) if nb.project_id else "",
-        user_id=str(current_user.id),
-        query=message,
-    )
+    asset: StudyAsset | None = None
+    nb: Notebook | None = None
+    if scope == "asset":
+        if not asset_id:
+            raise ApiError("invalid_input", "asset_id is required for scope=asset", status_code=400)
+        asset = db.query(StudyAsset).filter_by(id=asset_id).first()
+        if not asset:
+            raise ApiError("not_found", "Asset not found", status_code=404)
+        nb = db.query(Notebook).filter(Notebook.id == asset.notebook_id).first()
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+            not_found_message="Asset not found",
+        )
+        ctx, sources = assemble_study_context(
+            db,
+            asset_id=asset_id,
+            workspace_id=str(workspace_id),
+            project_id=str(nb.project_id) if nb.project_id else "",
+            user_id=str(current_user.id),
+            query=message,
+        )
+    else:
+        nb_id = notebook_id_in
+        if not nb_id and asset_id:
+            asset_lookup = db.query(StudyAsset).filter_by(id=asset_id).first()
+            nb_id = str(asset_lookup.notebook_id) if asset_lookup else ""
+        if not nb_id:
+            raise ApiError(
+                "invalid_input",
+                "notebook_id is required for scope=notebook",
+                status_code=400,
+            )
+        nb = db.query(Notebook).filter(Notebook.id == nb_id).first()
+        assert_notebook_readable(
+            nb,
+            workspace_id=workspace_id,
+            current_user_id=str(current_user.id),
+            workspace_role=workspace_role,
+            not_found_message="Notebook not found",
+        )
+        ctx, sources = await assemble_notebook_study_context(
+            db,
+            notebook_id=str(nb.id),
+            workspace_id=str(workspace_id),
+            project_id=str(nb.project_id) if nb.project_id else "",
+            user_id=str(current_user.id),
+            query=message,
+        )
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": ctx["system_prompt"]}
@@ -336,11 +437,16 @@ async def study_ask(
             workspace_id=str(workspace_id),
             user_id=str(current_user.id),
             action_type="study.ask",
-            scope="study_asset",
-            notebook_id=str(nb.id),
+            scope="study_asset" if scope == "asset" else "notebook",
+            notebook_id=str(nb.id) if nb else None,
             page_id=None,
         ) as log:
-            log.set_input({"asset_id": asset_id, "message": message[:4000]})
+            log.set_input({
+                "scope": scope,
+                "asset_id": asset_id or None,
+                "notebook_id": str(nb.id) if nb else None,
+                "message": message[:4000],
+            })
             log.set_trace_metadata({"retrieval_sources": sources})
             full = ""
             last_usage: dict | None = None

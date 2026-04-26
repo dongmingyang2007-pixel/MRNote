@@ -162,7 +162,7 @@ export default function NoteEditor({
       TaskBlock,
       FlashcardBlock,
       SlashCommand.configure({
-        suggestion: createSuggestionConfig((key: string) => t(key), {
+        suggestion: createSuggestionConfig((key, values) => t(key, values), {
           getPageId: () => pageId,
         }),
       }),

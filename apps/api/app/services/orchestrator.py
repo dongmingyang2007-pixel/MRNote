@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import ipaddress
 import json
 import logging
 import re
 from typing import Any, AsyncIterator, Literal
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
@@ -605,9 +607,36 @@ def _has_url_signal(text: str) -> bool:
     return bool(_URL_PATTERN.search(text))
 
 
+def _extract_url_signals(text: str) -> list[str]:
+    return [match.group(0).rstrip(").,;，。；") for match in _URL_PATTERN.finditer(text)]
+
+
+def _is_safe_web_extractor_url(value: str) -> bool:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+    host = parsed.hostname.strip().lower()
+    if host in {"localhost", "metadata.google.internal"} or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return True
+    return not (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_unspecified
+        or ip.is_reserved
+    )
+
+
 def _should_offer_web_extractor(user_message: str) -> bool:
     lowered = user_message.casefold()
-    return _has_url_signal(lowered) or any(hint in lowered for hint in _WEB_EXTRACTOR_HINTS)
+    has_explicit_intent = any(hint in lowered for hint in _WEB_EXTRACTOR_HINTS)
+    urls = _extract_url_signals(lowered)
+    return has_explicit_intent and bool(urls) and all(_is_safe_web_extractor_url(url) for url in urls)
 
 
 def _should_offer_web_search_image(user_message: str) -> bool:

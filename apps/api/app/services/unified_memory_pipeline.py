@@ -2249,7 +2249,11 @@ async def run_pipeline(db: Session, inp: PipelineInput) -> PipelineResult:
     # ------------------------------------------------------------------
     # 1. Load Project
     # ------------------------------------------------------------------
-    project = db.get(Project, inp.project_id)
+    project = (
+        db.query(Project)
+        .filter(Project.id == inp.project_id, Project.workspace_id == inp.workspace_id)
+        .first()
+    )
     if project is None:
         result.status = "failed"
         result.summary = "project_not_found"

@@ -6,7 +6,24 @@ export function resolveDiscoverRedirectTarget(
 ): string {
   const fallback = locale === "en" ? "/en/app" : "/app";
 
-  if (!from || !from.startsWith("/")) {
+  if (
+    !from ||
+    !from.startsWith("/") ||
+    from.startsWith("//") ||
+    from.includes("\\")
+  ) {
+    return fallback;
+  }
+  try {
+    const parsed = new URL(from, "https://mrai.local");
+    if (
+      parsed.origin !== "https://mrai.local" ||
+      !parsed.pathname.replace(/^\/(en|zh)(?=\/|$)/, "").startsWith("/app")
+    ) {
+      return fallback;
+    }
+    from = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
     return fallback;
   }
 

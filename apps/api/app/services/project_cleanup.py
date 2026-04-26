@@ -105,6 +105,9 @@ def _collect_ai_action_overflow_keys(db: Session, *, project_id: str) -> set[str
 
 
 def delete_project_permanently(db: Session, *, project: Project) -> ProjectDeletionResult:
+    if project.deleted_at is None or project.cleanup_status not in {"pending", "queued", "running"}:
+        raise ProjectDeletionError([])
+
     object_keys = _collect_project_object_keys(db, project_id=project.id)
     ai_action_overflow_keys = _collect_ai_action_overflow_keys(db, project_id=project.id)
     dataset_ids = [dataset_id for dataset_id, in db.query(Dataset.id).filter(Dataset.project_id == project.id).all()]

@@ -44,7 +44,12 @@ export function MemoryGraphView({ nodes, edges, initialSelectedId }: Props) {
     Object.fromEntries(ALL_ROLES.map((r) => [r, true])) as Record<Role, boolean>,
   );
   const [view, setView] = useState<ViewId>("graph");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialSelectedId ?? null,
+  );
+  const [lastInitialSelectedId, setLastInitialSelectedId] = useState(
+    initialSelectedId,
+  );
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({
     k: VIEWPORT_DEFAULTS.k, tx: VIEWPORT_DEFAULTS.tx, ty: VIEWPORT_DEFAULTS.ty,
@@ -67,12 +72,10 @@ export function MemoryGraphView({ nodes, edges, initialSelectedId }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!initialSelectedId) {
-      return;
-    }
-    setSelectedId((current) => current || initialSelectedId);
-  }, [initialSelectedId]);
+  if (initialSelectedId !== lastInitialSelectedId) {
+    setLastInitialSelectedId(initialSelectedId);
+    setSelectedId((current) => current || (initialSelectedId ?? null));
+  }
 
   const counts = useMemo(() => {
     const out = Object.fromEntries(ALL_ROLES.map((r) => [r, 0])) as Record<Role, number>;

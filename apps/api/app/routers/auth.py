@@ -464,6 +464,7 @@ async def google_callback(
     request: Request,
     response: Response,
     db: Session = Depends(get_db_session),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Finish the Google OAuth round-trip.
 
@@ -543,6 +544,8 @@ async def google_callback(
     # ---- Connect mode ----
     if mode == "connect":
         if connect_user_id is None:
+            return RedirectResponse(url="/login?error=auth_required", status_code=302)
+        if current_user is None or str(current_user.id) != str(connect_user_id):
             return RedirectResponse(url="/login?error=auth_required", status_code=302)
         if existing_identity is not None and existing_identity.user_id != connect_user_id:
             return RedirectResponse(

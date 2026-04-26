@@ -37,6 +37,7 @@ def _humanize_entitlement_key(key: str) -> str:
         "daily_digest.enabled": "daily digests",
         "voice.enabled": "voice capture",
         "advanced_memory_insights.enabled": "advanced memory insights",
+        "storage.bytes.max": "storage",
     }
     return labels.get(key, key.replace(".", " "))
 
@@ -176,6 +177,27 @@ def require_entitlement(
             if value == -1:
                 return
             if counter is None:
+                return
+            if key == "ai.actions.monthly":
+                from app.services.quota_counters import reserve_ai_action_quota
+
+                current = reserve_ai_action_quota(
+                    db,
+                    workspace_id=workspace_id,
+                    limit=value,
+                )
+                if current >= value:
+                    feature = _humanize_entitlement_key(key)
+                    feature_title = feature[:1].upper() + feature[1:]
+                    raise ApiError(
+                        "plan_limit_reached",
+                        f"{feature_title} limit reached ({current}/{value})",
+                        status_code=402,
+                        details={"key": key, "current": current, "limit": value},
+                    )
+                # Persist the reservation now so streaming or long-running
+                # model calls cannot run concurrently past the same limit.
+                db.commit()
                 return
             # Serialize concurrent counted-quota checks for this workspace
             # by acquiring a row-level lock on the Workspace row. The lock

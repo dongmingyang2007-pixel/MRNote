@@ -166,6 +166,17 @@ def cleanup_pending_upload_session(
                 db.commit()
         if item and _is_completed_upload_status((item.meta_json or {}).get("upload_status")) and item.deleted_at is None:
             return
+        try:
+            from app.services.storage_quota import release_upload_reservation
+
+            release_upload_reservation(
+                db,
+                upload_id=upload_id,
+                data_item_id=resolved_data_item_id,
+            )
+            db.commit()
+        except Exception:  # noqa: BLE001
+            db.rollback()
         deleted = _delete_object_if_present(bucket_name=settings.s3_private_bucket, object_key=resolved_object_key)
         if not deleted and resolved_object_key:
             clear_session = False
@@ -230,7 +241,15 @@ def cleanup_pending_model_artifact_upload(
 def cleanup_deleted_dataset(dataset_id: str) -> None:
     db = session_module.SessionLocal()
     try:
-        dataset = db.get(Dataset, dataset_id)
+        dataset = (
+            db.query(Dataset)
+            .filter(
+                Dataset.id == dataset_id,
+                Dataset.deleted_at.is_not(None),
+                Dataset.cleanup_status.in_(("pending", "queued", "running")),
+            )
+            .first()
+        )
         if not dataset:
             return
         dataset.cleanup_status = "running"
@@ -253,7 +272,15 @@ def cleanup_deleted_dataset(dataset_id: str) -> None:
 def cleanup_deleted_project(project_id: str) -> None:
     db = session_module.SessionLocal()
     try:
-        project = db.get(Project, project_id)
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == project_id,
+                Project.deleted_at.is_not(None),
+                Project.cleanup_status.in_(("pending", "queued", "running")),
+            )
+            .first()
+        )
         if not project:
             return
         try:
@@ -346,13 +373,7 @@ def purge_stale_records() -> None:
 
 
 @celery_app.task(name="app.tasks.worker_tasks.index_data_item")
-def index_data_item(
-    workspace_id: str,
-    project_id: str,
-    data_item_id: str,
-    object_key: str,
-    filename: str,
-) -> None:
+def index_data_item(*args: str, **kwargs: str) -> None:
     """Download file from S3, extract text, chunk, and vectorize for RAG."""
     import asyncio
 
@@ -361,12 +382,77 @@ def index_data_item(
     from app.services.memory_file_context import sync_memory_links_for_data_item
     from app.services.storage import get_s3_client
 
-    logger.info("index_data_item started: item_id=%s, filename=%s", data_item_id, filename)
+    supplied_workspace_id: str | None = None
+    supplied_project_id: str | None = None
+    supplied_object_key: str | None = None
+    supplied_filename: str | None = None
+    data_item_id = kwargs.get("data_item_id")
+    if data_item_id is None and len(args) == 1:
+        data_item_id = args[0]
+    elif data_item_id is None and len(args) >= 5:
+        # Backward-compatible parser for already-queued tasks. The worker
+        # still derives the trusted values from the database below.
+        supplied_workspace_id, supplied_project_id, data_item_id, supplied_object_key, supplied_filename = args[:5]
+    if not data_item_id:
+        raise ValueError("index_data_item requires data_item_id")
+
+    logger.info("index_data_item started: item_id=%s", data_item_id)
 
     db = session_module.SessionLocal()
     try:
-        item = db.get(DataItem, data_item_id)
-        if not item or item.deleted_at is not None:
+        item = (
+            db.query(DataItem)
+            .join(Dataset, Dataset.id == DataItem.dataset_id)
+            .join(Project, Project.id == Dataset.project_id)
+            .filter(
+                DataItem.id == data_item_id,
+                DataItem.deleted_at.is_(None),
+                Dataset.deleted_at.is_(None),
+                Project.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if not item:
+            return
+        dataset = db.get(Dataset, item.dataset_id)
+        project = db.get(Project, dataset.project_id) if dataset else None
+        if not dataset or not project:
+            return
+
+        workspace_id = str(project.workspace_id)
+        project_id = str(project.id)
+        object_key = str(item.object_key)
+        filename = str(item.filename)
+
+        supplied_values = {
+            "workspace_id": supplied_workspace_id,
+            "project_id": supplied_project_id,
+            "object_key": supplied_object_key,
+            "filename": supplied_filename,
+        }
+        expected_values = {
+            "workspace_id": workspace_id,
+            "project_id": project_id,
+            "object_key": object_key,
+            "filename": filename,
+        }
+        mismatches = [
+            key
+            for key, supplied in supplied_values.items()
+            if supplied is not None and str(supplied) != expected_values[key]
+        ]
+        if mismatches:
+            logger.warning(
+                "index_data_item rejected mismatched task parameters for item %s: %s",
+                data_item_id,
+                ",".join(mismatches),
+            )
+            item.meta_json = {
+                **(item.meta_json or {}),
+                "index_status": "failed",
+                "index_error": "index_task_parameter_mismatch",
+            }
+            db.commit()
             return
 
         if settings.env == "test":
@@ -2356,24 +2442,46 @@ def document_memory_extract_task(
         if chunk is None:
             return {"status": "missing", "chunk_id": chunk_id}
         asset = db.get(StudyAsset, chunk.asset_id) if chunk.asset_id else None
+        if asset is None:
+            return {"status": "missing_asset", "chunk_id": chunk_id}
+        from app.models import Notebook
+
+        notebook = db.get(Notebook, asset.notebook_id) if asset.notebook_id else None
+        project = db.get(Project, notebook.project_id) if notebook and notebook.project_id else None
+        if notebook is None or project is None:
+            return {"status": "missing_project", "chunk_id": chunk_id}
+
+        resolved_workspace_id = str(project.workspace_id)
+        resolved_project_id = str(project.id)
+        resolved_user_id = str(asset.created_by)
+        if (
+            str(workspace_id) != resolved_workspace_id
+            or str(project_id) != resolved_project_id
+            or str(user_id) != resolved_user_id
+        ):
+            logger.warning(
+                "document_memory_extract_task rejected mismatched parameters for chunk %s",
+                chunk_id,
+            )
+            return {"status": "mismatch", "chunk_id": chunk_id}
+
         context_text = ""
-        if asset is not None:
-            context_text = f"Document: {asset.title}"
+        context_text = f"Document: {asset.title}"
         pipeline_input = PipelineInput(
             source_type="uploaded_document",
             source_text=(chunk.content or "")[:6000],
             source_ref=str(chunk.id),
-            workspace_id=str(workspace_id),
-            project_id=str(project_id),
-            user_id=str(user_id),
-            context=SourceContext(owner_user_id=str(user_id)),
+            workspace_id=resolved_workspace_id,
+            project_id=resolved_project_id,
+            user_id=resolved_user_id,
+            context=SourceContext(owner_user_id=resolved_user_id),
             context_text=context_text,
         )
         result = _asyncio.run(run_pipeline(db, pipeline_input))
         db.commit()
         if result.graph_changed:
             bump_project_memory_graph_revision(
-                workspace_id=workspace_id, project_id=project_id,
+                workspace_id=resolved_workspace_id, project_id=resolved_project_id,
             )
         return {
             "status": result.status,
@@ -2570,6 +2678,26 @@ def study_asset_review_recommendation_task(
             "due_card_count": len(due),
             "card_ids": [c.id for c in due[:20]],
         }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.worker_tasks.prune_document_versions_task")
+def prune_document_versions_task() -> dict[str, object]:
+    """Trim DocumentVersion history per the configured retention policy.
+
+    Without this, every ONLYOFFICE forcesave permanently adds a fresh
+    full-size copy of the document to S3 — a power user editing a 50 MB
+    deck once a minute fills disks fast. The default policy (`keep_recent=10`,
+    `keep_within_days=30`) keeps a useful undo window without unbounded
+    growth. Tweakable via env vars."""
+    from app.services.document_versions import prune_versions_for_all_items
+
+    db = session_module.SessionLocal()
+    try:
+        result = prune_versions_for_all_items(db)
+        logger.info("prune_document_versions_task result: %s", result)
+        return {"status": "ok", **result}
     finally:
         db.close()
 

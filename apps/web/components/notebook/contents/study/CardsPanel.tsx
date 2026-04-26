@@ -32,18 +32,30 @@ export default function CardsPanel({ deckId, notebookId, onBack, onStartReview }
   const [showQuiz, setShowQuiz] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchCards = useCallback(async () => {
     try {
       const r = await apiGet<{ items: Card[]; next_cursor: string | null }>(
         `/api/v1/decks/${deckId}/cards`,
       );
-      setCards(r.items || []);
+      return r.items || [];
     } catch {
-      setCards([]);
+      return [];
     }
   }, [deckId]);
 
-  useEffect(() => { void load(); }, [load]);
+  const load = useCallback(async () => {
+    setCards(await fetchCards());
+  }, [fetchCards]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCards().then((items) => {
+      if (!cancelled) setCards(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchCards]);
 
   const handleCreate = useCallback(async () => {
     if (!newFront.trim() || !newBack.trim()) return;

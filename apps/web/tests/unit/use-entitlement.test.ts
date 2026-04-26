@@ -4,7 +4,13 @@ import { useEntitlement } from "@/hooks/useEntitlement";
 
 afterEach(() => { vi.restoreAllMocks(); });
 
-function mockMe(me: any) {
+interface BillingMeMock {
+  plan: string;
+  entitlements: Record<string, boolean | number>;
+  usage_this_month: Record<string, number>;
+}
+
+function mockMe(me: BillingMeMock) {
   global.fetch = vi.fn(async (url: RequestInfo | URL) => {
     const u = String(url);
     if (u.includes("/api/v1/auth/csrf")) {

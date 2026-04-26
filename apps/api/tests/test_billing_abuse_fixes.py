@@ -51,7 +51,10 @@ from app.models import (
     AIUsageEvent,
     BillingEvent,
     CustomerAccount,
+    Dataset,
     Entitlement,
+    Project,
+    QuotaCounter,
     Subscription,
     User,
     Workspace,
@@ -151,6 +154,7 @@ def test_onetime_subscription_extends_not_duplicates() -> None:
         "data": {"object": {
             "mode": "payment",
             "customer": "cus_one_time",
+            "payment_status": "paid",
             "metadata": {
                 "mrai_workspace_id": ws,
                 "mrai_plan": "pro",
@@ -675,3 +679,86 @@ def test_checkout_metadata_cross_validated_with_price() -> None:
         rows = db.query(Subscription).filter_by(workspace_id=ws).all()
     # No Subscription was written because metadata.plan != stripe price.
     assert rows == []
+
+
+def test_ai_quota_reservation_advances_counter_before_usage_event() -> None:
+    from app.services.quota_counters import (
+        count_ai_actions_this_month,
+        reserve_ai_action_quota,
+    )
+
+    with _s.SessionLocal() as db:
+        ws = Workspace(name="W")
+        db.add(ws)
+        db.commit()
+        db.refresh(ws)
+
+        current = reserve_ai_action_quota(db, workspace_id=ws.id, limit=1)
+        assert current == 0
+        db.commit()
+
+        assert count_ai_actions_this_month(db, ws.id) == 1
+        blocked_at = reserve_ai_action_quota(db, workspace_id=ws.id, limit=1)
+        assert blocked_at == 1
+        counter = db.query(QuotaCounter).filter_by(workspace_id=ws.id).one()
+        assert counter.used_count == 1
+
+
+def test_storage_upload_reservation_blocks_parallel_overbooking() -> None:
+    from app.core.errors import ApiError
+    from app.services.storage_quota import (
+        create_upload_reservation,
+        get_workspace_storage_usage,
+    )
+
+    with _s.SessionLocal() as db:
+        ws = Workspace(name="W")
+        db.add(ws)
+        db.commit()
+        db.refresh(ws)
+        db.add(Entitlement(
+            workspace_id=ws.id,
+            key="storage.bytes.max",
+            value_int=100,
+            source="admin_override",
+        ))
+        project = Project(workspace_id=ws.id, name="P")
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+        dataset = Dataset(project_id=project.id, name="D", type="documents")
+        db.add(dataset)
+        db.commit()
+        db.refresh(dataset)
+
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        create_upload_reservation(
+            db,
+            workspace_id=ws.id,
+            dataset_id=dataset.id,
+            upload_id="u1",
+            data_item_id="d1",
+            object_key="k1",
+            bytes_reserved=80,
+            expires_at=expires_at,
+        )
+        db.commit()
+        usage = get_workspace_storage_usage(db, workspace_id=ws.id, use_cache=False)
+        assert usage.reserved_bytes == 80
+        assert usage.total_bytes == 80
+
+        try:
+            create_upload_reservation(
+                db,
+                workspace_id=ws.id,
+                dataset_id=dataset.id,
+                upload_id="u2",
+                data_item_id="d2",
+                object_key="k2",
+                bytes_reserved=30,
+                expires_at=expires_at,
+            )
+        except ApiError as exc:
+            assert exc.code == "storage_quota_exceeded"
+        else:  # pragma: no cover
+            raise AssertionError("second reservation should exceed quota")

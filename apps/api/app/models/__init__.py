@@ -16,6 +16,7 @@ from app.models.datasets import (
     DataItem,
     Annotation,
     DatasetVersion,
+    DocumentVersion,
 )
 from app.models.training import (
     TrainingJob,
@@ -74,6 +75,8 @@ from app.models.billing import (
     SubscriptionItem,
     Entitlement,
     BillingEvent,
+    QuotaCounter,
+    StorageReservation,
 )
 from app.models.digests import (
     DigestDaily,
@@ -90,6 +93,7 @@ __all__ = [
     "DataItem",
     "Annotation",
     "DatasetVersion",
+    "DocumentVersion",
     "TrainingJob",
     "TrainingRun",
     "Metric",
@@ -132,6 +136,8 @@ __all__ = [
     "SubscriptionItem",
     "Entitlement",
     "BillingEvent",
+    "QuotaCounter",
+    "StorageReservation",
     "DigestDaily",
     "DigestWeekly",
 ]

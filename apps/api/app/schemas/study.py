@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -26,8 +26,35 @@ class StudyAssetOut(BaseModel):
     status: str
     total_chunks: int
     metadata_json: dict[str, Any] | None = None
+    tags: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class StudyAssetTagsUpdate(BaseModel):
+    tags: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _normalize_tags(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            return []
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            if not isinstance(raw, str):
+                continue
+            tag = raw.strip()
+            if not tag:
+                continue
+            tag = tag[:32]
+            if tag in seen:
+                continue
+            seen.add(tag)
+            cleaned.append(tag)
+        return cleaned
 
 
 class PaginatedStudyAssets(BaseModel):

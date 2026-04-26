@@ -24,6 +24,8 @@ export type WindowType =
   | "memory"
   | "memory_graph"
   | "study"
+  | "references"
+  | "reference_document"
   | "digest"
   | "search";
 
@@ -89,6 +91,8 @@ const DEFAULT_SIZES: Record<WindowType, { width: number; height: number }> = {
   memory: { width: 500, height: 600 },
   memory_graph: { width: 1100, height: 720 },
   study: { width: 600, height: 500 },
+  references: { width: 760, height: 560 },
+  reference_document: { width: 900, height: 680 },
   digest: { width: 520, height: 620 },
   search: { width: 680, height: 720 },
 };
@@ -154,6 +158,11 @@ function windowReducer(
                 const existingPage = w.meta.guestPageId;
                 const targetPage = meta.guestPageId;
                 return !!existingPage && existingPage === targetPage;
+              }
+              if (type === "reference_document") {
+                const existingAsset = w.meta.assetId || w.meta.dataItemId;
+                const targetAsset = meta.assetId || meta.dataItemId;
+                return !!existingAsset && existingAsset === targetAsset;
               }
               return JSON.stringify(w.meta) === JSON.stringify(meta);
             });

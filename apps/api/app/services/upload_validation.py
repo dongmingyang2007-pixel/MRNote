@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import zipfile
 from dataclasses import dataclass
 from io import BufferedIOBase
 from tempfile import SpooledTemporaryFile
@@ -20,6 +22,15 @@ UPLOAD_SIGNATURE_READ_BYTES = 8192
 UPLOAD_SPOOL_MAX_MEMORY_BYTES = 1024 * 1024
 _DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _PPTX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_OOXML_REQUIRED_MEMBERS = {
+    _DOCX_MEDIA_TYPE: "word/document.xml",
+    _PPTX_MEDIA_TYPE: "ppt/presentation.xml",
+    _XLSX_MEDIA_TYPE: "xl/workbook.xml",
+}
+_OOXML_MAX_MEMBERS = 512
+_OOXML_MAX_MEMBER_BYTES = 64 * 1024 * 1024
+_OOXML_MAX_TOTAL_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 _TEXTUAL_MEDIA_TYPES = {
     "text/plain",
     "text/markdown",
@@ -61,6 +72,7 @@ _WORKSPACE_UPLOAD_MEDIA_TYPES_BY_EXTENSION: dict[str, set[str]] = {
     ".txt": {"text/plain", "application/octet-stream"},
     ".md": {"text/markdown", "text/plain", "application/octet-stream"},
     ".docx": {_DOCX_MEDIA_TYPE, "application/octet-stream"},
+    ".xlsx": {_XLSX_MEDIA_TYPE, "application/octet-stream"},
     ".pptx": {_PPTX_MEDIA_TYPE, "application/octet-stream"},
 }
 _GENERIC_TEXTUAL_EXTENSIONS: set[str] = {
@@ -138,6 +150,7 @@ _CANONICAL_MEDIA_TYPE_BY_EXTENSION = {
     ".txt": "text/plain",
     ".md": "text/markdown",
     ".docx": _DOCX_MEDIA_TYPE,
+    ".xlsx": _XLSX_MEDIA_TYPE,
     ".pptx": _PPTX_MEDIA_TYPE,
     ".csv": "text/csv",
     ".tsv": "text/plain",
@@ -261,6 +274,8 @@ def _prefix_matches_declared_media_type(prefix: bytes, media_type: str) -> bool:
         return prefix.startswith(b"PK\x03\x04")
     if media_type == _PPTX_MEDIA_TYPE:
         return prefix.startswith(b"PK\x03\x04")
+    if media_type == _XLSX_MEDIA_TYPE:
+        return prefix.startswith(b"PK\x03\x04")
     if media_type == "video/mp4":
         return len(prefix) >= 12 and prefix[4:8] == b"ftyp"
     if media_type == "video/quicktime":
@@ -272,11 +287,44 @@ def _prefix_matches_declared_media_type(prefix: bytes, media_type: str) -> bool:
     return True
 
 
+def _validate_ooxml_package(content: bytes, media_type: str) -> bool:
+    required_member = _OOXML_REQUIRED_MEMBERS.get(media_type)
+    if required_member is None:
+        return True
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            infos = archive.infolist()
+            if len(infos) > _OOXML_MAX_MEMBERS:
+                return False
+            names = {info.filename for info in infos}
+            if "[Content_Types].xml" not in names or required_member not in names:
+                return False
+            total_uncompressed = 0
+            for info in infos:
+                if info.file_size > _OOXML_MAX_MEMBER_BYTES:
+                    return False
+                total_uncompressed += int(info.file_size or 0)
+                if total_uncompressed > _OOXML_MAX_TOTAL_UNCOMPRESSED_BYTES:
+                    return False
+    except zipfile.BadZipFile:
+        return False
+    except Exception:
+        return False
+    return True
+
+
 def validate_workspace_upload_signature(*, prefix: bytes, media_type: str) -> None:
     normalized_media_type = normalize_media_type(media_type)
     if _prefix_matches_declared_media_type(prefix, normalized_media_type):
         return
     raise ApiError("upload_mismatch", "Uploaded object contents do not match declared file type", status_code=400)
+
+
+def validate_workspace_upload_content(*, content: bytes, media_type: str) -> None:
+    normalized_media_type = normalize_media_type(media_type)
+    validate_workspace_upload_signature(prefix=content[:UPLOAD_SIGNATURE_READ_BYTES], media_type=normalized_media_type)
+    if not _validate_ooxml_package(content, normalized_media_type):
+        raise ApiError("upload_mismatch", "Uploaded Office package is malformed", status_code=400)
 
 
 def ensure_uploaded_object_matches(
@@ -316,7 +364,20 @@ def ensure_uploaded_object_signature_matches(
     if prefix is None:
         raise ApiError("upload_incomplete", "Uploaded object not found", status_code=400)
     try:
-        validate_workspace_upload_signature(prefix=prefix, media_type=media_type)
+        normalized_media_type = normalize_media_type(media_type)
+        validate_workspace_upload_signature(prefix=prefix, media_type=normalized_media_type)
+        if normalized_media_type in _OOXML_REQUIRED_MEMBERS:
+            from app.core.config import settings
+            from app.services.storage import get_s3_client
+
+            response = get_s3_client().get_object(
+                Bucket=bucket_name,
+                Key=object_key,
+                Range=f"bytes=0-{settings.upload_max_mb * 1024 * 1024}",
+            )
+            content = response["Body"].read(settings.upload_max_mb * 1024 * 1024 + 1)
+            if not _validate_ooxml_package(content, normalized_media_type):
+                raise ApiError("upload_mismatch", "Uploaded Office package is malformed", status_code=400)
     except ApiError as exc:
         delete_object(bucket_name=bucket_name, object_key=object_key)
         raise ApiError("upload_mismatch", mismatch_message, status_code=400) from exc

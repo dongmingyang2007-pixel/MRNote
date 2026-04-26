@@ -202,6 +202,7 @@ def create_presigned_get(
         params["ResponseContentDisposition"] = (
             f'attachment; filename="{safe_name}"'
         )
+    params["ResponseContentType"] = "application/octet-stream"
     return client.generate_presigned_url(
         ClientMethod="get_object",
         Params=params,

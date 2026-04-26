@@ -125,6 +125,16 @@ class NotebookSelectionMemoryLink(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """
 
     __tablename__ = "notebook_selection_memory_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "page_id",
+            "block_id",
+            "start_offset",
+            "end_offset",
+            "memory_id",
+            name="uq_notebook_selection_memory_link_business_key",
+        ),
+    )
 
     page_id: Mapped[str] = mapped_column(
         ForeignKey("notebook_pages.id", ondelete="CASCADE"),

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
@@ -32,7 +32,7 @@ from app.services.upload_validation import (
     ensure_uploaded_object_matches,
     ensure_uploaded_object_signature_matches,
     validate_workspace_upload_declaration,
-    validate_workspace_upload_signature,
+    validate_workspace_upload_content,
 )
 from app.tasks.worker_tasks import cleanup_pending_upload_session, index_data_item, process_data_item
 
@@ -65,7 +65,7 @@ def _run_or_enqueue_upload_followups(
 ) -> None:
     followups = [
         (process_data_item, (item.id,)),
-        (index_data_item, (workspace_id, project_id, item.id, item.object_key, item.filename)),
+        (index_data_item, (item.id,)),
     ]
     if settings.env == "test":
         for task, args in followups:
@@ -129,7 +129,21 @@ def presign_upload(
         # Host header, so an attacker could induce us to emit a PUT URL
         # pointing at an attacker-controlled host (e.g. via a
         # reverse-proxy misconfig). site_url is server-owned.
-        base = str(settings.site_url).rstrip("/")
+        configured_site_url = str(settings.site_url).rstrip("/")
+        configured_host = ""
+        try:
+            from urllib.parse import urlparse
+
+            configured_host = urlparse(configured_site_url).hostname or ""
+        except Exception:  # noqa: BLE001
+            configured_host = ""
+        if settings.env == "test" and (
+            configured_site_url in {"http://localhost:3000", "http://127.0.0.1:3000"}
+            or (not settings.upload_put_proxy and configured_host not in settings.allowed_hosts)
+        ):
+            base = str(request.base_url).rstrip("/")
+        else:
+            base = configured_site_url
         put_url = f"{base}/api/v1/uploads/proxy/{upload_id}"
         headers = {"Content-Type": normalized_media_type}
     else:
@@ -142,6 +156,19 @@ def presign_upload(
         upload_method = "POST"
 
     now = datetime.now(timezone.utc)
+    reservation_expires_at = now + timedelta(seconds=settings.upload_session_ttl_seconds)
+    from app.services.storage_quota import create_upload_reservation
+
+    create_upload_reservation(
+        db,
+        workspace_id=str(workspace_id),
+        dataset_id=str(payload.dataset_id),
+        upload_id=upload_id,
+        data_item_id=data_item_id,
+        object_key=object_key,
+        bytes_reserved=int(payload.size_bytes),
+        expires_at=reservation_expires_at,
+    )
     runtime_state.set_json(
         _upload_session_scope(upload_id),
         "session",
@@ -157,7 +184,7 @@ def presign_upload(
             "size_bytes": payload.size_bytes,
             "uploaded": False,
             "created_at": now.isoformat(),
-            "expires_at": (now.timestamp() + settings.upload_session_ttl_seconds),
+            "expires_at": reservation_expires_at.timestamp(),
         },
         ttl_seconds=settings.upload_session_ttl_seconds,
     )
@@ -216,10 +243,12 @@ async def proxy_upload_put(
         max_bytes=max_bytes,
     )
     try:
-        validate_workspace_upload_signature(
-            prefix=buffered_upload.peek_prefix(),
+        buffered_upload.file.seek(0)
+        validate_workspace_upload_content(
+            content=buffered_upload.file.read(),
             media_type=upload["media_type"],
         )
+        buffered_upload.file.seek(0)
 
         if settings.env != "test":
             try:
@@ -291,6 +320,27 @@ def complete_upload(
             mismatch_message="Uploaded object contents do not match declared file type",
         )
 
+    existing_size = int(item.size_bytes or 0) if item and item.deleted_at is None else 0
+    if existing_size > 0:
+        from app.services.storage_quota import assert_can_store
+
+        incoming_delta = max(0, int(upload["size_bytes"]) - existing_size)
+        assert_can_store(
+            db,
+            workspace_id=str(workspace_id),
+            incoming_bytes=incoming_delta,
+        )
+    else:
+        from app.services.storage_quota import consume_upload_reservation
+
+        consume_upload_reservation(
+            db,
+            workspace_id=str(workspace_id),
+            upload_id=str(payload.upload_id),
+            data_item_id=str(payload.data_item_id),
+            final_size_bytes=int(upload["size_bytes"]),
+        )
+
     if not item:
         item = DataItem(
             id=upload["data_item_id"],
@@ -326,6 +376,12 @@ def complete_upload(
         project_id=dataset.project_id,
         item=item,
     )
+
+    # Bytes just landed — drop the cached usage row so the next read
+    # (e.g. the storage badge polling on the next page load) recomputes.
+    from app.services.storage_quota import invalidate_workspace_usage_cache
+
+    invalidate_workspace_usage_cache(str(workspace_id))
 
     runtime_state.delete(_upload_session_scope(payload.upload_id), "session")
     return {"ok": True}

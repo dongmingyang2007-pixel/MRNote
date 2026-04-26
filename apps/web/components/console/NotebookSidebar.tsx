@@ -11,6 +11,7 @@ import {
   Brain,
   Network,
   BookOpen,
+  FolderOpen,
   Settings,
   Search,
   PanelLeftClose,
@@ -36,6 +37,7 @@ type SideTab =
   | "ai_panel"
   | "memory"
   | "memory_graph"
+  | "references"
   | "learn"
   | "digest"
   | "search"
@@ -52,6 +54,7 @@ const TABS = [
   { id: "ai_panel" as const, Icon: Sparkles, key: "nav.aiPanel" },
   { id: "memory" as const, Icon: Brain, key: "nav.memory" },
   { id: "memory_graph" as const, Icon: Network, key: "nav.memoryGraph" },
+  { id: "references" as const, Icon: FolderOpen, key: "nav.references" },
   { id: "learn" as const, Icon: BookOpen, key: "nav.learn" },
   { id: "digest" as const, Icon: Bell, key: "nav.digest" },
 ] as const;
@@ -151,6 +154,15 @@ function GuestNotebookSidebar({ notebookId }: { notebookId: string }) {
           onClick={() => requestGuestRegisterGate("memory")}
         >
           <Network size={20} strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          className="glass-sidebar-nav-item"
+          title={t("nav.references")}
+          aria-label={t("nav.references")}
+          onClick={() => requestGuestRegisterGate("upload")}
+        >
+          <FolderOpen size={20} strokeWidth={1.8} />
         </button>
         <button
           type="button"
@@ -328,8 +340,10 @@ function AuthenticatedNotebookSidebar({ notebookId }: NotebookSidebarProps) {
         pathname.includes(`/notebooks/${notebookId}/pages/`)
       );
     }
-    if (tabId === "memory")
+      if (tabId === "memory")
       return pathname.includes(`/notebooks/${notebookId}/memory`);
+    if (tabId === "references")
+      return pathname.includes(`/notebooks/${notebookId}/references`);
     if (tabId === "learn")
       return pathname.includes(`/notebooks/${notebookId}/learn`);
     return false;
@@ -403,6 +417,12 @@ function AuthenticatedNotebookSidebar({ notebookId }: NotebookSidebarProps) {
         openWindow({
           type: "memory_graph",
           title: tn("memoryGraph.title"),
+          meta: { notebookId },
+        });
+      } else if (tabId === "references") {
+        openWindow({
+          type: "references",
+          title: tn("references.windowTitle"),
           meta: { notebookId },
         });
       } else if (tabId === "learn") {

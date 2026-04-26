@@ -124,3 +124,64 @@ def extract_memory_candidates_sync(
             user_id=user_id,
         )
     )
+
+
+async def extract_memory_from_text(
+    db: Session,
+    *,
+    notebook_id: str,
+    workspace_id: str,
+    user_id: str,
+    text: str,
+    source_label: str = "",
+    source_ref: str = "",
+) -> ExtractionResult:
+    """Run the memory pipeline against an ad-hoc text snippet.
+
+    Used by PDF/Office reference selection: the user highlights a passage in
+    a reference document and asks "extract memory from this". The text isn't
+    tied to a notebook page, so we resolve project context from the notebook.
+    """
+    snippet = (text or "").strip()
+    if not snippet:
+        return ExtractionResult()
+
+    notebook = db.query(Notebook).filter(
+        Notebook.id == notebook_id,
+        Notebook.workspace_id == workspace_id,
+    ).first()
+    if not notebook or not notebook.project_id:
+        return ExtractionResult()
+
+    pipeline_input = PipelineInput(
+        source_type="notebook_selection",
+        source_text=snippet[:6000],
+        source_ref=source_ref or str(notebook.id),
+        workspace_id=str(workspace_id),
+        project_id=str(notebook.project_id),
+        user_id=str(user_id),
+        context=SourceContext(owner_user_id=str(user_id)),
+        context_text=(source_label or notebook.title or "Reference selection")[:200],
+    )
+
+    try:
+        result: PipelineResult = await run_pipeline(db, pipeline_input)
+    except Exception:
+        logger.exception(
+            "Unified pipeline failed for selection text in notebook %s",
+            notebook_id,
+        )
+        return ExtractionResult()
+
+    if not result.write_run_id:
+        return ExtractionResult(graph_changed=result.graph_changed)
+
+    run = db.get(MemoryWriteRun, result.write_run_id)
+    items = (
+        db.query(MemoryWriteItem)
+        .filter(MemoryWriteItem.run_id == result.write_run_id)
+        .all()
+    )
+    return ExtractionResult(
+        run=run, items=list(items), graph_changed=result.graph_changed
+    )

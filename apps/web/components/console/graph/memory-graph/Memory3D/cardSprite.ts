@@ -93,7 +93,8 @@ export function makeNodeCard(n: GraphNode): Sprite {
   ctx.fillStyle = "#64748b";
   ctx.font = '500 12px "Plus Jakarta Sans", system-ui, sans-serif';
   const summary = (n.raw?.content ?? "").trim();
-  let sm = summary, smaxW = CARD_W - 36;
+  let sm = summary;
+  const smaxW = CARD_W - 36;
   while (ctx.measureText(sm + "…").width > smaxW && sm.length > 1) sm = sm.slice(0, -1);
   ctx.fillText(sm + (sm.length < summary.length ? "…" : ""), 18, 120);
 

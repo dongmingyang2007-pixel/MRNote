@@ -174,7 +174,7 @@ export default function DigestDrawer() {
             gap: 6,
           }}
         >
-          {digest.blocks.slice(0, 2).flatMap((block) => {
+          {(digest.blocks ?? []).slice(0, 2).flatMap((block) => {
             if (block.kind === "insight") {
               return [
                 <li
@@ -195,9 +195,9 @@ export default function DigestDrawer() {
                 </li>,
               ];
             }
-            return block.items.slice(0, 2).map((item, i) => (
+            return (block.items ?? []).slice(0, 2).map((item, i) => (
               <li
-                key={`${block.kind}-${i}-${item.label.slice(0, 10)}`}
+                key={`${block.kind}-${i}-${(item.label ?? "").slice(0, 10)}`}
                 style={{
                   fontSize: 13,
                   lineHeight: 1.5,

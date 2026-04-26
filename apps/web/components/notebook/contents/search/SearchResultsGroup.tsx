@@ -1,11 +1,15 @@
 "use client";
 
 import React from "react";
+import type { LucideIcon } from "lucide-react";
 import type { Hit } from "@/hooks/useSearch";
 
 interface Props {
   heading: string;
-  icon: React.ElementType;
+  // `LucideIcon` carries the `size`/`className`/`strokeWidth` prop typing.
+  // Plain `React.ElementType` widens its props to `unknown`/`never` under
+  // @types/react@19, which causes `<Icon size={N} />` to fail typecheck.
+  icon: LucideIcon;
   items: Hit[];
   onPick: (hit: Hit) => void;
   emptyHint?: string;

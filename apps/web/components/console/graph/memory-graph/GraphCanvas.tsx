@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ROLE_STYLE,
   EDGE_STYLE,
@@ -54,6 +54,7 @@ export function GraphCanvas(p: Props) {
   const dragRef = useRef<{ id: string | null; panStart: { x: number; y: number; tx: number; ty: number } | null }>({
     id: null, panStart: null,
   });
+  const [isPanning, setIsPanning] = useState(false);
 
   // Convert screen (client) coords → SVG user-space under current viewport transform
   const toWorld = useCallback((clientX: number, clientY: number) => {
@@ -87,6 +88,7 @@ export function GraphCanvas(p: Props) {
     dragRef.current.panStart = {
       x: e.clientX, y: e.clientY, tx: p.viewport.tx, ty: p.viewport.ty,
     };
+    setIsPanning(true);
   };
   const handleBackgroundPointerMove: React.PointerEventHandler<SVGRectElement> = (e) => {
     const s = dragRef.current.panStart;
@@ -100,6 +102,7 @@ export function GraphCanvas(p: Props) {
   const handleBackgroundPointerUp: React.PointerEventHandler<SVGRectElement> = (e) => {
     try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     dragRef.current.panStart = null;
+    setIsPanning(false);
   };
   const handleBackgroundClick: React.MouseEventHandler<SVGRectElement> = () => {
     p.onSelect(null);
@@ -145,7 +148,7 @@ export function GraphCanvas(p: Props) {
       width={p.width}
       height={p.height}
       onWheel={handleWheel}
-      style={{ display: "block", userSelect: "none", cursor: dragRef.current.panStart ? "grabbing" : "default" }}
+      style={{ display: "block", userSelect: "none", cursor: isPanning ? "grabbing" : "default" }}
     >
       <defs>
         <filter id="mg-glow" x="-50%" y="-50%" width="200%" height="200%">

@@ -29,6 +29,7 @@ import {
   Layers,
   Lightbulb,
   BookOpen,
+  type LucideIcon,
 } from "lucide-react";
 import { apiPost, isApiRequestError } from "@/lib/api";
 
@@ -44,16 +45,19 @@ interface SlashCommandContext {
   getPageId?: () => string | null;
 }
 
+type TranslationValues = Record<string, string | number | Date>;
+type Translator = (key: string, values?: TranslationValues) => string;
+
 interface SlashCommandItem {
   id: string;
   titleKey: string;
   descKey: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   /** When invoked, the TipTap range is already deleted. Use the editor
    * chain to insert the desired block. The translator is passed so
    * commands that need localized prompts (e.g. image URL) can use it.
    * `ctx` carries host-provided helpers like the current page id. */
-  run: (editor: Editor, t: (key: string) => string, ctx?: SlashCommandContext) => void;
+  run: (editor: Editor, t: Translator, ctx?: SlashCommandContext) => void;
 }
 
 const COMMANDS: SlashCommandItem[] = [
@@ -407,7 +411,7 @@ const COMMANDS: SlashCommandItem[] = [
       const question = (window.prompt(t("slash.studyQa.prompt")) || "").trim();
       if (!question) return;
 
-      const body = t("slash.studyQa.placeholder").replace("{question}", question);
+      const body = t("slash.studyQa.placeholder", { question });
       editor
         .chain()
         .focus()
@@ -465,7 +469,7 @@ const CommandListComponent = ({
   ref,
 }: CommandListProps & { ref: React.Ref<CommandListRef> }) => {
   const t = useTranslations("console-notebooks");
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selection, setSelection] = useState({ query: "", index: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = useMemo(() => {
@@ -477,13 +481,21 @@ const CommandListComponent = ({
     });
   }, [items, query, t]);
 
+  const selectedIndex = selection.query === query ? selection.index : 0;
   const activeIndex =
     filteredItems.length === 0 ? 0 : Math.min(selectedIndex, filteredItems.length - 1);
-
-  // Reset selection when the filtered list changes (e.g. user types more).
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+  const setSelectedIndexForQuery = useCallback(
+    (next: number | ((index: number) => number)) => {
+      setSelection((current) => {
+        const currentIndex = current.query === query ? current.index : 0;
+        return {
+          query,
+          index: typeof next === "function" ? next(currentIndex) : next,
+        };
+      });
+    },
+    [query],
+  );
 
   // Scroll selected item into view
   useEffect(() => {
@@ -512,14 +524,16 @@ const CommandListComponent = ({
             if (filteredItems.length === 0) {
               return true;
             }
-            setSelectedIndex((i) => (i + filteredItems.length - 1) % filteredItems.length);
+            setSelectedIndexForQuery(
+              (i) => (i + filteredItems.length - 1) % filteredItems.length,
+            );
             return true;
           }
           if (event.key === "ArrowDown") {
             if (filteredItems.length === 0) {
               return true;
             }
-            setSelectedIndex((i) => (i + 1) % filteredItems.length);
+            setSelectedIndexForQuery((i) => (i + 1) % filteredItems.length);
             return true;
           }
           if (event.key === "Enter") {
@@ -530,7 +544,7 @@ const CommandListComponent = ({
         },
       });
     }
-  }, [ref, filteredItems, activeIndex, selectItem]);
+  }, [ref, filteredItems, activeIndex, selectItem, setSelectedIndexForQuery]);
 
   if (filteredItems.length === 0) return null;
 
@@ -547,7 +561,7 @@ const CommandListComponent = ({
               e.preventDefault();
               selectItem(index);
             }}
-            onMouseEnter={() => setSelectedIndex(index)}
+            onMouseEnter={() => setSelectedIndexForQuery(index)}
             type="button"
           >
             <span className="slash-menu-icon">
@@ -569,8 +583,6 @@ const CommandListComponent = ({
 // ---------------------------------------------------------------------------
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Translator = (key: string) => string;
-
 export function createSuggestionConfig(
   translate: Translator,
   options?: SlashCommandContext,

@@ -25,9 +25,7 @@ export default function MemoryGraphWindow({
   const t = useTranslations("console-notebooks");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
-  const [resolvedSelectedId, setResolvedSelectedId] = useState<string | null>(
-    initialSelectedId || null,
-  );
+  const [resolvedSelectedId, setResolvedSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!notebookId) return;
@@ -41,10 +39,6 @@ export default function MemoryGraphWindow({
       });
     return () => { cancelled = true; };
   }, [notebookId]);
-
-  useEffect(() => {
-    setResolvedSelectedId(initialSelectedId || null);
-  }, [initialSelectedId]);
 
   useEffect(() => {
     if (!projectId || !initialMemoryViewId || initialSelectedId) {
@@ -103,7 +97,7 @@ export default function MemoryGraphWindow({
     <MemoryGraphView
       nodes={graph.nodes}
       edges={graph.edges}
-      initialSelectedId={resolvedSelectedId || undefined}
+      initialSelectedId={initialSelectedId || resolvedSelectedId || undefined}
     />
   );
 }

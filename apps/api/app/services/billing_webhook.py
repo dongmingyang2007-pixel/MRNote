@@ -29,13 +29,24 @@ import stripe
 from sqlalchemy.orm import Session
 
 from app.core.entitlements import refresh_workspace_entitlements
-from app.models import Subscription, SubscriptionItem, Workspace
+from app.models import CustomerAccount, Subscription, SubscriptionItem, Workspace
 from app.services import stripe_client
 
 logger = logging.getLogger(__name__)
 
 
 _TRIALING_STATUS = "trialing"
+_STRIPE_SUBSCRIPTION_STATUSES = {
+    "active",
+    "past_due",
+    "canceled",
+    "trialing",
+    "manual",
+    "incomplete",
+    "incomplete_expired",
+    "unpaid",
+    "paused",
+}
 
 
 def _ts(seconds: int | None) -> datetime | None:
@@ -139,6 +150,68 @@ def _metadata_matches_subscription_price(
     return first_price == expected
 
 
+def _customer_matches_workspace(
+    db: Session,
+    *,
+    workspace_id: str,
+    stripe_customer_id: str | None,
+) -> bool:
+    if not stripe_customer_id:
+        return False
+    return (
+        db.query(CustomerAccount)
+        .filter(
+            CustomerAccount.workspace_id == workspace_id,
+            CustomerAccount.stripe_customer_id == stripe_customer_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def _normalize_subscription_status(status: object) -> str:
+    normalized = str(status or "incomplete").strip()
+    if normalized in _STRIPE_SUBSCRIPTION_STATUSES:
+        return normalized
+    logger.warning("Unknown Stripe subscription status %s; mapping to incomplete", normalized)
+    return "incomplete"
+
+
+def _apply_one_time_payment(
+    db: Session,
+    *,
+    workspace_id: str,
+    plan: str,
+    cycle: str,
+) -> None:
+    days = 365 if cycle == "yearly" else 30
+    existing = _find_active_one_time_sub(db, workspace_id=workspace_id)
+    if existing is not None:
+        current_end = _coerce_aware(existing.current_period_end) or _now_utc()
+        existing.current_period_end = current_end + timedelta(days=days)
+        existing.plan = plan
+        existing.billing_cycle = cycle
+        db.add(existing)
+        db.commit()
+    else:
+        sub = Subscription(
+            workspace_id=workspace_id,
+            stripe_subscription_id=None,
+            plan=plan,
+            billing_cycle=cycle,
+            status="manual",
+            provider="stripe_one_time",
+            current_period_start=_now_utc(),
+            current_period_end=_now_utc() + timedelta(days=days),
+        )
+        db.add(sub)
+        db.commit()
+
+    _set_workspace_plan(db, workspace_id=workspace_id, plan=plan)
+    db.commit()
+    refresh_workspace_entitlements(db, workspace_id=workspace_id)
+
+
 def handle_checkout_session_completed(
     db: Session, payload_obj: dict[str, Any],
 ) -> None:
@@ -148,6 +221,13 @@ def handle_checkout_session_completed(
     cycle = metadata.get("mrai_cycle")
     if not (workspace_id and plan and cycle):
         logger.warning("checkout.session.completed missing mrai metadata")
+        return
+    if not _customer_matches_workspace(
+        db,
+        workspace_id=workspace_id,
+        stripe_customer_id=payload_obj.get("customer"),
+    ):
+        logger.warning("checkout.session.completed customer/workspace mismatch")
         return
 
     if payload_obj.get("mode") == "subscription":
@@ -167,21 +247,53 @@ def handle_checkout_session_completed(
         period_start = _ts(details["current_period_start"]) if details else None
         period_end = _ts(details["current_period_end"]) if details else None
         cancel_flag = bool(details.get("cancel_at_period_end")) if details else False
-        status = (details.get("status") if details else None) or "active"
-        sub = Subscription(
-            workspace_id=workspace_id,
-            stripe_subscription_id=sub_id,
-            plan=plan, billing_cycle=cycle,
-            status=status, provider="stripe_recurring",
-            current_period_start=period_start,
-            current_period_end=period_end,
-            cancel_at_period_end=cancel_flag,
+        status = _normalize_subscription_status(details.get("status") if details else None)
+        sub = (
+            db.query(Subscription)
+            .filter(Subscription.stripe_subscription_id == sub_id)
+            .first()
         )
+        if sub is None:
+            sub = (
+                db.query(Subscription)
+                .filter(
+                    Subscription.workspace_id == workspace_id,
+                    Subscription.stripe_subscription_id.is_(None),
+                    Subscription.provider == "stripe_recurring",
+                    Subscription.status == "incomplete",
+                    Subscription.plan == plan,
+                    Subscription.billing_cycle == cycle,
+                )
+                .order_by(Subscription.created_at.desc())
+                .first()
+            )
+        if sub is None:
+            sub = Subscription(
+                workspace_id=workspace_id,
+                stripe_subscription_id=sub_id,
+                plan=plan,
+                billing_cycle=cycle,
+                status=status,
+                provider="stripe_recurring",
+                current_period_start=period_start,
+                current_period_end=period_end,
+                cancel_at_period_end=cancel_flag,
+            )
+        else:
+            sub.workspace_id = workspace_id
+            sub.stripe_subscription_id = sub_id
+            sub.plan = plan
+            sub.billing_cycle = cycle
+            sub.status = status
+            sub.provider = "stripe_recurring"
+            sub.current_period_start = period_start
+            sub.current_period_end = period_end
+            sub.cancel_at_period_end = cancel_flag
         # HIGH-5: mark trial_used_at when the subscription starts in
         # trialing state so a subsequent checkout can't grant another
         # 14-day trial on the same workspace.
         if status == _TRIALING_STATUS:
-            sub.trial_used_at = _now_utc()
+            sub.trial_used_at = sub.trial_used_at or _now_utc()
         db.add(sub); db.commit(); db.refresh(sub)
         if details:
             _replace_subscription_items(
@@ -189,31 +301,49 @@ def handle_checkout_session_completed(
             )
             db.commit()
     else:
-        # HIGH-4: if the workspace already has an un-expired one-time
-        # subscription, extend it in place instead of stacking a new row.
-        days = 365 if cycle == "yearly" else 30
-        existing = _find_active_one_time_sub(db, workspace_id=workspace_id)
-        if existing is not None:
-            current_end = _coerce_aware(existing.current_period_end) or _now_utc()
-            existing.current_period_end = current_end + timedelta(days=days)
-            existing.plan = plan
-            existing.billing_cycle = cycle
-            db.add(existing)
-            db.commit()
-        else:
-            sub = Subscription(
-                workspace_id=workspace_id,
-                stripe_subscription_id=None,
-                plan=plan, billing_cycle=cycle,
-                status="manual", provider="stripe_one_time",
-                current_period_start=_now_utc(),
-                current_period_end=_now_utc() + timedelta(days=days),
+        if payload_obj.get("payment_status") != "paid":
+            logger.info(
+                "checkout.session.completed one-time payment pending for workspace %s",
+                workspace_id,
             )
-            db.add(sub); db.commit()
+            return
+        _apply_one_time_payment(db, workspace_id=workspace_id, plan=plan, cycle=cycle)
+        return
 
     _set_workspace_plan(db, workspace_id=workspace_id, plan=plan)
     db.commit()
     refresh_workspace_entitlements(db, workspace_id=workspace_id)
+
+
+def handle_checkout_session_async_payment_succeeded(
+    db: Session, payload_obj: dict[str, Any],
+) -> None:
+    metadata = payload_obj.get("metadata") or {}
+    workspace_id = metadata.get("mrai_workspace_id")
+    plan = metadata.get("mrai_plan")
+    cycle = metadata.get("mrai_cycle")
+    if not (workspace_id and plan and cycle):
+        logger.warning("checkout.session.async_payment_succeeded missing mrai metadata")
+        return
+    if not _customer_matches_workspace(
+        db,
+        workspace_id=workspace_id,
+        stripe_customer_id=payload_obj.get("customer"),
+    ):
+        logger.warning("checkout.session.async_payment_succeeded customer/workspace mismatch")
+        return
+    if payload_obj.get("mode") != "payment" or payload_obj.get("payment_status") != "paid":
+        return
+    _apply_one_time_payment(db, workspace_id=workspace_id, plan=plan, cycle=cycle)
+
+
+def handle_checkout_session_async_payment_failed(
+    db: Session, payload_obj: dict[str, Any],
+) -> None:
+    metadata = payload_obj.get("metadata") or {}
+    workspace_id = metadata.get("mrai_workspace_id")
+    if workspace_id:
+        refresh_workspace_entitlements(db, workspace_id=workspace_id)
 
 
 def handle_subscription_updated(
@@ -227,7 +357,7 @@ def handle_subscription_updated(
     )
     if sub is None:
         return
-    new_status = payload_obj.get("status", sub.status)
+    new_status = _normalize_subscription_status(payload_obj.get("status", sub.status))
     sub.status = new_status
     sub.cancel_at_period_end = bool(payload_obj.get("cancel_at_period_end"))
     cps = payload_obj.get("current_period_start")

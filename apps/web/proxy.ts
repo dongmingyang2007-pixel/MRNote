@@ -195,18 +195,29 @@ export function proxy(request: NextRequest) {
   const useNonceCsp =
     process.env.NODE_ENV === "production" && !isLocalHost && !isLocalStack;
   let nonce: string | null = null;
+  if (useNonceCsp) {
+    nonce = btoa(crypto.randomUUID());
+  }
+  const scriptSrc = nonce
+    ? `'self' 'nonce-${nonce}' 'strict-dynamic'`
+    : "'self' 'unsafe-inline'";
+  const csp =
+    process.env.NODE_ENV === "production"
+      ? buildCsp(request, allowSameOriginFrame, scriptSrc)
+      : null;
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-app-locale", localePrefix === "/en" ? "en" : "zh");
+  if (nonce) {
+    requestHeaders.set("x-nonce", nonce);
+  }
+  if (csp) {
+    requestHeaders.set("content-security-policy", csp);
+  }
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
-
-  // Generate nonce for CSP (production only)
-  if (useNonceCsp) {
-    nonce = btoa(crypto.randomUUID());
-  }
 
   // Security headers — applied to every response (including intl redirects)
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -221,13 +232,7 @@ export function proxy(request: NextRequest) {
   );
 
   if (process.env.NODE_ENV === "production") {
-    const scriptSrc = nonce
-      ? `'self' 'nonce-${nonce}' 'strict-dynamic'`
-      : "'self' 'unsafe-inline'";
-    response.headers.set(
-      "Content-Security-Policy",
-      buildCsp(request, allowSameOriginFrame, scriptSrc),
-    );
+    response.headers.set("Content-Security-Policy", csp ?? "");
   }
 
   if (hasAccessToken && !hasAuthState) {

@@ -371,6 +371,7 @@ async def ask(
                 notebook_id=resolved_notebook_id,
                 page_id=str(page.id) if page is not None else None,
                 scope=scope,
+                workspace_role=workspace_role,
             )
             system_prompt = retrieval_ctx.system_prompt
             retrieval_sources = [

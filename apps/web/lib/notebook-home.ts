@@ -99,7 +99,7 @@ export function getNotebookHomeMetrics(home: HomeSummary): NotebookHomeMetrics {
       (sum, notebook) => sum + notebook.study_asset_count,
       0,
     ),
-    ai: home.ai_today.actions_today,
+    ai: home.ai_today?.actions_today ?? 0,
   };
 }
 

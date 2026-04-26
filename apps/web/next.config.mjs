@@ -23,6 +23,7 @@ const internalApiOrigin =
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   async redirects() {
     return [
       { source: "/zh", destination: "/", permanent: false },

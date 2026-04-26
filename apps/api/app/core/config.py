@@ -180,6 +180,65 @@ class Settings(BaseSettings):
     )
     google_oauth_enabled: bool = Field(default=False, env="GOOGLE_OAUTH_ENABLED")
 
+    # ---------------------------------------------------------------
+    # ONLYOFFICE Document Server (Word/PPT/Excel in-browser editing)
+    # ---------------------------------------------------------------
+    onlyoffice_enabled: bool = Field(default=False, env="ONLYOFFICE_ENABLED")
+    onlyoffice_jwt_secret: str = Field(default="", env="ONLYOFFICE_JWT_SECRET")
+    onlyoffice_doc_server_url: str = Field(
+        default="http://localhost:8060", env="ONLYOFFICE_DOC_SERVER_URL"
+    )
+    # URL the ONLYOFFICE container can reach the API at. In docker-compose
+    # this is http://api:8000; in production set to the public API origin.
+    # Falls back to site_url when empty.
+    onlyoffice_callback_public_url: str = Field(
+        default="", env="ONLYOFFICE_CALLBACK_PUBLIC_URL"
+    )
+    # JWT TTL for the per-document download/callback tokens passed to the
+    # Document Server. Long enough for an editing session, short enough
+    # that a leaked URL doesn't outlive the document key.
+    onlyoffice_token_ttl_seconds: int = Field(
+        default=3600, env="ONLYOFFICE_TOKEN_TTL_SECONDS"
+    )
+    onlyoffice_callback_rate_limit_window_seconds: int = Field(
+        default=300, env="ONLYOFFICE_CALLBACK_RATE_LIMIT_WINDOW_SECONDS"
+    )
+    onlyoffice_callback_rate_limit_max: int = Field(
+        default=30, env="ONLYOFFICE_CALLBACK_RATE_LIMIT_MAX"
+    )
+
+    # ---------------------------------------------------------------
+    # Document version retention
+    # ---------------------------------------------------------------
+    # Keep at least this many most-recent snapshots per document
+    # (regardless of age). 0 disables the recency floor. Tuned tight by
+    # default so a single 300 GB host can hold 100+ active users without
+    # version snapshots ballooning storage. Bump on bigger deployments.
+    document_version_keep_recent: int = Field(
+        default=5, env="DOCUMENT_VERSION_KEEP_RECENT"
+    )
+    # Keep every snapshot newer than this many days, even if it falls
+    # outside the recency window. 0 disables the time window. Combined
+    # with `keep_recent=5`, the effective retention is "last 5 versions
+    # OR anything saved this week, whichever is broader".
+    document_version_keep_days: int = Field(
+        default=7, env="DOCUMENT_VERSION_KEEP_DAYS"
+    )
+
+    # ---------------------------------------------------------------
+    # Per-workspace storage quota (S3 bytes for raw uploads + version
+    # snapshots). Enforced at presign + blank-document creation time.
+    # 0 means unlimited (legacy behavior, useful for self-hosted setups).
+    # ---------------------------------------------------------------
+    workspace_storage_quota_bytes: int = Field(
+        default=10 * 1024 * 1024 * 1024,  # 10 GB default
+        env="WORKSPACE_STORAGE_QUOTA_BYTES",
+    )
+
+    @property
+    def onlyoffice_callback_origin(self) -> str:
+        return (self.onlyoffice_callback_public_url or self.site_url).rstrip("/")
+
     @property
     def google_oauth_redirect_uri(self) -> str:
         return f"{self.google_oauth_redirect_base.rstrip('/')}/api/v1/auth/google/callback"
@@ -233,6 +292,11 @@ class Settings(BaseSettings):
         problems: list[str] = []
         if self.jwt_secret == "CHANGE_ME" or len(self.jwt_secret) < 32:
             problems.append("JWT_SECRET must be a strong non-default secret in production")
+        if (
+            self.oauth_session_secret == "change-me-in-prod-use-openssl-rand-hex-32"
+            or len(self.oauth_session_secret) < 32
+        ):
+            problems.append("OAUTH_SESSION_SECRET must be a strong non-default secret in production")
         if not self.cookie_secure:
             problems.append("COOKIE_SECURE must be true in production")
         if not self.allowed_hosts or "*" in self.allowed_hosts:

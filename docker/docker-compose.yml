@@ -42,6 +42,28 @@ services:
       timeout: 5s
       retries: 20
 
+  onlyoffice:
+    image: ${ONLYOFFICE_IMAGE:-onlyoffice/documentserver:8.1.1}
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-dev-only-onlyoffice-secret-change-in-prod}
+      JWT_HEADER: Authorization
+      WOPI_ENABLED: "false"
+      USE_UNAUTHORIZED_STORAGE: "true"
+    ports:
+      - "127.0.0.1:8060:80"
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_lib:/var/lib/onlyoffice
+      - onlyoffice_db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
   api:
     build:
       context: ..
@@ -82,6 +104,10 @@ services:
       DEMO_INFER_ENABLED: "false"
       UPLOAD_MAX_MB: 50
       UPLOAD_PUT_PROXY: "false"
+      ONLYOFFICE_ENABLED: "true"
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-dev-only-onlyoffice-secret-change-in-prod}
+      ONLYOFFICE_DOC_SERVER_URL: ${ONLYOFFICE_DOC_SERVER_URL:-http://localhost:8060}
+      ONLYOFFICE_CALLBACK_PUBLIC_URL: http://api:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +201,7 @@ services:
       NEXT_PUBLIC_ASSET_ORIGIN: http://localhost:9000
       NEXT_PUBLIC_APP_NAME: MRNote
       NEXT_PUBLIC_DEMO_MAX_IMAGE_MB: 10
+      NEXT_PUBLIC_ONLYOFFICE_DOC_SERVER_URL: ${ONLYOFFICE_DOC_SERVER_URL:-http://localhost:8060}
     depends_on:
       api:
         condition: service_healthy
@@ -205,3 +232,7 @@ services:
 volumes:
   pg_data:
   minio_data:
+  onlyoffice_data:
+  onlyoffice_logs:
+  onlyoffice_lib:
+  onlyoffice_db:

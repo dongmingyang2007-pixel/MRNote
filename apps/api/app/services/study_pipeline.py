@@ -115,7 +115,12 @@ async def ingest_study_asset(
 ) -> None:
     """Full pipeline: parse -> chunk -> embed -> auto-create pages -> memory extract."""
 
-    asset = db.get(StudyAsset, asset_id)
+    asset = (
+        db.query(StudyAsset)
+        .filter(StudyAsset.id == asset_id)
+        .with_for_update()
+        .first()
+    )
     if not asset:
         logger.warning("StudyAsset %s not found, skipping ingestion", asset_id)
         return

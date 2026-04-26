@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 /* Marketing font stack — Plus Jakarta Sans (display + body) and JetBrains    *
  * Mono are now self-hosted via next/font/google in app/[locale]/layout.tsx   *
  * (exposing --font-plus-jakarta / --font-jetbrains to the tree). Only Noto   *
@@ -25,6 +25,33 @@
     opacity: 0;
     transform: scale(0.99);
     filter: blur(2px);
+  }
+}
+
+/* PageTransition — CSS-only fade/slide so SSR and client hydration match.
+   Previous implementation used framer-motion's `<motion.div initial=…>`
+   which injected client-only inline styles and produced a hydration error
+   on every navigate. */
+@keyframes page-transition-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.page-transition {
+  animation: page-transition-enter 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
   }
 }
 
@@ -15485,33 +15512,9 @@ a[href] {
   --notebook-type-color: #a36a2c;
 }
 
-.notebook-library-type-marker {
-  position: relative;
-  display: inline-grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--notebook-type-color) 18%,
-      var(--workspace-line-soft)
-    );
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--notebook-type-color) 8%, white);
-  color: var(--notebook-type-color);
-}
 
-.notebook-library-type-marker::before {
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: -12px;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--notebook-type-color);
-  content: "";
-}
+
+
 
 .notebook-library-row-copy {
   gap: 4px;
@@ -15981,24 +15984,10 @@ a[href] {
 }
 
 .notebook-library-book-grid::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 12px;
-  border: 1px solid rgba(119, 91, 55, 0.16);
-  border-radius: 999px 999px 7px 7px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(208, 195, 172, 0.48)),
-    linear-gradient(90deg, rgba(79, 127, 116, 0.12), rgba(139, 116, 86, 0.18));
-  box-shadow:
-    0 13px 18px rgba(42, 32, 24, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  content: "";
+  display: none;
 }
 
-.notebook-library-book-card,
-.notebook-library-visual-spine {
+.notebook-library-book-card {
   --book-cover-base: #496b5f;
   --book-cover-mid: #6f9488;
   --book-cover-shadow: #243a35;
@@ -16007,8 +15996,7 @@ a[href] {
   --notebook-type-wash: color-mix(in srgb, var(--book-cover-base) 8%, white);
 }
 
-.notebook-library-book-card.is-personal,
-.notebook-library-visual-spine.is-personal {
+.notebook-library-book-card.is-personal {
   --notebook-type-color: #4f7f74;
   --book-cover-base: #446e64;
   --book-cover-mid: #79a296;
@@ -16016,8 +16004,7 @@ a[href] {
   --book-cover-foil: #d8bf80;
 }
 
-.notebook-library-book-card.is-work,
-.notebook-library-visual-spine.is-work {
+.notebook-library-book-card.is-work {
   --notebook-type-color: #2f7f92;
   --book-cover-base: #295f6b;
   --book-cover-mid: #69a7b4;
@@ -16025,8 +16012,7 @@ a[href] {
   --book-cover-foil: #c8d5d3;
 }
 
-.notebook-library-book-card.is-study,
-.notebook-library-visual-spine.is-study {
+.notebook-library-book-card.is-study {
   --notebook-type-color: #5d6fb0;
   --book-cover-base: #4e5f99;
   --book-cover-mid: #8d9bd1;
@@ -16034,8 +16020,7 @@ a[href] {
   --book-cover-foil: #d8c995;
 }
 
-.notebook-library-book-card.is-scratch,
-.notebook-library-visual-spine.is-scratch {
+.notebook-library-book-card.is-scratch {
   --notebook-type-color: #a36a2c;
   --book-cover-base: #8b5b2d;
   --book-cover-mid: #bd8a51;
@@ -16082,152 +16067,25 @@ a[href] {
   outline-offset: 5px;
 }
 
-.notebook-library-book-shadow {
-  position: absolute;
-  right: 10px;
-  bottom: 12px;
-  left: 34px;
-  z-index: 0;
-  height: 38px;
-  border-radius: 999px;
-  background: radial-gradient(ellipse, rgba(19, 32, 29, 0.24), transparent 72%);
-  filter: blur(13px);
-  transform: translate3d(20px, 24px, -34px) rotateZ(2deg);
-  pointer-events: none;
-}
 
-.notebook-library-book-pages {
-  position: absolute;
-  inset: 22px 0 8px 38px;
-  z-index: 1;
-  border: 1px solid rgba(184, 177, 157, 0.76);
-  border-radius: 5px 14px 16px 5px;
-  background:
-    linear-gradient(90deg, rgba(143, 121, 84, 0.34), rgba(255, 255, 255, 0.28) 16%, transparent 42%),
-    repeating-linear-gradient(90deg, rgba(118, 99, 68, 0.2) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.98) 0 7px, rgba(143, 121, 84, 0.17) 7px 8px),
-    var(--paper-fiber-texture),
-    linear-gradient(90deg, #e7dfd0, #fff 20%, #f5f0e6);
-  box-shadow:
-    12px 18px 28px rgba(30, 48, 45, 0.13),
-    inset -18px 0 22px rgba(86, 68, 42, 0.14),
-    inset 0 -12px 14px rgba(86, 68, 42, 0.1),
-    inset 0 10px 12px rgba(255, 255, 255, 0.62);
-  transform: translate3d(16px, 16px, -18px) rotateZ(0.8deg);
-  transition:
-    transform 260ms var(--ease-out-v2),
-    box-shadow 260ms var(--ease-out-v2);
-  content: "";
-}
 
-.notebook-library-book-pages::before,
-.notebook-library-book-pages::after {
-  position: absolute;
-  pointer-events: none;
-  content: "";
-}
 
-.notebook-library-book-pages::before {
-  top: 12px;
-  right: -1px;
-  bottom: 15px;
-  width: 20px;
-  border-radius: 0 14px 14px 0;
-  background:
-    repeating-linear-gradient(0deg, rgba(105, 89, 61, 0.2) 0 1px, transparent 1px 4px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.42), rgba(125, 101, 63, 0.25));
-}
 
-.notebook-library-book-pages::after {
-  right: 16px;
-  bottom: -1px;
-  left: 14px;
-  height: 17px;
-  border-radius: 0 0 14px 14px;
-  background:
-    repeating-linear-gradient(90deg, rgba(105, 89, 61, 0.16) 0 1px, transparent 1px 5px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(125, 101, 63, 0.18));
-}
 
-.notebook-library-book-cover {
-  position: absolute;
-  inset: 0 22px 20px 0;
-  z-index: 2;
-  display: grid;
-  min-height: 0;
-  grid-template-columns: 42px minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--book-cover-shadow) 72%, rgba(255, 255, 255, 0.48));
-  border-radius: 18px 11px 11px 18px;
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0 15px, rgba(255, 255, 255, 0.12) 16px 19px, transparent 20px 78%, rgba(0, 0, 0, 0.2) 100%),
-    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.3), transparent 18%),
-    radial-gradient(circle at 5% 96%, rgba(0, 0, 0, 0.22), transparent 30%),
-    var(--book-cloth-texture),
-    linear-gradient(135deg, var(--book-cover-mid), var(--book-cover-base) 44%, var(--book-cover-shadow));
-  box-shadow:
-    0 28px 42px rgba(18, 56, 52, 0.2),
-    0 2px 0 color-mix(in srgb, var(--book-cover-foil) 20%, rgba(255, 255, 255, 0.18)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset -24px 0 30px rgba(0, 0, 0, 0.2),
-    inset 12px 0 19px rgba(255, 255, 255, 0.08),
-    inset 0 -26px 36px rgba(0, 0, 0, 0.1);
-  transform-origin: left center;
-  transform-style: preserve-3d;
-  transition:
-    border-color 220ms var(--ease-out-v2),
-    box-shadow 220ms var(--ease-out-v2),
-    transform 260ms var(--ease-out-v2);
-}
 
-.notebook-library-book-cover::before {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.28), transparent 11px),
-    radial-gradient(circle at calc(100% - 9px) 9px, rgba(255, 255, 255, 0.22), transparent 12px),
-    radial-gradient(circle at 100% 100%, rgba(0, 0, 0, 0.3), transparent 26px),
-    repeating-linear-gradient(90deg, transparent 0 7px, rgba(255, 255, 255, 0.035) 7px 8px),
-    repeating-linear-gradient(0deg, transparent 0 9px, rgba(0, 0, 0, 0.04) 9px 10px);
-  mix-blend-mode: overlay;
-  opacity: 0.9;
-  content: "";
-  pointer-events: none;
-}
 
-.notebook-library-book-cover::after {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(112deg, transparent 0 22%, rgba(255, 255, 255, 0.2) 34%, transparent 44% 100%),
-    linear-gradient(90deg, transparent 0 82%, rgba(255, 255, 255, 0.12) 88%, rgba(0, 0, 0, 0.18) 100%),
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 18%),
-    radial-gradient(circle at 72% 90%, rgba(0, 0, 0, 0.18), transparent 36%);
-  mix-blend-mode: soft-light;
-  opacity: 0.8;
-  content: "";
-  pointer-events: none;
-}
 
-.notebook-library-book-card:hover .notebook-library-book-cover,
-.notebook-library-book-card:focus-visible .notebook-library-book-cover {
-  border-color: color-mix(in srgb, var(--notebook-type-color) 38%, var(--workspace-line));
-  box-shadow:
-    0 32px 52px rgba(18, 56, 52, 0.23),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset -18px 0 28px rgba(0, 0, 0, 0.18);
-  transform: translateY(-9px) rotateY(-9deg);
-}
 
-.notebook-library-book-card:hover .notebook-library-book-pages,
-.notebook-library-book-card:focus-visible .notebook-library-book-pages {
-  box-shadow:
-    14px 18px 29px rgba(30, 48, 45, 0.14),
-    inset -14px 0 18px rgba(86, 68, 42, 0.12);
-  transform: translate3d(19px, 13px, -13px) rotateZ(1.2deg);
-}
+
+
+
+
+
+
+
+
+
+
 
 .notebook-library-book-card:hover .notebook-library-book-object,
 .notebook-library-book-card:focus-visible .notebook-library-book-object {
@@ -16245,23 +16103,7 @@ a[href] {
   transform: translateY(-4px) rotateZ(0.4deg);
 }
 
-.notebook-library-book-spine {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  align-content: center;
-  gap: 16px;
-  justify-items: center;
-  border-right: 1px solid color-mix(in srgb, var(--notebook-type-color) 18%, rgba(255, 255, 255, 0.76));
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.36), transparent 23%, rgba(255, 255, 255, 0.16) 48%, rgba(0, 0, 0, 0.28)),
-    var(--book-cloth-texture),
-    linear-gradient(180deg, var(--book-cover-mid), var(--book-cover-shadow));
-  box-shadow:
-    inset -1px 0 0 rgba(255, 255, 255, 0.12),
-    inset 7px 0 13px rgba(0, 0, 0, 0.22);
-  padding: 24px 0;
-}
+
 
 .notebook-library-book-spine span {
   display: block;
@@ -16275,14 +16117,7 @@ a[href] {
     -6px 0 0 rgba(0, 0, 0, 0.12);
 }
 
-.notebook-library-book-tabs {
-  position: absolute;
-  top: 52px;
-  right: 0;
-  z-index: 4;
-  display: grid;
-  gap: 10px;
-}
+
 
 .notebook-library-book-tabs i {
   display: block;
@@ -16307,53 +16142,12 @@ a[href] {
   transform: translateY(6px);
 }
 
-.notebook-library-book-bookmark {
-  position: absolute;
-  top: -1px;
-  right: 54px;
-  z-index: 2;
-  width: 15px;
-  height: 58%;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.22), transparent 38%, rgba(0, 0, 0, 0.18)),
-    linear-gradient(180deg, #b94f43, #7f2924);
-  box-shadow:
-    0 6px 12px rgba(19, 24, 22, 0.18),
-    inset 1px 0 0 rgba(255, 255, 255, 0.2);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 88%, 0 100%);
-  opacity: 0.9;
-  pointer-events: none;
-}
 
-.notebook-library-book-elastic {
-  position: absolute;
-  top: -1px;
-  right: 20px;
-  bottom: -1px;
-  z-index: 5;
-  width: 13px;
-  border-radius: 999px;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 38%, rgba(0, 0, 0, 0.34)),
-    linear-gradient(180deg, #17211f, #0b1211);
-  box-shadow:
-    -4px 0 8px rgba(0, 0, 0, 0.16),
-    inset 1px 0 0 rgba(255, 255, 255, 0.08);
-  opacity: 0.84;
-  pointer-events: none;
-}
 
-.notebook-library-book-content {
-  position: relative;
-  z-index: 3;
-  display: grid;
-  min-width: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 13px;
-  padding: 19px 22px 20px 17px;
-}
 
-.notebook-library-book-topline,
+
+
+
 .notebook-library-book-actions {
   display: flex;
   min-width: 0;
@@ -16371,44 +16165,11 @@ a[href] {
     0 1px 0 rgba(0, 0, 0, 0.12);
 }
 
-.notebook-library-book-date {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 10px;
-  font-weight: 720;
-  line-height: 1.3;
-  white-space: nowrap;
-}
 
-.notebook-library-book-copy {
-  align-self: start;
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 10px;
-  width: min(100%, 174px);
-  min-height: 116px;
-  border: 1px solid color-mix(in srgb, var(--book-cover-foil) 52%, rgba(255, 255, 255, 0.62));
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, rgba(127, 104, 67, 0.2) 0 1px, transparent 1px),
-    repeating-linear-gradient(0deg, transparent 0 24px, rgba(92, 139, 130, 0.08) 24px 25px),
-    var(--paper-fiber-texture),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 244, 232, 0.9));
-  box-shadow:
-    0 13px 20px rgba(0, 0, 0, 0.16),
-    0 1px 0 rgba(255, 255, 255, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.74);
-  padding: 14px 13px 12px;
-  transform: rotateZ(-0.25deg);
-}
 
-.notebook-library-book-label-rule {
-  display: block;
-  width: 52px;
-  height: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--book-cover-shadow) 44%, rgba(180, 169, 143, 0.52));
-}
+
+
+
 
 .notebook-library-book-copy h3 {
   display: -webkit-box;
@@ -16435,21 +16196,7 @@ a[href] {
   line-height: 1.48;
 }
 
-.notebook-library-book-emboss {
-  align-self: end;
-  justify-self: end;
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--book-cover-foil) 54%, rgba(255, 255, 255, 0.22));
-  border-radius: 18px;
-  color: color-mix(in srgb, var(--book-cover-foil) 76%, rgba(255, 255, 255, 0.6));
-  opacity: 0.58;
-  box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.13),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.18);
-}
+
 
 .notebook-library-book-footer {
   display: grid;
@@ -16551,35 +16298,13 @@ a[href] {
   pointer-events: none;
 }
 
-.notebook-library-book-card.is-opening .notebook-library-book-cover {
-  animation: notebook-cover-open 420ms var(--ease-out-v2) both;
-}
 
-.notebook-library-book-card.is-opening .notebook-library-book-pages {
-  animation: notebook-pages-open 420ms var(--ease-out-v2) both;
-}
 
-@keyframes notebook-cover-open {
-  0% {
-    transform: translateY(-4px) rotateY(-4deg);
-  }
-  56% {
-    transform: translateY(-8px) translateX(-3px) rotateY(-24deg);
-  }
-  100% {
-    opacity: 0.9;
-    transform: translateY(-10px) translateX(-14px) rotateY(-52deg);
-  }
-}
 
-@keyframes notebook-pages-open {
-  0% {
-    transform: translate3d(9px, 9px, -12px) rotateZ(0.8deg);
-  }
-  100% {
-    transform: translate3d(17px, 8px, -8px) rotateZ(1.8deg);
-  }
-}
+
+
+
+
 
 .notebook-library-visual-panel,
 .notebook-library-signal-panel {
@@ -16619,52 +16344,11 @@ a[href] {
   content: "";
 }
 
-.notebook-library-visual-spine {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: calc(72% + (var(--spine-index, 0) * 2.2%));
-  max-width: 100%;
-  min-height: 30px;
-  border: 1px solid color-mix(in srgb, var(--notebook-type-color) 28%, rgba(255, 255, 255, 0.68));
-  border-radius: 5px 9px 9px 5px;
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.25) 0 18px, rgba(255, 255, 255, 0.12) 18px 21px, transparent 22px),
-    var(--book-cloth-texture),
-    linear-gradient(135deg, color-mix(in srgb, var(--notebook-type-color) 64%, #dae5df), color-mix(in srgb, var(--notebook-type-color) 70%, #1f302c));
-  color: color-mix(in srgb, var(--book-cover-foil) 72%, white);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 820;
-  line-height: 1.2;
-  padding: 8px 11px 8px 30px;
-  text-align: left;
-  transform: translateX(calc(var(--spine-index, 0) * 3px)) rotateY(-5deg);
-  transition:
-    border-color 160ms ease,
-    transform 180ms var(--ease-out-v2);
-  box-shadow:
-    0 9px 14px rgba(30, 48, 45, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset -13px 0 18px rgba(0, 0, 0, 0.13);
-}
 
-.notebook-library-visual-spine::before {
-  position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: 17px;
-  width: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--book-cover-foil) 64%, rgba(255, 255, 255, 0.42));
-  box-shadow: -6px 0 0 rgba(0, 0, 0, 0.12);
-  content: "";
-}
 
-.notebook-library-visual-spine:hover {
-  border-color: color-mix(in srgb, var(--notebook-type-color) 42%, rgba(255, 255, 255, 0.72));
-  transform: translateX(calc((var(--spine-index, 0) * 3px) + 5px)) rotateY(-2deg);
-}
+
+
+
 
 .notebook-library-visual-spine span {
   display: block;
@@ -23107,4 +22791,1269 @@ a[href] {
   content: "";
   flex: 1;
   border-top: 1px solid var(--border, rgba(15, 42, 45, 0.1));
+}
+
+/* ============================================================
+   Notebook Library — refined direction
+   - Drop right rail: workbench grid becomes single column
+   - New "On the shelf" row: spine-out books on a wood plank
+   ============================================================ */
+
+.notebook-library-page .notebook-library-workbench {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.notebook-library-bookshelf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  perspective: 1200px;
+}
+
+
+
+.notebook-library-bookshelf-plank {
+  position: relative;
+  height: 18px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, #6b4f2a 0%, #5a4022 30%, #3d2c14 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 215, 160, 0.18),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 18px rgba(46, 30, 10, 0.30),
+    0 14px 28px rgba(46, 30, 10, 0.16);
+  pointer-events: none;
+}
+
+.notebook-library-bookshelf-plank::before {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 10px 10px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 60px, rgba(0, 0, 0, 0.05) 60px 61px, transparent 61px 130px),
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(0, 0, 0, 0.03) 4px 5px);
+  pointer-events: none;
+  content: "";
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.notebook-library-bookshelf-spine-cap {
+  display: block;
+  width: 70%;
+  height: 1px;
+  background: color-mix(in srgb, var(--book-cover-foil) 60%, transparent);
+  box-shadow:
+    0 4px 0 -1px color-mix(in srgb, var(--book-cover-foil) 36%, transparent),
+    0 8px 0 -1px color-mix(in srgb, var(--book-cover-foil) 36%, transparent);
+}
+
+.notebook-library-bookshelf-spine-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  padding: 10px 0;
+  max-height: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.45),
+    0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.notebook-library-bookshelf-spine-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--book-cover-foil) 50%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--book-cover-foil) 80%, white);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notebook-library-bookshelf-spine {
+    transition: none;
+  }
+  .notebook-library-bookshelf-spine:hover,
+  .notebook-library-bookshelf-spine:focus-visible {
+    transform: none;
+  }
+  .notebook-library-bookshelf-spine.is-opening {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Notebook Library — Cover refinement
+   - 8-point upgrade per book card
+   - Type-specific materials & foil tones
+   ============================================================ */
+
+/* Per-type tokens: material texture, foil gradient, nameplate paper, bookmark */
+.notebook-library-book-card.is-personal {
+  --book-foil-gradient: linear-gradient(140deg, #8b6128 0%, #d4a85e 22%, #f0d486 50%, #b8873e 78%, #946a26 100%);
+  --book-foil-solid: #d4a85e;
+  --book-nameplate-bg: linear-gradient(135deg, #f8f3e8, #efe4c8);
+  --book-nameplate-tone: #1a1410;
+  --book-bookmark: linear-gradient(180deg, #d63a4f 0%, #a52538 60%, #6b1422 100%);
+  --book-cover-base: #2e4a3a;
+  --book-cover-mid: #3a5847;
+  --book-cover-shadow: #1a2a20;
+  --book-texture:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 2.6px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 2.6px);
+}
+
+.notebook-library-book-card.is-work {
+  --book-foil-gradient: linear-gradient(140deg, #6a6e76 0%, #b6bac2 22%, #e8eaed 50%, #a8acb4 78%, #6a6e76 100%);
+  --book-foil-solid: #c0c4ca;
+  --book-nameplate-bg: linear-gradient(135deg, #f4f5f8, #dee2e8);
+  --book-nameplate-tone: #18222e;
+  --book-bookmark: linear-gradient(180deg, #1f3a5f 0%, #122440 60%, #0a1428 100%);
+  --book-cover-base: #1f3a5f;
+  --book-cover-mid: #2a4870;
+  --book-cover-shadow: #0d1a30;
+  --book-texture:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.085) 0 1px, transparent 1px 1.8px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 1.8px);
+}
+
+.notebook-library-book-card.is-study {
+  --book-foil-gradient: linear-gradient(140deg, #8b6128 0%, #d4a85e 22%, #f0d486 50%, #b8873e 78%, #946a26 100%);
+  --book-foil-solid: #d4a85e;
+  --book-nameplate-bg: linear-gradient(135deg, #f8efde, #e8dabd);
+  --book-nameplate-tone: #2a0e0e;
+  --book-bookmark: linear-gradient(180deg, #2c5d3a 0%, #1a3a22 60%, #0d2014 100%);
+  --book-cover-base: #6b2a2e;
+  --book-cover-mid: #823338;
+  --book-cover-shadow: #3a1418;
+  --book-texture:
+    radial-gradient(circle at 18% 28%, rgba(0, 0, 0, 0.10) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 65% 60%, rgba(0, 0, 0, 0.08) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 85% 25%, rgba(255, 255, 255, 0.04) 0 1px, transparent 2px),
+    radial-gradient(circle at 38% 78%, rgba(0, 0, 0, 0.07) 0 1px, transparent 2px),
+    radial-gradient(circle at 90% 88%, rgba(0, 0, 0, 0.09) 0 1.5px, transparent 3px);
+}
+
+.notebook-library-book-card.is-scratch {
+  --book-foil-gradient: linear-gradient(140deg, #2c2010 0%, #5a3f1c 22%, #7a5728 50%, #4a3318 78%, #2c2010 100%);
+  --book-foil-solid: #5a3f1c;
+  --book-nameplate-bg: linear-gradient(135deg, #f0e6cc, #d8c298);
+  --book-nameplate-tone: #2c2010;
+  --book-bookmark: linear-gradient(180deg, #5a3f1c 0%, #3a2a14 60%, #1f1408 100%);
+  --book-cover-base: #b8873e;
+  --book-cover-mid: #c89a55;
+  --book-cover-shadow: #6b4f2a;
+  --book-texture:
+    radial-gradient(ellipse at 20% 18%, rgba(0, 0, 0, 0.06) 0 5px, transparent 10px),
+    radial-gradient(ellipse at 78% 55%, rgba(0, 0, 0, 0.05) 0 4px, transparent 8px),
+    radial-gradient(ellipse at 45% 82%, rgba(0, 0, 0, 0.04) 0 6px, transparent 12px),
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(0, 0, 0, 0.02) 4px 5px);
+}
+
+/* ---- Cover material override ---- */
+
+
+/* ---- Spine: 5 段 (rule/title/rule/mono/rule) ---- */
+
+
+/* override 旧 .notebook-library-book-spine span 的 4 段金条规则 */
+
+
+
+
+
+
+
+
+/* ---- Type tag — 藏书票式（边框 + 烫印衬线） ---- */
+.notebook-library-book-card .notebook-library-book-topline .notebook-library-type {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--book-foil-solid, #d8bf80) 55%, transparent);
+  background: transparent;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-family: "Cormorant Garamond", "Source Han Serif SC", serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background-image: var(--book-foil-gradient, linear-gradient(140deg, #8b6128, #f0d486 50%, #b8873e));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  isolation: isolate;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--book-foil-solid, #d8bf80) 32%, transparent);
+}
+.notebook-library-book-card .notebook-library-book-topline .notebook-library-type::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 28, 22, 0.42);
+  border-radius: inherit;
+  z-index: -1;
+}
+
+/* ---- Date — 衬线烫印 ---- */
+
+
+/* ---- Bookmark — type-specific 颜色 ---- */
+
+
+/* ---- Nameplate (copy) — 藏书票纸卡 ---- */
+
+
+/* 名牌四角金属小钉 */
+
+
+
+
+/* label-rule — 三段 (双线 + 衬线 text) */
+
+.notebook-library-book-card .notebook-library-book-label-rule i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--book-nameplate-tone, #1a1410) 56%, transparent),
+    transparent
+  );
+  font-style: normal;
+}
+.notebook-library-book-card .notebook-library-book-label-rule em {
+  font-family: "Cormorant Garamond", "Source Han Serif SC", serif;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: color-mix(in srgb, var(--book-nameplate-tone, #1a1410) 65%, white);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* 名牌内 h3 — 衬线 */
+.notebook-library-book-card .notebook-library-book-copy h3 {
+  font-family: "Cormorant Garamond", "Source Han Serif SC", "Songti SC", serif;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--book-nameplate-tone, #1a1410);
+}
+
+/* 副标题 — 斜体 + 上分隔线 */
+.notebook-library-book-card .notebook-library-book-copy p {
+  font-family: "Cormorant Garamond", "Source Han Serif SC", "Songti SC", serif;
+  font-style: italic;
+  font-size: 11px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--book-nameplate-tone, #1a1410) 72%, white);
+  border-top: 1px solid rgba(120, 90, 40, 0.22);
+  padding-top: 6px;
+}
+
+/* ---- Bottom mark — monogram + 双线 ---- */
+
+.notebook-library-book-mark i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--book-foil-solid, #d8bf80) 60%, transparent),
+    transparent
+  );
+  font-style: normal;
+}
+.notebook-library-book-mark em {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--book-foil-solid, #d8bf80) 50%, transparent);
+  border-radius: 50%;
+  font-family: "Cormorant Garamond", serif;
+  font-style: normal;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--book-foil-gradient, linear-gradient(140deg, #8b6128, #f0d486 50%, #b8873e));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.4));
+}
+
+/* ---- Publisher line ---- */
+
+
+/* 旧 emboss / tabs / elastic 不再渲染（JSX 已删），保留 selector 失效即可 */
+
+
+/* ---- Spine — 同色系也更新到 spine 侧立堆叠（书架）的颜色 ---- */
+
+
+
+
+
+/* ============================================================
+   Notebook Library — Book-likeness v2: 3D 透视倾斜
+   - 整体 rotateY 让封面、书脊侧面、顶端切口从 3/4 视角同时可见
+   - 头切口 + 尾切口配合 rotateX 转成水平面（真实"切面"而不是贴边横线）
+   - 封板厚度 + 桌面投影
+   ============================================================ */
+
+/* book-object 用 perspective + rotateY 替代旧 rotateZ */
+.notebook-library-book-card .notebook-library-book-object {
+  perspective: 1600px;
+  transform-style: preserve-3d;
+  transform: rotateY(-10deg) rotateX(3deg);
+  transform-origin: 30% 60%;
+}
+
+.notebook-library-book-card:nth-child(3n + 2) .notebook-library-book-object {
+  transform: rotateY(-12deg) rotateX(2.5deg);
+}
+
+.notebook-library-book-card:nth-child(3n + 3) .notebook-library-book-object {
+  transform: rotateY(-8deg) rotateX(3deg);
+}
+
+/* hover: 抬起整本书 + 稍微多倾斜（不叠加 cover 的旋转） */
+.notebook-library-book-card:hover .notebook-library-book-object,
+.notebook-library-book-card:focus-visible .notebook-library-book-object {
+  transform: rotateY(-14deg) rotateX(2deg) translateY(-8px);
+  filter: saturate(1.05);
+  transition:
+    transform 320ms var(--ease-out-v2),
+    filter 320ms var(--ease-out-v2);
+}
+
+/* 撤销 cover 自己的 rotateY（已经在 book-object 上做了），避免叠加变形 */
+
+
+/* head-edge：rotateX 转 90° 成水平面 — 现在它是"书顶部一摞纸的水平切口" */
+.notebook-library-book-card .notebook-library-book-object::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 38px;
+  right: 4px;
+  height: 22px;
+  z-index: 4;
+  transform: rotateX(-82deg);
+  transform-origin: bottom center;
+  background:
+    /* 顶部金边 */
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--book-foil-solid, #d4a85e) 70%, transparent) 0 1px,
+      transparent 1px 2px
+    ),
+    /* 一摞纸的水平条纹（每 1.5px 一层 = 高密度纸感）*/
+    repeating-linear-gradient(
+      180deg,
+      #fdf9ee 0 0.8px,
+      #ebe1c5 0.8px 1.6px,
+      #fdf9ee 1.6px 2.4px,
+      #f0e6cc 2.4px 3.2px
+    );
+  border-left: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 70%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 60%, transparent);
+  box-shadow:
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18),
+    0 -1px 2px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+/* tail-edge：rotateX 反向转，模拟书底部的水平切口 */
+.notebook-library-book-card .notebook-library-book-object::after {
+  content: "";
+  position: absolute;
+  bottom: 14px;
+  left: 38px;
+  right: 4px;
+  height: 18px;
+  z-index: 4;
+  transform: rotateX(82deg);
+  transform-origin: top center;
+  background: repeating-linear-gradient(
+    180deg,
+    #ebe1c5 0 0.8px,
+    #fdf9ee 0.8px 1.6px,
+    #d4c898 1.6px 2.4px,
+    #fdf9ee 2.4px 3.2px
+  );
+  border-left: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 70%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 60%, transparent);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.18),
+    0 2px 5px rgba(0, 0, 0, 0.30);
+  pointer-events: none;
+}
+
+/* 封板厚度 — 在 cover 顶部和底部加深色卡板边 */
+
+
+/* Spine 折角 — 让 spine 跟 cover 不在同一平面感 */
+
+
+/* fore-edge（右侧书页堆叠）— 加强纸感 */
+
+
+/* 整体投影 — 让书"贴"在桌面 */
+
+
+/* ============================================================
+   Notebook Library — tactile model v3
+   - Add a cover rail, corner hardware, page-block depth and shelf details
+   - Keep the existing data-driven cards while making every notebook read as
+     a physical object from the reference direction.
+   ============================================================ */
+
+.notebook-library-book-card {
+  transform-style: preserve-3d;
+}
+
+.notebook-library-book-card .notebook-library-book-object {
+  height: 374px;
+  transform-origin: 34% 62%;
+  transition:
+    filter 320ms var(--ease-out-v2),
+    transform 320ms var(--ease-out-v2);
+}
+
+
+
+
+
+
+
+
+
+
+
+.notebook-library-book-cover-rail i {
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--book-foil-solid, #d8bf80) 66%, transparent),
+    transparent
+  );
+}
+
+.notebook-library-book-cover-rail em {
+  overflow: hidden;
+  max-width: 92px;
+  color: color-mix(in srgb, var(--book-foil-solid, #d8bf80) 84%, white);
+  font-family: "Cormorant Garamond", "Songti SC", serif;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.42));
+}
+
+
+
+.notebook-library-book-corner-pins i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--book-foil-solid, #d8bf80) 88%, white) 20%,
+    color-mix(in srgb, var(--book-cover-shadow, #1a2a20) 58%, black) 78%
+  );
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.notebook-library-book-corner-pins i:nth-child(1) {
+  top: 0;
+  left: 0;
+}
+
+.notebook-library-book-corner-pins i:nth-child(2) {
+  top: 0;
+  right: 0;
+}
+
+.notebook-library-book-corner-pins i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+}
+
+.notebook-library-book-corner-pins i:nth-child(4) {
+  right: 0;
+  bottom: 0;
+}
+
+
+
+
+
+.notebook-library-book-card .notebook-library-book-topline .notebook-library-type {
+  min-width: 74px;
+  text-align: center;
+}
+
+
+
+
+
+.notebook-library-book-card .notebook-library-book-copy h3 {
+  font-size: 22px;
+  line-height: 1.14;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+.notebook-library-book-card .notebook-library-book-object::before {
+  top: 3px;
+  left: 43px;
+  right: 7px;
+  height: 24px;
+}
+
+.notebook-library-book-card .notebook-library-book-object::after {
+  bottom: 16px;
+  left: 43px;
+  right: 8px;
+  height: 20px;
+}
+
+.notebook-library-book-card:hover .notebook-library-book-object,
+.notebook-library-book-card:focus-visible .notebook-library-book-object {
+  transform: rotateY(-15deg) rotateX(2deg) translateY(-9px);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.notebook-library-bookshelf-spine:nth-child(4n + 1) {
+  --spine-lean: -1deg;
+  height: 206px;
+}
+
+.notebook-library-bookshelf-spine:nth-child(4n + 2) {
+  --spine-lean: 0.8deg;
+  --spine-offset: 3px;
+  height: 190px;
+}
+
+.notebook-library-bookshelf-spine:nth-child(4n + 3) {
+  --spine-lean: -0.4deg;
+  --spine-offset: 1px;
+  height: 214px;
+}
+
+
+
+
+
+
+
+.notebook-library-bookshelf-spine-pages {
+  position: absolute;
+  top: 7px;
+  right: -4px;
+  bottom: 0;
+  z-index: -1;
+  width: 8px;
+  border-radius: 0 4px 0 0;
+  background:
+    repeating-linear-gradient(0deg, #fbf5e6 0 2px, #d8caa9 2px 3px, #fffaf0 3px 5px),
+    linear-gradient(90deg, #e7dac2, #fff9ec);
+  box-shadow:
+    inset 3px 0 5px rgba(98, 76, 42, 0.22),
+    2px 4px 7px rgba(44, 31, 14, 0.18);
+  pointer-events: none;
+}
+
+.notebook-library-bookshelf-spine-ridge {
+  position: absolute;
+  top: 12px;
+  bottom: 14px;
+  left: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--book-cover-foil) 58%, rgba(255, 255, 255, 0.34));
+  box-shadow:
+    6px 0 0 color-mix(in srgb, var(--book-cover-foil) 22%, transparent),
+    -4px 0 0 rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.notebook-library-bookshelf-spine-cap {
+  position: relative;
+  z-index: 2;
+  width: 66%;
+}
+
+.notebook-library-bookshelf-spine-title {
+  position: relative;
+  z-index: 2;
+  max-width: 100%;
+  letter-spacing: 0.08em;
+}
+
+.notebook-library-bookshelf-spine-foot {
+  position: relative;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+
+
+
+
+
+
+@media (max-width: 767px) {
+  .notebook-library-book-card .notebook-library-book-object {
+    height: 370px;
+  }
+
+  .notebook-library-book-cover-rail {
+    left: 56px;
+    right: 22px;
+  }
+
+  .notebook-library-book-card .notebook-library-book-content {
+    padding: 66px 21px 20px 16px;
+  }
+
+  .notebook-library-book-card .notebook-library-book-copy,
+  .notebook-library-book-card .notebook-library-book-mark,
+  .notebook-library-book-card .notebook-library-book-publisher {
+    width: min(100%, 184px);
+  }
+
+  .notebook-library-bookshelf-spines {
+    min-height: 222px;
+    padding: 18px 16px 0;
+  }
+
+  .notebook-library-bookshelf-spine {
+    height: 182px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notebook-library-book-card .notebook-library-book-object,
+  .notebook-library-book-card:hover .notebook-library-book-object,
+  .notebook-library-book-card:focus-visible .notebook-library-book-object,
+  .notebook-library-bookshelf-spine,
+  .notebook-library-bookshelf-spine:hover,
+  .notebook-library-bookshelf-spine:focus-visible {
+    transition: none;
+  }
+
+  .notebook-library-book-card.is-opening .notebook-library-book-cover,
+  .notebook-library-book-card.is-opening .notebook-library-book-pages,
+  .notebook-library-bookshelf-spine.is-opening {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Notebook Library — full rebuild v4
+   Every notebook is now a complete physical book model.
+   ============================================================ */
+
+.notebook-library-model-stage {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(182, 163, 124, 0.22);
+  background:
+    radial-gradient(circle at 18% 9%, rgba(255, 255, 255, 0.94), transparent 30%),
+    radial-gradient(circle at 88% 92%, rgba(151, 123, 73, 0.1), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 247, 239, 0.88)),
+    var(--paper-fiber-texture);
+}
+
+.notebook-library-model-stage::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 0 46px, rgba(149, 112, 60, 0.06) 46px 47px, transparent 47px),
+    repeating-linear-gradient(0deg, transparent 0 34px, rgba(42, 89, 80, 0.035) 34px 35px);
+  pointer-events: none;
+  content: "";
+}
+
+.notebook-library-model-stage-header {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  border-bottom: 1px solid rgba(191, 174, 137, 0.26);
+  padding-bottom: 14px;
+}
+
+.notebook-library-model-stage-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.notebook-library-model-stage-header p {
+  max-width: 760px;
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notebook-library-model-stage-header > span {
+  display: inline-grid;
+  min-width: 30px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(179, 157, 112, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--console-accent-strong);
+  font-size: 11px;
+  font-weight: 880;
+}
+
+.notebook-library-model-grid {
+  --book-model-width: 268px;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 42px 30px;
+  justify-items: center;
+  padding: 26px 6px 54px;
+}
+
+.notebook-library-model-grid::before {
+  display: none;
+}
+
+.notebook-library-model-shelf-rail {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  left: 16px;
+  height: 19px;
+  border-radius: 999px 999px 9px 9px;
+  background:
+    linear-gradient(180deg, #9a7b47 0%, #6d4b22 44%, #34200d 100%),
+    repeating-linear-gradient(90deg, transparent 0 78px, rgba(0, 0, 0, 0.12) 78px 80px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 225, 165, 0.32),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.45),
+    0 12px 26px rgba(52, 34, 14, 0.18);
+  pointer-events: none;
+}
+
+.notebook-library-model-grid .notebook-library-book-card {
+  --book-model-wobble: -1.2deg;
+  position: relative;
+  width: min(100%, var(--book-model-width));
+  min-height: 456px;
+  gap: 12px;
+  border-radius: 0;
+}
+
+.notebook-library-model-grid .notebook-library-book-card:nth-child(4n + 2) {
+  --book-model-wobble: 0.9deg;
+}
+
+.notebook-library-model-grid .notebook-library-book-card:nth-child(4n + 3) {
+  --book-model-wobble: -0.35deg;
+}
+
+.notebook-library-model-grid .notebook-library-book-card:nth-child(4n + 4) {
+  --book-model-wobble: 1.4deg;
+}
+
+.notebook-library-model-grid .notebook-library-book-card::after {
+  display: none;
+}
+
+.notebook-library-model-grid .notebook-library-book-object {
+  width: var(--book-model-width);
+  height: 340px;
+  perspective: 1800px;
+  transform: rotateY(-8deg) rotateX(2.5deg) rotateZ(var(--book-model-wobble));
+  transform-origin: 36% 62%;
+  transition:
+    filter 260ms var(--ease-out-v2),
+    transform 260ms var(--ease-out-v2);
+}
+
+.notebook-library-model-grid .notebook-library-book-card:hover .notebook-library-book-object,
+.notebook-library-model-grid .notebook-library-book-card:focus-visible .notebook-library-book-object {
+  filter: saturate(1.05) contrast(1.02);
+  transform: translateY(-9px) rotateY(-12deg) rotateX(2deg) rotateZ(var(--book-model-wobble));
+}
+
+
+
+
+
+
+
+
+
+.notebook-library-model-grid .notebook-library-book-object::before {
+  top: 1px;
+  left: 39px;
+  right: 5px;
+  height: 22px;
+  transform: rotateX(-82deg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--book-foil-solid, #d4a85e) 64%, transparent) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(180deg, #fffaf0 0 0.85px, #e8dcc0 0.85px 1.7px, #fffdf6 1.7px 2.6px, #d7c89e 2.6px 3.4px);
+}
+
+.notebook-library-model-grid .notebook-library-book-object::after {
+  bottom: 12px;
+  left: 39px;
+  right: 6px;
+  height: 18px;
+  transform: rotateX(82deg);
+  background:
+    repeating-linear-gradient(180deg, #eadfc2 0 0.8px, #fffaf0 0.8px 1.7px, #d7c89e 1.7px 2.5px, #fffdf6 2.5px 3.3px);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.notebook-library-model-grid .notebook-library-book-topline .notebook-library-type {
+  min-width: 0;
+  padding: 4px 9px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+
+
+
+
+.notebook-library-model-grid .notebook-library-book-copy h3 {
+  -webkit-line-clamp: 2;
+  font-size: 21px;
+  line-height: 1.14;
+}
+
+.notebook-library-model-grid .notebook-library-book-copy p {
+  -webkit-line-clamp: 2;
+}
+
+
+
+.notebook-library-model-grid .notebook-library-book-footer {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+  border: 1px solid rgba(184, 165, 124, 0.2);
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(246, 242, 229, 0.68)),
+    var(--paper-fiber-texture);
+  box-shadow:
+    0 6px 14px rgba(35, 53, 46, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  padding: 8px;
+}
+
+.notebook-library-model-grid .notebook-library-book-footer small {
+  font-size: 10px;
+}
+
+.notebook-library-model-grid .notebook-library-book-stats {
+  gap: 5px;
+}
+
+.notebook-library-model-grid .notebook-library-book-stats span {
+  border-color: rgba(185, 164, 119, 0.24);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 5px;
+}
+
+.notebook-library-model-grid .notebook-library-book-actions {
+  justify-content: flex-end;
+}
+
+.notebook-library-model-grid .notebook-library-book-actions .notebook-library-open-button,
+.notebook-library-model-grid .notebook-library-book-actions .notebook-library-icon-button {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+
+
+
+
+
+
+
+
+@media (max-width: 1024px) {
+  .notebook-library-model-grid {
+    --book-model-width: 258px;
+    gap: 38px 22px;
+  }
+}
+
+@media (max-width: 767px) {
+  .notebook-library-model-stage {
+    padding: 14px;
+  }
+
+  .notebook-library-model-stage-header {
+    align-items: start;
+  }
+
+  .notebook-library-model-grid {
+    --book-model-width: min(286px, calc(100vw - 72px));
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding: 22px 0 48px;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-card {
+    min-height: 456px;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-object {
+    height: 344px;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-content {
+    padding: 51px 21px 19px 15px;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-copy,
+  .notebook-library-model-grid .notebook-library-book-mark,
+  .notebook-library-model-grid .notebook-library-book-publisher {
+    width: min(100%, 184px);
+  }
+
+  .notebook-library-model-grid .notebook-library-book-actions {
+    justify-content: stretch;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-actions .notebook-library-open-button {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notebook-library-model-grid .notebook-library-book-object,
+  .notebook-library-model-grid .notebook-library-book-card:hover .notebook-library-book-object,
+  .notebook-library-model-grid .notebook-library-book-card:focus-visible .notebook-library-book-object {
+    transition: none;
+  }
+
+  .notebook-library-model-grid .notebook-library-book-card.is-opening .notebook-library-book-cover,
+  .notebook-library-model-grid .notebook-library-book-card.is-opening .notebook-library-book-pages {
+    animation: none;
+  }
+}
+
+
+
+/* ============================================================
+   Notebook Library — Book3D canvas container (v8)
+   The book-object now hosts a WebGL Canvas (Book3D component).
+   All inner CSS book elements (cover, spine, pages, bookmark,
+   shadow, etc.) are no longer rendered — their styles below
+   this point apply to nothing.
+   ============================================================ */
+
+.notebook-library-page .notebook-library-book-card {
+  --book-canvas-w: min(100%, 280px);
+}
+
+.notebook-library-page .notebook-library-book-object {
+  position: relative;
+  width: var(--book-canvas-w);
+  max-width: 280px;
+  aspect-ratio: 4 / 5;
+  height: auto;
+  margin: 0 auto;
+  background: transparent;
+  perspective: none;
+  transform: none !important;
+  transform-style: flat;
+  transition: filter 280ms var(--ease-out-v2);
+}
+
+.notebook-library-page .notebook-library-book-card:hover .notebook-library-book-object,
+.notebook-library-page .notebook-library-book-card:focus-visible .notebook-library-book-object {
+  filter: saturate(1.04) brightness(1.03);
+  transform: none !important;
+}
+
+.notebook-library-page .notebook-library-book-object > canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Reduced motion: disable Three.js idle by hiding hover filter delta only */
+@media (prefers-reduced-motion: reduce) {
+  .notebook-library-page .notebook-library-book-object {
+    transition: none;
+  }
+}
+
+/* Kill all legacy book-object pseudo elements (head/tail edge fakes) — 3D
+   model already renders these. */
+.notebook-library-page .notebook-library-book-object::before,
+.notebook-library-page .notebook-library-book-object::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* ============================================================
+   Notebook Library — Minimal notebook card
+   Simple, modern Moleskine-style notebook. No foil drama, no
+   raised bands, no leather pretensions. Just a solid colored
+   cover with a clean title and a subtle 3D tilt.
+   ============================================================ */
+
+.notebook-library-page .notebook-library-book-object {
+  position: relative;
+  width: min(100%, 250px);
+  aspect-ratio: 4 / 5;
+  height: auto;
+  margin: 0 auto;
+  perspective: 1500px;
+  transform: none !important;
+  background: transparent;
+  transition: filter 220ms var(--ease-out-v2);
+}
+
+.book3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.book3d__stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(2deg) rotateY(-14deg);
+  transition: transform 280ms var(--ease-out-v2);
+}
+
+.notebook-library-book-card:hover .book3d__stage,
+.notebook-library-book-card:focus-visible .book3d__stage {
+  transform: rotateX(2deg) rotateY(-18deg) translateY(-4px);
+}
+
+/* Hide elements we don't need for the minimal style */
+.book3d__shadow,
+.book3d__pages,
+.book3d__bookmark {
+  display: none;
+}
+
+/* Spine — thin darker strip on the left. No raised bands, no foil
+   drama, just a quiet 8% strip with a vertical title. */
+.book3d__spine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px 0 0 2px;
+  background:
+    linear-gradient(90deg,
+      rgba(0, 0, 0, 0.16),
+      rgba(0, 0, 0, 0.04) 60%,
+      rgba(0, 0, 0, 0.20) 100%),
+    var(--book-shadow);
+  border-right: 1px solid rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.book3d__spine-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: "Cormorant Garamond", "Source Han Serif SC", "Songti SC", serif;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: calc(100% - 14px);
+  padding: 7px 0;
+}
+
+/* Cover — solid color, almost flat, with a small embossed title in
+   the center. Soft drop shadow to lift it off the page. */
+.book3d__cover {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 8%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16% 14% 18%;
+  border-radius: 1px 4px 4px 1px;
+  background:
+    /* very gentle inner highlight */
+    radial-gradient(ellipse 90% 70% at 50% 32%, rgba(255, 255, 255, 0.06), transparent 70%),
+    var(--book-base);
+  box-shadow:
+    /* soft tabletop shadow */
+    0 14px 22px rgba(20, 28, 32, 0.18),
+    0 4px 6px rgba(20, 28, 32, 0.12),
+    /* a single hairline cover edge */
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20);
+  transform-origin: 0% 50%;
+  transform-style: preserve-3d;
+  transition: transform 460ms var(--ease-out-v2);
+  text-align: center;
+}
+
+.book3d__type {
+  font-family: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.50);
+  white-space: nowrap;
+}
+
+.book3d__title {
+  font-family: "Cormorant Garamond", "Source Han Serif SC", "Songti SC", "PingFang SC", serif;
+  font-size: clamp(20px, 1.4vw + 14px, 28px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.18;
+  color: rgba(255, 255, 255, 0.92);
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.book3d__rule {
+  display: block;
+  width: 26px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.30);
+}
+
+/* Open animation — cover hinges from the spine */
+.book3d[data-opening] .book3d__cover {
+  animation: book3d-cover-open 460ms var(--ease-out-v2) both;
+}
+
+@keyframes book3d-cover-open {
+  0% {
+    transform: rotateY(0);
+  }
+  100% {
+    transform: rotateY(-72deg);
+    opacity: 0.92;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book3d__stage,
+  .book3d__cover {
+    transition: none !important;
+    animation: none !important;
+  }
 }

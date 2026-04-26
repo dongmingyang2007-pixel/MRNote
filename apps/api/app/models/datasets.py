@@ -44,6 +44,27 @@ class DataItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class DocumentVersion(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("data_item_id", "version", name="uq_document_versions_item_version"),
+    )
+
+    data_item_id: Mapped[str] = mapped_column(
+        ForeignKey("data_items.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(nullable=False)  # monotonic per data_item
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)  # snapshot S3 key
+    size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
+    sha256: Mapped[str | None] = mapped_column(Text, nullable=True)
+    media_type: Mapped[str] = mapped_column(Text, nullable=False)
+    saved_via: Mapped[str] = mapped_column(Text, default="onlyoffice", nullable=False)
+    saved_by: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class Annotation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "annotations"
 
@@ -79,10 +100,13 @@ Index("idx_annotations_item", Annotation.data_item_id)
 
 Index("idx_dsv_dataset", DatasetVersion.dataset_id)
 
+Index("idx_dv_item_version", DocumentVersion.data_item_id, DocumentVersion.version)
+
 
 __all__ = [
     "Dataset",
     "DataItem",
     "Annotation",
     "DatasetVersion",
+    "DocumentVersion",
 ]

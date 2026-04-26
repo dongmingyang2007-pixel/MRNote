@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     text as sql_text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -33,6 +34,7 @@ class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     total_chunks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     # Spec §5.1.6 — StudyAsset metadata columns. DB columns were added in
     # migration 202604220005; these Mapped[] declarations bind them to the
     # ORM so we can read/write from Python instead of reaching for raw SQL.
@@ -48,6 +50,9 @@ class StudyAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, UpdatedAtMixin):
 
 class StudyChunk(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "study_chunks"
+    __table_args__ = (
+        UniqueConstraint("asset_id", "chunk_index", name="uq_study_chunks_asset_chunk_index"),
+    )
 
     asset_id: Mapped[str] = mapped_column(
         ForeignKey("study_assets.id", ondelete="CASCADE"), index=True

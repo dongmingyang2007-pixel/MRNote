@@ -23,6 +23,7 @@ import {
   BookOpen,
   Bell,
   Search,
+  FolderOpen,
 } from "lucide-react";
 import { useWindowManager, useWindows } from "./WindowManager";
 import type { WindowState, WindowType } from "./WindowManager";
@@ -40,6 +41,8 @@ const WINDOW_ICONS: Record<WindowType, typeof FileText> = {
   memory: Brain,
   memory_graph: Network,
   study: BookOpen,
+  references: FolderOpen,
+  reference_document: FileText,
   digest: Bell,
   search: Search,
 };
@@ -51,6 +54,7 @@ const MIN_SIZES: Partial<
   Record<WindowType, { width: number; height: number }>
 > = {
   memory_graph: { width: 600, height: 440 },
+  reference_document: { width: 640, height: 460 },
 };
 
 // ---------------------------------------------------------------------------

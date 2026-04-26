@@ -23,20 +23,31 @@ export interface RelatedResponse {
   memory: RelatedMemory[];
 }
 
+const EMPTY_RELATED_RESPONSE: RelatedResponse = { pages: [], memory: [] };
+
 export function useRelatedPages(pageId: string | null) {
-  const [data, setData] = useState<RelatedResponse>({ pages: [], memory: [] });
+  const [state, setState] = useState<{
+    pageId: string;
+    data: RelatedResponse;
+  } | null>(null);
 
   useEffect(() => {
     if (!pageId) {
-      setData({ pages: [], memory: [] });
       return;
     }
     let cancelled = false;
     void apiGet<RelatedResponse>(`/api/v1/pages/${pageId}/related?limit=5`)
-      .then((r) => { if (!cancelled) setData(r); })
-      .catch(() => { if (!cancelled) setData({ pages: [], memory: [] }); });
+      .then((data) => {
+        if (!cancelled) setState({ pageId, data });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ pageId, data: EMPTY_RELATED_RESPONSE });
+      });
     return () => { cancelled = true; };
   }, [pageId]);
 
-  return data;
+  if (!pageId || state?.pageId !== pageId) {
+    return EMPTY_RELATED_RESPONSE;
+  }
+  return state.data;
 }

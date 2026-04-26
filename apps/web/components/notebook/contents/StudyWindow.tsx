@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ElementType,
 } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BookOpen,
@@ -25,13 +25,20 @@ import { useTranslations } from "next-intl";
 import DecksPanel from "./study/DecksPanel";
 import ReviewSession from "./study/ReviewSession";
 import StudyProgressPanel from "./study/StudyProgressPanel";
+import ReferenceDocumentWindow from "./ReferenceDocumentWindow";
 import { apiGet } from "@/lib/api";
 import { apiStream } from "@/lib/api-stream";
 import { STUDY_UPLOAD_ACCEPT, uploadStudyAssets } from "@/lib/study-upload";
 import { useWindowManager } from "@/components/notebook/WindowManager";
 import { NOTEBOOK_STUDY_CHANGED_EVENT } from "@/lib/notebook-events";
 
-type StudyTab = "overview" | "progress" | "assistant" | "decks" | "review";
+type StudyTab =
+  | "overview"
+  | "document"
+  | "progress"
+  | "assistant"
+  | "decks"
+  | "review";
 
 interface StudyWindowProps {
   notebookId: string;
@@ -47,6 +54,7 @@ interface StudyAssetMetadata {
 interface StudyAsset {
   id: string;
   notebook_id: string;
+  data_item_id?: string | null;
   title: string;
   asset_type: string;
   status: string;
@@ -73,8 +81,15 @@ interface NotebookPageListItem {
 interface StudySource {
   heading?: string;
   page_number?: number | null;
-  chunk_id?: string;
+  chunk_id?: string | null;
+  asset_id?: string;
+  asset_title?: string;
+  data_item_id?: string | null;
+  type?: string;
+  score?: number;
 }
+
+type AssistantScope = "asset" | "notebook";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -84,11 +99,12 @@ interface ChatMessage {
 
 const TABS: Array<{
   id: StudyTab;
-  icon: ElementType;
+  icon: LucideIcon;
   labelKey: string;
   testId: string;
 }> = [
   { id: "overview", icon: BookOpen, labelKey: "study.workspace.tabs.overview", testId: "study-tab-overview" },
+  { id: "document", icon: FileText, labelKey: "study.workspace.tabs.document", testId: "study-tab-document" },
   { id: "progress", icon: Activity, labelKey: "study.workspace.tabs.progress", testId: "study-tab-progress" },
   { id: "assistant", icon: MessagesSquare, labelKey: "study.workspace.tabs.assistant", testId: "study-tab-assistant" },
   { id: "decks", icon: Sparkles, labelKey: "study.workspace.tabs.decks", testId: "study-tab-decks" },
@@ -132,6 +148,7 @@ export default function StudyWindow({
   const [assistantStreaming, setAssistantStreaming] = useState(false);
   const [streamingReply, setStreamingReply] = useState("");
   const [streamingSources, setStreamingSources] = useState<StudySource[]>([]);
+  const [assistantScope, setAssistantScope] = useState<AssistantScope>("asset");
 
   const selectedAsset =
     assets.find((asset) => asset.id === selectedAssetId) || null;
@@ -155,7 +172,7 @@ export default function StudyWindow({
     const items: Array<{
       id: string;
       label: string;
-      icon: ElementType;
+      icon: LucideIcon;
       kind: "overview" | "notes" | "chapter" | "page";
     }> = [];
 
@@ -321,6 +338,11 @@ export default function StudyWindow({
     void loadChunks(selectedAsset.id);
   }, [loadChunks, selectedAsset?.id, selectedAsset?.status]);
 
+  // Reset chat when the assistant scope changes, or when the selected
+  // asset changes WHILE in asset scope. In notebook scope a source-pill
+  // jump swaps `selectedAssetId` so the document tab loads the right
+  // file, but the conversation context is still about the whole notebook
+  // — so we leave the messages alone.
   useEffect(() => {
     assistantAbortRef.current?.abort();
     setAssistantMessages([]);
@@ -328,7 +350,8 @@ export default function StudyWindow({
     setAssistantStreaming(false);
     setStreamingReply("");
     setStreamingSources([]);
-  }, [selectedAssetId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assistantScope, assistantScope === "asset" ? selectedAssetId : ""]);
 
   useEffect(() => {
     if (!assets.some((asset) => !["indexed", "failed", "deleted"].includes(asset.status))) {
@@ -405,9 +428,8 @@ export default function StudyWindow({
   };
 
   const handleAssistantPrompt = async (prompt: string) => {
-    if (!selectedAsset || assistantStreaming) {
-      return;
-    }
+    if (assistantStreaming) return;
+    if (assistantScope === "asset" && !selectedAsset) return;
 
     assistantAbortRef.current?.abort();
     const ac = new AbortController();
@@ -425,14 +447,24 @@ export default function StudyWindow({
     const userMessage: ChatMessage = { role: "user", content: prompt };
     setAssistantMessages((prev) => [...prev, userMessage]);
 
+    const requestBody =
+      assistantScope === "notebook"
+        ? {
+            scope: "notebook",
+            notebook_id: notebookId,
+            message: prompt,
+            history,
+          }
+        : {
+            asset_id: selectedAsset?.id,
+            message: prompt,
+            history,
+          };
+
     try {
       for await (const event of apiStream(
         "/api/v1/ai/study/ask",
-        {
-          asset_id: selectedAsset.id,
-          message: prompt,
-          history,
-        },
+        requestBody,
         ac.signal,
       )) {
         if (event.event === "message_start") {
@@ -693,6 +725,25 @@ export default function StudyWindow({
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <button
                     type="button"
+                    onClick={() => setTab("document")}
+                    disabled={!selectedAsset.data_item_id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(15, 23, 42, 0.08)",
+                      background: "#fff",
+                      cursor: selectedAsset.data_item_id ? "pointer" : "default",
+                      opacity: selectedAsset.data_item_id ? 1 : 0.55,
+                    }}
+                  >
+                    <FileText size={14} />
+                    {t("study.workspace.openDocument")}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setTab("assistant")}
                     disabled={selectedAsset.status !== "indexed"}
                     style={{
@@ -892,9 +943,83 @@ export default function StudyWindow({
       <div style={{ display: "grid", gap: 18, minHeight: 0 }}>
         {renderAssetList()}
         <div style={{ ...surfaceStyle, padding: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <MessagesSquare size={16} />
             <strong>{t("study.workspace.promptTitle")}</strong>
+          </div>
+          <div
+            role="tablist"
+            aria-label={t("study.workspace.scopeToggleLabel")}
+            style={{
+              display: "inline-flex",
+              gap: 4,
+              padding: 3,
+              borderRadius: 999,
+              background: "rgba(15, 23, 42, 0.05)",
+              marginBottom: 12,
+            }}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={assistantScope === "asset"}
+              onClick={() => setAssistantScope("asset")}
+              disabled={assistantStreaming}
+              style={{
+                padding: "5px 12px",
+                fontSize: "0.6875rem",
+                fontWeight: 600,
+                borderRadius: 999,
+                border: "none",
+                cursor: assistantStreaming ? "default" : "pointer",
+                background:
+                  assistantScope === "asset"
+                    ? "#fff"
+                    : "transparent",
+                color:
+                  assistantScope === "asset"
+                    ? "var(--console-text-primary, #0f172a)"
+                    : "var(--console-text-muted, #64748b)",
+                boxShadow:
+                  assistantScope === "asset"
+                    ? "0 2px 6px rgba(15,23,42,0.08)"
+                    : undefined,
+              }}
+              data-testid="assistant-scope-asset"
+            >
+              {t("study.workspace.scopeAsset")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={assistantScope === "notebook"}
+              onClick={() => setAssistantScope("notebook")}
+              disabled={assistantStreaming}
+              style={{
+                padding: "5px 12px",
+                fontSize: "0.6875rem",
+                fontWeight: 600,
+                borderRadius: 999,
+                border: "none",
+                cursor: assistantStreaming ? "default" : "pointer",
+                background:
+                  assistantScope === "notebook"
+                    ? "#fff"
+                    : "transparent",
+                color:
+                  assistantScope === "notebook"
+                    ? "var(--console-text-primary, #0f172a)"
+                    : "var(--console-text-muted, #64748b)",
+                boxShadow:
+                  assistantScope === "notebook"
+                    ? "0 2px 6px rgba(15,23,42,0.08)"
+                    : undefined,
+              }}
+              data-testid="assistant-scope-notebook"
+              title={t("study.workspace.scopeNotebookHint")}
+            >
+              {t("study.workspace.scopeNotebook")}
+            </button>
           </div>
           <div style={{ display: "grid", gap: 8 }}>
             {[
@@ -902,25 +1027,35 @@ export default function StudyWindow({
               "study.workspace.prompts.keyIdeas",
               "study.workspace.prompts.confusions",
               "study.workspace.prompts.memory",
-            ].map((key) => (
-              <button
-                key={key}
-                type="button"
-                disabled={!selectedAsset || selectedAsset.status !== "indexed" || assistantStreaming}
-                onClick={() => { void handleAssistantPrompt(t(key)); }}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(15, 23, 42, 0.08)",
-                  background: "#fff",
-                  cursor: selectedAsset?.status === "indexed" && !assistantStreaming ? "pointer" : "default",
-                  textAlign: "left",
-                  opacity: selectedAsset?.status === "indexed" ? 1 : 0.55,
-                }}
-              >
-                {t(key)}
-              </button>
-            ))}
+            ].map((key) => {
+              const promptDisabled =
+                assistantStreaming ||
+                (assistantScope === "asset" &&
+                  (!selectedAsset || selectedAsset.status !== "indexed")) ||
+                (assistantScope === "notebook" &&
+                  !assets.some((a) => a.status === "indexed"));
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={promptDisabled}
+                  onClick={() => {
+                    void handleAssistantPrompt(t(key));
+                  }}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
+                    background: "#fff",
+                    cursor: promptDisabled ? "default" : "pointer",
+                    textAlign: "left",
+                    opacity: promptDisabled ? 0.55 : 1,
+                  }}
+                >
+                  {t(key)}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -928,12 +1063,18 @@ export default function StudyWindow({
       <div style={{ ...surfaceStyle, padding: 18, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--console-accent, var(--console-accent, #0D9488))", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-            {t("study.workspace.assistantTitle")}
+            {assistantScope === "notebook"
+              ? t("study.workspace.scopeNotebook")
+              : t("study.workspace.assistantTitle")}
           </div>
           <div style={{ marginTop: 6, fontSize: "0.875rem", color: "var(--console-text-muted, #64748b)", lineHeight: 1.6 }}>
-            {selectedAsset
-              ? t("study.workspace.assistantBody", { title: selectedAsset.title || t("study.assets.untitled") })
-              : t("study.workspace.pickAsset")}
+            {assistantScope === "notebook"
+              ? t("study.workspace.notebookAssistantBody", {
+                  count: assets.filter((a) => a.status === "indexed").length,
+                })
+              : selectedAsset
+                ? t("study.workspace.assistantBody", { title: selectedAsset.title || t("study.assets.untitled") })
+                : t("study.workspace.pickAsset")}
           </div>
         </div>
 
@@ -975,24 +1116,91 @@ export default function StudyWindow({
               </div>
               {message.sources && message.sources.length > 0 ? (
                 <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {message.sources.slice(0, 3).map((source, sourceIndex) => (
-                    <span
-                      key={`${source.chunk_id || sourceIndex}`}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 8px",
-                        borderRadius: 999,
-                        background: "rgba(15, 23, 42, 0.06)",
-                        fontSize: "0.6875rem",
-                        color: "var(--console-text-muted, #64748b)",
-                      }}
-                    >
-                      {source.heading || t("study.workspace.source")}
-                      {source.page_number != null ? ` · p.${source.page_number}` : ""}
-                    </span>
-                  ))}
+                  {message.sources.slice(0, 4).map((source, sourceIndex) => {
+                    // Resolve the data_item_id this source belongs to —
+                    // for notebook-scope answers it can be a different
+                    // asset than the currently selected one.
+                    const sourceDataItemId =
+                      source.data_item_id ||
+                      (source.asset_id
+                        ? assets.find((a) => a.id === source.asset_id)
+                            ?.data_item_id || null
+                        : selectedAsset?.data_item_id || null);
+                    const canJump =
+                      source.page_number != null && !!sourceDataItemId;
+                    const jump = () => {
+                      if (!canJump || !sourceDataItemId) return;
+                      // If the source belongs to a different asset, swap
+                      // the selection so the document tab loads it.
+                      if (
+                        source.asset_id &&
+                        source.asset_id !== selectedAssetId
+                      ) {
+                        setSelectedAssetId(source.asset_id);
+                      }
+                      setTab("document");
+                      window.setTimeout(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("mrnote:open-pdf-page", {
+                            detail: {
+                              dataItemId: sourceDataItemId,
+                              pageNumber: source.page_number,
+                            },
+                          }),
+                        );
+                      }, 100);
+                    };
+                    const baseStyle: React.CSSProperties = {
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 8px",
+                      borderRadius: 999,
+                      background: "rgba(15, 23, 42, 0.06)",
+                      fontSize: "0.6875rem",
+                      color: "var(--console-text-muted, #64748b)",
+                      border: "none",
+                    };
+                    const label = (() => {
+                      const parts: string[] = [];
+                      if (source.asset_title) parts.push(source.asset_title);
+                      if (source.heading) parts.push(source.heading);
+                      if (parts.length === 0)
+                        parts.push(t("study.workspace.source"));
+                      return parts.join(" · ");
+                    })();
+                    if (canJump) {
+                      return (
+                        <button
+                          type="button"
+                          key={`${source.chunk_id || sourceIndex}`}
+                          onClick={jump}
+                          style={{
+                            ...baseStyle,
+                            cursor: "pointer",
+                            background: "rgba(13, 148, 136, 0.1)",
+                            color: "var(--console-accent, #0d9488)",
+                          }}
+                          data-testid="study-source-pill"
+                          title={t("study.workspace.openSource")}
+                        >
+                          {label}
+                          {` · p.${source.page_number}`}
+                        </button>
+                      );
+                    }
+                    return (
+                      <span
+                        key={`${source.chunk_id || sourceIndex}`}
+                        style={baseStyle}
+                      >
+                        {label}
+                        {source.page_number != null
+                          ? ` · p.${source.page_number}`
+                          : ""}
+                      </span>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
@@ -1034,55 +1242,160 @@ export default function StudyWindow({
         ) : null}
 
         <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-          <textarea
-            value={assistantInput}
-            onChange={(event) => setAssistantInput(event.target.value)}
-            placeholder={t("study.workspace.assistantPlaceholder")}
-            disabled={!selectedAsset || selectedAsset.status !== "indexed" || assistantStreaming}
-            rows={4}
-            style={{
-              width: "100%",
-              resize: "none",
-              borderRadius: 14,
-              border: "1px solid rgba(15, 23, 42, 0.1)",
-              padding: "12px 14px",
-              fontSize: "0.8125rem",
-              lineHeight: 1.6,
-              background: "#fff",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--console-text-muted, #64748b)" }}>
-              {selectedAsset?.status === "indexed"
-                ? t("study.workspace.assistantHint")
-                : t("study.workspace.assistantDisabled")}
-            </span>
-            <button
-              type="button"
-              onClick={() => { void handleAssistantSubmit(); }}
-              disabled={!assistantInput.trim() || !selectedAsset || selectedAsset.status !== "indexed" || assistantStreaming}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 999,
-                border: "none",
-                background: "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
-                color: "#fff",
-                cursor: "pointer",
-                opacity: !assistantInput.trim() || !selectedAsset || selectedAsset.status !== "indexed" || assistantStreaming ? 0.6 : 1,
-              }}
-            >
-              {assistantStreaming ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Sparkles size={14} />
-              )}
-              {assistantStreaming ? t("study.workspace.sending") : t("study.workspace.send")}
-            </button>
-          </div>
+          {(() => {
+            const indexedCount = assets.filter((a) => a.status === "indexed").length;
+            const ready =
+              assistantScope === "asset"
+                ? !!selectedAsset && selectedAsset.status === "indexed"
+                : indexedCount > 0;
+            const inputDisabled = !ready || assistantStreaming;
+            const hintKey = ready
+              ? assistantScope === "notebook"
+                ? "study.workspace.notebookAssistantHint"
+                : "study.workspace.assistantHint"
+              : "study.workspace.assistantDisabled";
+            return (
+              <>
+                <textarea
+                  value={assistantInput}
+                  onChange={(event) => setAssistantInput(event.target.value)}
+                  placeholder={t("study.workspace.assistantPlaceholder")}
+                  disabled={inputDisabled}
+                  rows={4}
+                  style={{
+                    width: "100%",
+                    resize: "none",
+                    borderRadius: 14,
+                    border: "1px solid rgba(15, 23, 42, 0.1)",
+                    padding: "12px 14px",
+                    fontSize: "0.8125rem",
+                    lineHeight: 1.6,
+                    background: "#fff",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--console-text-muted, #64748b)",
+                    }}
+                  >
+                    {t(hintKey, { count: indexedCount })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleAssistantSubmit();
+                    }}
+                    disabled={
+                      !assistantInput.trim() || inputDisabled
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 14px",
+                      borderRadius: 999,
+                      border: "none",
+                      background:
+                        "var(--console-cta-gradient, linear-gradient(135deg, #F97316, #EA6A0F))",
+                      color: "#fff",
+                      cursor: "pointer",
+                      opacity:
+                        !assistantInput.trim() || inputDisabled ? 0.6 : 1,
+                    }}
+                  >
+                    {assistantStreaming ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                    {assistantStreaming
+                      ? t("study.workspace.sending")
+                      : t("study.workspace.send")}
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
+      </div>
+    </div>
+  );
+
+  const renderDocumentWorkspace = () => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(260px, 0.72fr) minmax(0, 1.65fr)",
+        gap: 18,
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
+      {renderAssetList()}
+
+      <div
+        style={{
+          ...surfaceStyle,
+          display: "flex",
+          minHeight: 0,
+          overflow: "hidden",
+          padding: 0,
+        }}
+      >
+        {!selectedAsset ? (
+          <div
+            style={{
+              display: "grid",
+              flex: 1,
+              placeItems: "center",
+              color: "var(--console-text-muted, #64748b)",
+              fontSize: "0.875rem",
+            }}
+          >
+            {t("study.workspace.pickAsset")}
+          </div>
+        ) : !selectedAsset.data_item_id ? (
+          <div
+            style={{
+              display: "grid",
+              flex: 1,
+              placeItems: "center",
+              padding: 24,
+              textAlign: "center",
+              color: "var(--console-text-muted, #64748b)",
+            }}
+          >
+            <div style={{ maxWidth: 360, lineHeight: 1.7 }}>
+              <FileText size={34} strokeWidth={1.4} />
+              <h3
+                style={{
+                  margin: "12px 0 6px",
+                  color: "var(--console-text-primary, #0f172a)",
+                }}
+              >
+                {t("study.workspace.documentTitle")}
+              </h3>
+              <p style={{ margin: 0, fontSize: "0.8125rem" }}>
+                {t("study.workspace.documentUnavailable")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ReferenceDocumentWindow
+            notebookId={notebookId}
+            assetId={selectedAsset.id}
+            dataItemId={selectedAsset.data_item_id}
+          />
+        )}
       </div>
     </div>
   );
@@ -1154,6 +1467,7 @@ export default function StudyWindow({
 
       <div className="study-window__body" style={{ flex: 1, minHeight: 0 }}>
         {tab === "overview" && renderOverview()}
+        {tab === "document" && renderDocumentWorkspace()}
         {tab === "progress" && (
           <StudyProgressPanel
             notebookId={notebookId}

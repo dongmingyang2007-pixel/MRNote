@@ -17,7 +17,6 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
-  Clock3,
   Filter,
   FileText,
   Layers,
@@ -35,6 +34,7 @@ import {
 import { PageTransition } from "@/components/console/PageTransition";
 import { GlassButton } from "@/components/console/glass/GlassButton";
 import CreateNotebookDialog from "@/components/notebook/CreateNotebookDialog";
+import { Book3D } from "@/components/notebook/Book3D";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "@/hooks/use-toast";
 import { useNotebookHome } from "@/hooks/useNotebookHome";
@@ -52,20 +52,48 @@ import { dispatchNotebooksChanged } from "@/lib/notebook-events";
 import {
   formatNotebookDate,
   getNotebookHomeMetrics,
-  type NotebookCard,
 } from "@/lib/notebook-home";
 
 type NotebookFilter = "all" | NotebookType;
-type NotebookShelfId = "continue" | "sources" | "organizing" | "rest";
-
-interface NotebookShelf {
-  id: NotebookShelfId;
-  title: string;
-  body: string;
-  notebooks: NotebookCard[];
-}
 
 const notebookTypes: NotebookType[] = ["personal", "work", "study", "scratch"];
+
+const bookPalette: Record<NotebookType, {
+  baseColor: string;
+  midColor: string;
+  shadowColor: string;
+  foilColor: string;
+  bookmarkColor: string;
+}> = {
+  personal: {
+    baseColor: "#2e4a3a",
+    midColor: "#3a5847",
+    shadowColor: "#1a2a20",
+    foilColor: "#d4a85e",
+    bookmarkColor: "#b94f43",
+  },
+  work: {
+    baseColor: "#1f3a5f",
+    midColor: "#2a4870",
+    shadowColor: "#0d1a30",
+    foilColor: "#c0c4ca",
+    bookmarkColor: "#1f3a5f",
+  },
+  study: {
+    baseColor: "#6b2a2e",
+    midColor: "#823338",
+    shadowColor: "#3a1418",
+    foilColor: "#d4a85e",
+    bookmarkColor: "#2c5d3a",
+  },
+  scratch: {
+    baseColor: "#b8873e",
+    midColor: "#c89a55",
+    shadowColor: "#6b4f2a",
+    foilColor: "#5a3f1c",
+    bookmarkColor: "#5a3f1c",
+  },
+};
 
 function getKnownNotebookType(type: string): NotebookType {
   return notebookTypes.includes(type as NotebookType)
@@ -157,116 +185,6 @@ function AuthenticatedNotebooksPage() {
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       );
   }, [filter, home.notebooks, query]);
-
-  const notebookShelves = useMemo<NotebookShelf[]>(() => {
-    const claimed = new Set<string>();
-    const shelves: NotebookShelf[] = [];
-
-    const addShelf = (
-      id: NotebookShelfId,
-      notebooks: NotebookCard[],
-    ): void => {
-      const uniqueNotebooks = notebooks.filter((notebook) => {
-        if (claimed.has(notebook.id)) return false;
-        claimed.add(notebook.id);
-        return true;
-      });
-      if (!uniqueNotebooks.length) return;
-      shelves.push({
-        id,
-        title: t(`library.shelf.${id}.title`),
-        body: t(`library.shelf.${id}.body`),
-        notebooks: uniqueNotebooks,
-      });
-    };
-
-    addShelf("continue", filteredNotebooks.slice(0, 3));
-    addShelf(
-      "sources",
-      filteredNotebooks.filter((notebook) => notebook.study_asset_count > 0),
-    );
-    addShelf(
-      "organizing",
-      filteredNotebooks.filter(
-        (notebook) =>
-          notebook.page_count > 0 || notebook.ai_action_count > 0,
-      ),
-    );
-    addShelf(
-      "rest",
-      filteredNotebooks.filter((notebook) => !claimed.has(notebook.id)),
-    );
-
-    return shelves;
-  }, [filteredNotebooks, t]);
-
-  const visualNotebooks = filteredNotebooks.slice(0, 10);
-
-  const dominantType = useMemo(() => {
-    const visibleTypeCounts = notebookTypes
-      .map((type) => ({
-        type,
-        count: filteredNotebooks.filter(
-          (notebook) => notebook.notebook_type === type,
-        ).length,
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    const [dominant] = visibleTypeCounts;
-    return dominant && dominant.count > 0 ? dominant : null;
-  }, [filteredNotebooks]);
-
-  const librarySignals = useMemo(() => {
-    const recentNotebook = filteredNotebooks[0];
-    const notebooksWithSources = filteredNotebooks.filter(
-      (notebook) => notebook.study_asset_count > 0,
-    ).length;
-    const emptyNotebooks = filteredNotebooks.filter(
-      (notebook) =>
-        notebook.page_count === 0 && notebook.study_asset_count === 0,
-    ).length;
-
-    return [
-      {
-        id: "recent",
-        Icon: Clock3,
-        title: t("library.signal.recent.title"),
-        body: recentNotebook
-          ? t("library.signal.recent.body", {
-              title: recentNotebook.title || t("notebooks.untitled"),
-              date: formatNotebookDate(recentNotebook.updated_at),
-            })
-          : t("library.signal.recent.empty"),
-      },
-      {
-        id: "sources",
-        Icon: Layers,
-        title: t("library.signal.sources.title"),
-        body: t("library.signal.sources.body", {
-          count: notebooksWithSources,
-        }),
-      },
-      {
-        id: "empty",
-        Icon: BookOpen,
-        title: t("library.signal.empty.title"),
-        body: t("library.signal.empty.body", {
-          count: emptyNotebooks,
-        }),
-      },
-      {
-        id: "type",
-        Icon: Sparkles,
-        title: t("library.signal.type.title"),
-        body: dominantType
-          ? t("library.signal.type.body", {
-              type: typeLabels[dominantType.type],
-              count: dominantType.count,
-            })
-          : t("library.signal.type.empty"),
-      },
-    ];
-  }, [dominantType, filteredNotebooks, t, typeLabels]);
 
   useEffect(() => {
     return () => {
@@ -565,237 +483,153 @@ function AuthenticatedNotebooksPage() {
                 </div>
               </section>
             ) : filteredNotebooks.length > 0 ? (
-              <section className="workspace-panel workspace-list-panel notebook-library-list-panel">
-                <div className="notebook-library-shelves">
+              <section className="workspace-panel workspace-list-panel notebook-library-list-panel notebook-library-model-stage">
+                <div className="notebook-library-model-stage-header">
+                  <div>
+                    <h3>{t("library.shelvesTitle")}</h3>
+                    <p>{t("library.shelvesBody")}</p>
+                  </div>
+                  <span>{filteredNotebooks.length}</span>
+                </div>
+
+                <div className="notebook-library-book-grid notebook-library-model-grid">
                   <AnimatePresence mode="popLayout">
-                    {notebookShelves.map((shelf, shelfIndex) => (
-                      <motion.section
-                        key={shelf.id}
-                        layout
-                        className={`notebook-library-shelf is-${shelf.id}`}
-                        initial={
-                          reduceMotion
-                            ? false
-                            : { opacity: 0, y: 18, scale: 0.98 }
-                        }
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                        transition={{
-                          duration: 0.28,
-                          delay: reduceMotion ? 0 : shelfIndex * 0.04,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                      >
-                        <div className="notebook-library-shelf-header">
-                          <div>
-                            <h3>{shelf.title}</h3>
-                            <p>{shelf.body}</p>
+                    {filteredNotebooks.map((notebook, notebookIndex) => {
+                      const notebookType = getKnownNotebookType(
+                        notebook.notebook_type,
+                      );
+                      const notebookTitle =
+                        notebook.title || t("notebooks.untitled");
+                      const notebookStats = [
+                        {
+                          key: "pages",
+                          value: notebook.page_count,
+                          Icon: FileText,
+                        },
+                        {
+                          key: "assets",
+                          value: notebook.study_asset_count,
+                          Icon: Layers,
+                        },
+                        {
+                          key: "ai",
+                          value: notebook.ai_action_count,
+                          Icon: Sparkles,
+                        },
+                      ];
+                      const isOpening = openingNotebookId === notebook.id;
+
+                      return (
+                        <motion.article
+                          key={notebook.id}
+                          layout
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${t("library.openNotebook")}: ${notebookTitle}`}
+                          className={`notebook-library-book-card is-${notebookType}${
+                            isOpening ? " is-opening" : ""
+                          }`}
+                          data-testid="notebook-card"
+                          style={
+                            {
+                              "--book-index": notebookIndex,
+                              "--book-pages": Math.min(
+                                12,
+                                Math.max(3, notebook.page_count || 0),
+                              ),
+                            } as CSSProperties
+                          }
+                          onClick={() => openNotebook(notebook.id)}
+                          onKeyDown={(event) =>
+                            handleNotebookKeyDown(notebook.id, event)
+                          }
+                          initial={
+                            reduceMotion
+                              ? false
+                              : {
+                                  opacity: 0,
+                                  y: 16,
+                                  rotateX: -4,
+                                }
+                          }
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                            rotateX: 0,
+                          }}
+                          transition={{
+                            duration: 0.28,
+                            delay: reduceMotion ? 0 : notebookIndex * 0.035,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
+                        >
+                          <div className="notebook-library-book-object">
+                            <Book3D
+                              title={notebookTitle}
+                              typeLabel={typeLabels[notebookType]}
+                              isOpening={isOpening}
+                              {...bookPalette[notebookType]}
+                            />
                           </div>
-                          <span>{shelf.notebooks.length}</span>
-                        </div>
 
-                        <div className="notebook-library-book-grid">
-                          {shelf.notebooks.map((notebook, notebookIndex) => {
-                            const notebookType = getKnownNotebookType(
-                              notebook.notebook_type,
-                            );
-                            const notebookTitle =
-                              notebook.title || t("notebooks.untitled");
-                            const notebookStats = [
-                              {
-                                key: "pages",
-                                value: notebook.page_count,
-                                Icon: FileText,
-                              },
-                              {
-                                key: "assets",
-                                value: notebook.study_asset_count,
-                                Icon: Layers,
-                              },
-                              {
-                                key: "ai",
-                                value: notebook.ai_action_count,
-                                Icon: Sparkles,
-                              },
-                            ];
-                            const isOpening =
-                              openingNotebookId === notebook.id;
+                          <div className="notebook-library-book-footer">
+                            <div>
+                              <div
+                                className="notebook-library-book-stats"
+                                aria-label={t("library.rowStatsLabel")}
+                              >
+                                {notebookStats.map((stat) => (
+                                  <span key={stat.key}>
+                                    <stat.Icon size={13} aria-hidden="true" />
+                                    <strong>{stat.value}</strong>
+                                    <em>{t(`home.metrics.${stat.key}`)}</em>
+                                  </span>
+                                ))}
+                              </div>
+                              <small>
+                                {t("home.updatedAt", {
+                                  value: formatNotebookDate(
+                                    notebook.updated_at,
+                                  ),
+                                })}
+                              </small>
+                            </div>
 
-                            return (
-                              <motion.article
-                                key={notebook.id}
-                                layout
-                                role="button"
-                                tabIndex={0}
-                                aria-label={`${t("library.openNotebook")}: ${notebookTitle}`}
-                                className={`notebook-library-book-card is-${notebookType}${
-                                  isOpening ? " is-opening" : ""
-                                }`}
-                                data-testid="notebook-card"
-                                style={
-                                  {
-                                    "--book-index": notebookIndex,
-                                  } as CSSProperties
+                            <div className="notebook-library-book-actions">
+                              <button
+                                type="button"
+                                className="notebook-library-icon-button"
+                                onClick={(event) =>
+                                  void handleDelete(notebook.id, event)
                                 }
-                                onClick={() => openNotebook(notebook.id)}
-                                onKeyDown={(event) =>
-                                  handleNotebookKeyDown(notebook.id, event)
-                                }
-                                initial={
-                                  reduceMotion
-                                    ? false
-                                    : {
-                                        opacity: 0,
-                                        y: 16,
-                                        rotateX: -4,
-                                      }
-                                }
-                                animate={{
-                                  opacity: 1,
-                                  y: 0,
-                                  rotateX: 0,
-                                }}
-                                transition={{
-                                  duration: 0.28,
-                                  delay: reduceMotion
-                                    ? 0
-                                    : notebookIndex * 0.035,
-                                  ease: [0.16, 1, 0.3, 1],
+                                aria-label={t("notebooks.delete")}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="notebook-library-open-button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openNotebook(notebook.id);
                                 }}
                               >
-                                <div className="notebook-library-book-object">
-                                  <span
-                                    className="notebook-library-book-shadow"
-                                    aria-hidden="true"
-                                  />
-                                  <span
-                                    className="notebook-library-book-pages"
-                                    aria-hidden="true"
-                                  />
-                                  <div className="notebook-library-book-cover">
-                                    <span
-                                      className="notebook-library-book-spine"
-                                      aria-hidden="true"
-                                    >
-                                      <span />
-                                      <span />
-                                      <span />
-                                      <span />
-                                    </span>
-                                    <span
-                                      className="notebook-library-book-tabs"
-                                      aria-hidden="true"
-                                    >
-                                      <i />
-                                      <i />
-                                      <i />
-                                    </span>
-                                    <span
-                                      className="notebook-library-book-bookmark"
-                                      aria-hidden="true"
-                                    />
-                                    <span
-                                      className="notebook-library-book-elastic"
-                                      aria-hidden="true"
-                                    />
-
-                                    <div className="notebook-library-book-content">
-                                      <div className="notebook-library-book-topline">
-                                        <span className="notebook-library-type">
-                                          {typeLabels[notebookType]}
-                                        </span>
-                                        <span className="notebook-library-book-date">
-                                          {formatNotebookDate(
-                                            notebook.updated_at,
-                                          )}
-                                        </span>
-                                      </div>
-
-                                      <div className="notebook-library-book-copy">
-                                        <span
-                                          className="notebook-library-book-label-rule"
-                                          aria-hidden="true"
-                                        />
-                                        <h3>{notebookTitle}</h3>
-                                        <p>
-                                          {notebook.description ||
-                                            t("home.notebookFallback")}
-                                        </p>
-                                      </div>
-
-                                      <span
-                                        className="notebook-library-book-emboss"
-                                        aria-hidden="true"
-                                      >
-                                        <BookOpen
-                                          size={30}
-                                          strokeWidth={1.7}
-                                        />
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="notebook-library-book-footer">
-                                  <div>
-                                    <div
-                                      className="notebook-library-book-stats"
-                                      aria-label={t("library.rowStatsLabel")}
-                                    >
-                                      {notebookStats.map((stat) => (
-                                        <span key={stat.key}>
-                                          <stat.Icon
-                                            size={13}
-                                            aria-hidden="true"
-                                          />
-                                          <strong>{stat.value}</strong>
-                                          <em>{t(`home.metrics.${stat.key}`)}</em>
-                                        </span>
-                                      ))}
-                                    </div>
-                                    <small>
-                                      {t("home.updatedAt", {
-                                        value: formatNotebookDate(
-                                          notebook.updated_at,
-                                        ),
-                                      })}
-                                    </small>
-                                  </div>
-
-                                  <div className="notebook-library-book-actions">
-                                    <button
-                                      type="button"
-                                      className="notebook-library-icon-button"
-                                      onClick={(event) =>
-                                        void handleDelete(notebook.id, event)
-                                      }
-                                      aria-label={t("notebooks.delete")}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="notebook-library-open-button"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        openNotebook(notebook.id);
-                                      }}
-                                    >
-                                      {isOpening
-                                        ? t("library.openingNotebook")
-                                        : t("library.openNotebook")}
-                                      <ArrowRight size={15} />
-                                    </button>
-                                  </div>
-                                </div>
-                              </motion.article>
-                            );
-                          })}
-                        </div>
-                      </motion.section>
-                    ))}
+                                {isOpening
+                                  ? t("library.openingNotebook")
+                                  : t("library.openNotebook")}
+                                <ArrowRight size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.article>
+                      );
+                    })}
                   </AnimatePresence>
                 </div>
+                <div
+                  className="notebook-library-model-shelf-rail"
+                  aria-hidden="true"
+                />
               </section>
             ) : (
               <section className="workspace-panel">
@@ -819,72 +653,6 @@ function AuthenticatedNotebooksPage() {
               </section>
             )}
           </main>
-
-          <aside
-            className="notebook-library-rail"
-            aria-label={t("library.contextTitle")}
-          >
-            <section className="workspace-panel notebook-library-visual-panel">
-              <div className="workspace-panel-copy">
-                <p className="workspace-panel-kicker">
-                  {t("library.graphPreview")}
-                </p>
-                <h2>{t("library.healthTitle")}</h2>
-                <p>{t("library.healthBody")}</p>
-              </div>
-
-              <div className="notebook-library-spine-stack">
-                {visualNotebooks.length ? (
-                  visualNotebooks.map((notebook, index) => {
-                    const notebookType = getKnownNotebookType(
-                      notebook.notebook_type,
-                    );
-                    return (
-                      <button
-                        key={notebook.id}
-                        type="button"
-                        className={`notebook-library-visual-spine is-${notebookType}`}
-                        style={{ "--spine-index": index } as CSSProperties}
-                        aria-label={`${t("library.openNotebook")}: ${
-                          notebook.title || t("notebooks.untitled")
-                        }`}
-                        tabIndex={-1}
-                        onClick={() => openNotebook(notebook.id)}
-                      >
-                        <span>{notebook.title || t("notebooks.untitled")}</span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <span className="notebook-library-visual-empty" />
-                )}
-              </div>
-            </section>
-
-            <section className="workspace-panel notebook-library-signal-panel">
-              <div className="workspace-panel-copy">
-                <p className="workspace-panel-kicker">
-                  {t("library.contextKicker")}
-                </p>
-                <h2>{t("library.contextTitle")}</h2>
-                <p>{t("library.contextBody")}</p>
-              </div>
-
-              <div className="notebook-library-signal-list">
-                {librarySignals.map((signal) => (
-                  <div key={signal.id} className="notebook-library-signal">
-                    <span className="workspace-icon-badge">
-                      <signal.Icon size={15} />
-                    </span>
-                    <span>
-                      <strong>{signal.title}</strong>
-                      <small>{signal.body}</small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </aside>
         </div>
 
         <CreateNotebookDialog

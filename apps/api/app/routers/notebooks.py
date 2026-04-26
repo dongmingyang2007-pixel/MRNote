@@ -11,6 +11,7 @@ from starlette.responses import PlainTextResponse
 
 from app.core.config import settings
 from app.core.deps import (
+    can_access_workspace_conversation,
     get_current_user,
     get_current_workspace_id,
     get_db_session,
@@ -886,6 +887,16 @@ def create_page_from_conversation(
     )
     if not conversation:
         raise ApiError("not_found", "Conversation not found", status_code=404)
+    if not can_access_workspace_conversation(
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db,
+            workspace_id=workspace_id,
+            user_id=str(current_user.id),
+        ),
+        conversation_created_by=conversation.created_by,
+    ):
+        raise ApiError("not_found", "Conversation not found", status_code=404)
 
     messages = (
         db.query(Message)
@@ -1720,6 +1731,158 @@ def export_page(
 # ---------------------------------------------------------------------------
 # Page memory connections
 # ---------------------------------------------------------------------------
+
+
+@router.post("/{notebook_id}/memory/extract-from-text")
+async def extract_memory_from_selection(
+    notebook_id: str,
+    payload: dict[str, Any],
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+    _write_guard: None = Depends(require_workspace_write_access),
+    _csrf: None = Depends(require_csrf_protection),
+) -> dict:
+    """Run the memory pipeline against an arbitrary text snippet.
+
+    Used by the reference-document viewer: the user highlights a passage in
+    a PDF / Office file and asks "extract memory from this". We resolve
+    project context from the notebook and run the same UnifiedMemoryPipeline
+    that page extraction uses, so the resulting candidates land in the
+    same memory panel.
+    """
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        raise ApiError("invalid_input", "text is required", status_code=400)
+
+    notebook = (
+        db.query(Notebook)
+        .filter(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
+        .first()
+    )
+    if not notebook:
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+    if not _can_read_notebook(
+        notebook,
+        workspace_id=workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db, workspace_id=workspace_id, user_id=str(current_user.id),
+        ),
+    ):
+        raise ApiError("not_found", "Notebook not found", status_code=404)
+    if not notebook.project_id:
+        raise ApiError(
+            "no_project",
+            "Notebook is not linked to a project; memory extraction requires one.",
+            status_code=400,
+        )
+
+    source_label = str(payload.get("source_label") or "")[:200]
+    source_ref = str(payload.get("source_ref") or "")[:200]
+
+    from app.services.note_memory_bridge import extract_memory_from_text
+
+    extraction = await extract_memory_from_text(
+        db,
+        notebook_id=str(notebook.id),
+        workspace_id=str(workspace_id),
+        user_id=str(current_user.id),
+        text=text,
+        source_label=source_label,
+        source_ref=source_ref,
+    )
+    db.commit()
+    if extraction.graph_changed:
+        from app.services.memory_graph_events import bump_project_memory_graph_revision
+
+        bump_project_memory_graph_revision(
+            workspace_id=str(workspace_id), project_id=str(notebook.project_id)
+        )
+    return {
+        "run_id": extraction.run.id if extraction.run else None,
+        "status": extraction.run.status if extraction.run else "no_content",
+        "item_count": len(extraction.items or []),
+    }
+
+
+@pages_router.get("/{page_id}/highlight-references")
+def list_page_highlight_references(
+    page_id: str,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    workspace_id: str = Depends(get_current_workspace_id),
+) -> dict:
+    """Return PDF highlights that link back to this page.
+
+    Each highlight is a `pdf_highlight` annotation whose payload's
+    `links` array contains `{kind: "page", id: <page_id>}`. The query
+    crosses annotations → data_items → datasets → projects to enforce
+    workspace ownership; foreign-workspace highlights are dropped.
+    """
+    page = _get_page_or_404(
+        db,
+        page_id,
+        workspace_id,
+        current_user_id=str(current_user.id),
+        workspace_role=_get_workspace_role(
+            db, workspace_id=workspace_id, user_id=str(current_user.id),
+        ),
+    )
+    _ = page  # access-checked
+
+    from app.models import Annotation, DataItem, Dataset, Project, StudyAsset
+
+    from sqlalchemy import or_
+
+    rows = (
+        db.query(Annotation, DataItem, Dataset, Project, StudyAsset)
+        .join(DataItem, DataItem.id == Annotation.data_item_id)
+        .join(Dataset, Dataset.id == DataItem.dataset_id)
+        .join(Project, Project.id == Dataset.project_id)
+        .outerjoin(StudyAsset, StudyAsset.data_item_id == DataItem.id)
+        .filter(
+            Annotation.type == "pdf_highlight",
+            Project.workspace_id == workspace_id,
+            DataItem.deleted_at.is_(None),
+            # Allow PDF highlights without a StudyAsset (e.g. attachment
+            # highlights) but hide ones whose asset was soft-deleted, since
+            # clicking them would 404 on `/study-assets/{asset_id}`.
+            or_(StudyAsset.id.is_(None), StudyAsset.status != "deleted"),
+        )
+        .all()
+    )
+    items: list[dict[str, Any]] = []
+    for ann, item, _ds, _proj, asset in rows:
+        payload = ann.payload_json or {}
+        links = payload.get("links")
+        if not isinstance(links, list):
+            continue
+        if not any(
+            isinstance(link, dict)
+            and link.get("kind") == "page"
+            and link.get("id") == page_id
+            for link in links
+        ):
+            continue
+        items.append(
+            {
+                "annotation_id": str(ann.id),
+                "data_item_id": str(item.id),
+                "asset_id": str(asset.id) if asset else None,
+                "asset_title": (asset.title if asset else item.filename)
+                or item.filename,
+                "page": int(payload.get("page") or 0) or None,
+                "text": str(payload.get("text") or "")[:280],
+                "color": payload.get("color"),
+                "note": payload.get("note"),
+                "created_at": ann.created_at.isoformat()
+                if ann.created_at
+                else None,
+            }
+        )
+    items.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return {"items": items}
 
 
 @pages_router.post("/{page_id}/memory/extract")

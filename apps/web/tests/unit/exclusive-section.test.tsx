@@ -1,8 +1,14 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+type MockLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string;
+  children: ReactNode;
+};
+
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ href, children, ...props }: any) => (
+  Link: ({ href, children, ...props }: MockLinkProps) => (
     <a href={href} {...props}>{children}</a>
   ),
 }));

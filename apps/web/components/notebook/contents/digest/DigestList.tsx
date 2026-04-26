@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Calendar, Flag, Users } from "lucide-react";
+import { Bell, Calendar, Flag, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { apiGet } from "@/lib/api";
 
@@ -21,7 +21,7 @@ interface Props {
   onPick: (digest: Digest) => void;
 }
 
-const KIND_ICON: Record<string, React.ElementType> = {
+const KIND_ICON: Record<string, LucideIcon> = {
   daily_digest: Calendar,
   weekly_reflection: Bell,
   deviation_reminder: Flag,

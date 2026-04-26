@@ -163,6 +163,9 @@ def delete_project(
         target_type="project",
         target_id=project.id,
     )
+    project.deleted_at = datetime.now(timezone.utc)
+    project.cleanup_status = "running"
+    db.flush()
     try:
         delete_project_permanently(db, project=project)
         db.commit()

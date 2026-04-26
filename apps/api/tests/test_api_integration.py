@@ -3368,8 +3368,7 @@ def test_upload_complete_triggers_processing_and_indexing_followups(monkeypatch)
     monkeypatch.setattr(uploads_router, "index_data_item", fake_index)
 
     client = TestClient(main_module.app)
-    user_info = register_user(client, "followup@example.com", "Followup User")
-    workspace_id = user_info["workspace"]["id"]
+    register_user(client, "followup@example.com", "Followup User")
     project = create_project(client, "Followup Project")
     dataset = create_dataset(client, project["id"], "Followup Dataset")
 
@@ -3379,9 +3378,7 @@ def test_upload_complete_triggers_processing_and_indexing_followups(monkeypatch)
         item = db.get(DataItem, data_item_id)
         assert item is not None
         assert fake_process.calls == [("call", (data_item_id,))]
-        assert fake_index.calls == [
-            ("call", (workspace_id, project["id"], data_item_id, item.object_key, item.filename))
-        ]
+        assert fake_index.calls == [("call", (data_item_id,))]
 
 
 def test_upload_is_hidden_until_complete() -> None:

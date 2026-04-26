@@ -329,6 +329,35 @@ export async function apiDelete<T>(path: string): Promise<T> {
   );
 }
 
+/** Rewrite a localhost/127.0.0.1 URL to match the current window's host so
+ * proxy uploads stay same-origin. Backend `presign` builds put_url from
+ * `settings.site_url` (e.g. http://localhost:3000), but the browser may be
+ * pointing at http://127.0.0.1:3000 — different origins, so cookies and
+ * CSRF would be dropped on cross-origin PUT and the server returns 401.
+ */
+function alignToBrowserOrigin(path: string): string {
+  if (typeof window === "undefined") return path;
+  if (!path.startsWith("http://") && !path.startsWith("https://")) return path;
+  try {
+    const url = new URL(path);
+    const here = new URL(window.location.origin);
+    const localHosts = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+    if (
+      localHosts.has(url.hostname) &&
+      localHosts.has(here.hostname) &&
+      url.port === here.port &&
+      url.protocol === here.protocol &&
+      url.hostname !== here.hostname
+    ) {
+      url.hostname = here.hostname;
+      return url.toString();
+    }
+  } catch {
+    /* ignore — fall through with the original path */
+  }
+  return path;
+}
+
 export async function uploadToPresignedUrl(
   path: string,
   init: RequestInit,
@@ -337,9 +366,17 @@ export async function uploadToPresignedUrl(
   const { authenticated = false } = options;
   const apiBaseUrl = getApiBaseUrl();
   const method = (init.method || "PUT").toUpperCase();
-  const isApiUrl = path.startsWith(apiBaseUrl);
+  const aligned = alignToBrowserOrigin(path);
+  const isApiUrl = aligned.startsWith(apiBaseUrl);
+  // Same-origin uploads (typical for dev proxy mode where put_url is on
+  // site_url, not the API origin) must still carry CSRF + workspace +
+  // credentials so the proxy endpoint passes its CSRF/auth checks.
+  const isSameOrigin =
+    typeof window !== "undefined" &&
+    aligned.startsWith(window.location.origin);
+  const needsAuth = authenticated && (isApiUrl || isSameOrigin);
   const headers = new Headers(init.headers || {});
-  if (authenticated && isApiUrl) {
+  if (needsAuth) {
     const csrfToken = await ensureCsrfToken();
     const workspaceId = readWorkspaceId();
     headers.set("X-CSRF-Token", csrfToken);
@@ -347,10 +384,10 @@ export async function uploadToPresignedUrl(
       headers.set("X-Workspace-ID", workspaceId);
     }
   }
-  return fetch(path, {
+  return fetch(aligned, {
     ...init,
     method,
-    credentials: isApiUrl ? "include" : init.credentials,
+    credentials: needsAuth ? "include" : init.credentials,
     headers,
   });
 }

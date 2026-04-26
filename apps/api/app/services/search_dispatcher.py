@@ -11,7 +11,16 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.core.deps import is_workspace_privileged_role
-from app.models import AIActionLog, DataItem, Notebook, NotebookAttachment, NotebookPage, StudyAsset
+from app.models import (
+    AIActionLog,
+    DataItem,
+    Memory,
+    Notebook,
+    NotebookAttachment,
+    NotebookPage,
+    StudyAsset,
+)
+from app.services.memory_visibility import memory_visible_to_user
 from app.services.memory_v2 import (
     search_memories_lexical,
     search_memory_views_lexical,
@@ -100,11 +109,15 @@ async def search_workspace(
         jobs.append(("memory", _search_memory(
             db, workspace_id=workspace_id, project_id=resolved_project_id,
             query=query, limit=limit,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
         )))
     if "playbooks" in scopes and resolved_project_id:
         jobs.append(("playbooks", _search_playbooks(
             db, workspace_id=workspace_id, project_id=resolved_project_id,
             query=query, limit=limit,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
         )))
     if "ai_actions" in scopes:
         jobs.append(("ai_actions", _search_ai_actions(
@@ -359,6 +372,8 @@ async def _search_study_assets(
 async def _search_memory(
     db: Session, *, workspace_id: str, project_id: str,
     query: str, limit: int,
+    current_user_id: str | None = None,
+    workspace_role: str = "owner",
 ) -> list[dict[str, Any]]:
     try:
         lex_raw = search_memories_lexical(
@@ -382,7 +397,39 @@ async def _search_memory(
     for h in merged:
         if "source" not in h:
             h["source"] = "rrf"
-    return merged
+    return _filter_memory_hits_for_user(
+        db,
+        merged,
+        current_user_id=current_user_id,
+        workspace_role=workspace_role,
+    )
+
+
+def _filter_memory_hits_for_user(
+    db: Session,
+    hits: list[dict[str, Any]],
+    *,
+    current_user_id: str | None,
+    workspace_role: str,
+) -> list[dict[str, Any]]:
+    if not hits or not current_user_id:
+        return hits
+    ids = [str(hit.get("id") or hit.get("memory_id") or "") for hit in hits]
+    memories = db.query(Memory).filter(Memory.id.in_(ids)).all() if ids else []
+    visible_ids = {
+        str(memory.id)
+        for memory in memories
+        if memory_visible_to_user(
+            memory,
+            current_user_id=current_user_id,
+            workspace_role=workspace_role,
+        )
+    }
+    return [
+        hit
+        for hit in hits
+        if str(hit.get("id") or hit.get("memory_id") or "") in visible_ids
+    ]
 
 
 async def _search_files(
@@ -469,6 +516,8 @@ async def _search_files(
 async def _search_playbooks(
     db: Session, *, workspace_id: str, project_id: str,
     query: str, limit: int,
+    current_user_id: str | None = None,
+    workspace_role: str = "owner",
 ) -> list[dict[str, Any]]:
     try:
         raw = search_memory_views_lexical(
@@ -478,6 +527,30 @@ async def _search_playbooks(
     except Exception:
         logger.warning("playbooks lexical failed", exc_info=False)
         raw = []
+    if current_user_id:
+        subject_ids = [
+            str(r.get("source_subject_id") or "")
+            for r in raw
+            if r.get("source_subject_id")
+        ]
+        subjects = (
+            db.query(Memory).filter(Memory.id.in_(subject_ids)).all()
+            if subject_ids else []
+        )
+        visible_subject_ids = {
+            str(memory.id)
+            for memory in subjects
+            if memory_visible_to_user(
+                memory,
+                current_user_id=current_user_id,
+                workspace_role=workspace_role,
+            )
+        }
+        raw = [
+            r for r in raw
+            if not r.get("source_subject_id")
+            or str(r.get("source_subject_id")) in visible_subject_ids
+        ]
     # search_memory_views_lexical returns dicts with keys:
     # {view_id, source_subject_id, view_type, score, snippet}
     return [

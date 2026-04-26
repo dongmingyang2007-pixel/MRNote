@@ -40,6 +40,7 @@ celery_app.conf.task_routes = {
     "app.tasks.worker_tasks.study_asset_deck_generate_task": {"queue": "inference"},
     "app.tasks.worker_tasks.study_asset_memory_extract_task": {"queue": "inference"},
     "app.tasks.worker_tasks.study_asset_review_recommendation_task": {"queue": "memory"},
+    "app.tasks.worker_tasks.prune_document_versions_task": {"queue": "cleanup"},
     "app.tasks.worker_tasks.usage_rollup_task": {"queue": "memory"},
     "app.tasks.worker_tasks.subscription_sync_repair_task": {"queue": "memory"},
     # Homepage persona/digest upgrade (spec §2.4)
@@ -60,6 +61,12 @@ celery_app.conf.beat_schedule = {
     "purge-stale-records-daily": {
         "task": "app.tasks.worker_tasks.purge_stale_records",
         "schedule": crontab(hour=3, minute=0),
+    },
+    # Trim DocumentVersion history nightly so a power user editing
+    # large Office docs doesn't fill disk with permanent snapshots.
+    "prune-document-versions-daily": {
+        "task": "app.tasks.worker_tasks.prune_document_versions_task",
+        "schedule": crontab(hour=3, minute=30),
     },
     "memory-sleep-cycle-nightly": {
         "task": "app.tasks.worker_tasks.run_nightly_memory_sleep_cycle",
